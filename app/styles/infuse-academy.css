@@ -1,0 +1,1745 @@
+/* =========================================================================
+ * Infuse Academy theme — global stylesheet
+ *
+ * Only activates when <body> has the `theme-ia` class. MUI theme overrides
+ * (see app/mui/theme-infuse-academy.ts) handle component chrome; this file
+ * adds:
+ *   - design tokens as CSS custom properties
+ *   - signature elements (gradient text, hero, gamification bar, rings)
+ *   - 3D tilt effect on course cards
+ *   - utility classes used by the ported page templates
+ * =========================================================================
+ */
+
+body.theme-ia {
+  /* ─ Tokens ────────────────────────────────────────────────────────────── */
+  --ia-black: #0a0a0f;
+  --ia-dark: #12121a;
+  --ia-surface: #1a1a2e;
+  --ia-surface-2: #222240;
+  --ia-border: rgba(255, 255, 255, 0.08);
+
+  --ia-accent-1: #6c63ff;
+  --ia-accent-2: #ff6584;
+  --ia-accent-3: #43e97b;
+  --ia-accent-4: #38f9d7;
+  --ia-accent-5: #f7971e;
+
+  --ia-gradient-primary: linear-gradient(135deg, #6c63ff 0%, #ff6584 100%);
+  --ia-gradient-success: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  --ia-gradient-warm: linear-gradient(135deg, #f7971e 0%, #ff6584 100%);
+  --ia-gradient-cool: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --ia-gradient-hero:
+    linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 40%, #2d1b69 100%);
+
+  --ia-text: #f0f0f5;
+  --ia-text-muted: #8888a0;
+  --ia-text-dim: #55556a;
+
+  --ia-shadow-md: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --ia-shadow-lg: 0 16px 64px rgba(0, 0, 0, 0.5);
+  --ia-shadow-glow: 0 0 40px rgba(108, 99, 255, 0.3);
+
+  --ia-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ia-duration: 0.4s;
+
+  /* ─ Base ──────────────────────────────────────────────────────────────── */
+  background: var(--ia-black);
+  color: var(--ia-text);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body.theme-ia a { color: var(--ia-accent-1); transition: color var(--ia-duration) var(--ia-ease); }
+body.theme-ia a:hover { color: var(--ia-accent-2); }
+
+/* ─── Gradient text / display utilities ────────────────────────────────── */
+body.theme-ia .ia-text-gradient {
+  background: var(--ia-gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+body.theme-ia .ia-display {
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Hero ─────────────────────────────────────────────────────────────── */
+body.theme-ia .ia-hero {
+  position: relative;
+  padding: 80px 24px 64px;
+  background: var(--ia-gradient-hero);
+  overflow: hidden;
+}
+body.theme-ia .ia-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(108, 99, 255, 0.25) 0, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(255, 101, 132, 0.2) 0, transparent 50%);
+  pointer-events: none;
+}
+body.theme-ia .ia-hero__inner {
+  position: relative;
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+body.theme-ia .ia-hero__title {
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-weight: 700;
+  font-size: clamp(2.25rem, 4vw, 3.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin: 0 0 12px;
+}
+body.theme-ia .ia-hero__sub {
+  color: var(--ia-text-muted);
+  font-size: 1.125rem;
+  max-width: 640px;
+}
+/* "Browse Catalog →" CTA on the My Courses hero. MUI's default contained
+   primary button renders dark-on-primary under some theme configs, so force
+   white text for the Infuse Academy variant to guarantee contrast on the
+   purple/pink hero gradient. RadNet overrides this below with a blue label
+   on a white pill. */
+body.theme-ia .ia-hero .MuiButton-containedPrimary {
+  color: #ffffff;
+}
+body.theme-ia .ia-hero .MuiButton-containedPrimary:hover {
+  color: #ffffff;
+}
+
+/* ─── Container / section ──────────────────────────────────────────────── */
+body.theme-ia .ia-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+body.theme-ia .ia-section { padding: 64px 0; }
+body.theme-ia .ia-section--tight { padding: 32px 0; }
+
+/* ─── Gamification bar ─────────────────────────────────────────────────── */
+body.theme-ia .ia-gamification-bar {
+  margin: -48px auto 48px;
+  max-width: 1280px;
+  padding: 0 24px;
+  position: relative;
+  z-index: 2;
+}
+body.theme-ia .ia-gamification-bar__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  background: var(--ia-surface);
+  border: 1px solid var(--ia-border);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: var(--ia-shadow-md);
+}
+body.theme-ia .ia-gamification-bar__item {
+  padding: 12px 16px;
+  border-right: 1px solid var(--ia-border);
+}
+body.theme-ia .ia-gamification-bar__item:last-child { border-right: none; }
+body.theme-ia .ia-gamification-bar__label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ia-text-dim);
+  margin-bottom: 8px;
+}
+body.theme-ia .ia-gamification-bar__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--ia-text-muted);
+}
+
+body.theme-ia .ia-xp-bar {
+  height: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 100px;
+  overflow: hidden;
+  position: relative;
+}
+body.theme-ia .ia-xp-bar__fill {
+  height: 100%;
+  width: var(--xp, 0%);
+  background: var(--ia-gradient-primary);
+  border-radius: inherit;
+  box-shadow: 0 0 16px rgba(108, 99, 255, 0.6);
+  transition: width 1s var(--ia-ease);
+}
+
+body.theme-ia .ia-streak {
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+body.theme-ia .ia-streak__day {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+body.theme-ia .ia-streak__dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ia-border);
+  background: transparent;
+  transition: all var(--ia-duration) var(--ia-ease);
+}
+body.theme-ia .ia-streak__day--active .ia-streak__dot {
+  background: var(--ia-gradient-primary);
+  border-color: transparent;
+  box-shadow: 0 0 12px rgba(108, 99, 255, 0.7);
+}
+body.theme-ia .ia-streak__label {
+  font-size: 0.7rem;
+  color: var(--ia-text-dim);
+}
+
+body.theme-ia .ia-rank-badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 18px;
+  border-radius: 16px;
+  background: var(--ia-gradient-cool);
+  box-shadow: 0 8px 24px rgba(118, 75, 162, 0.35);
+}
+body.theme-ia .ia-rank-badge__icon { font-size: 1.5rem; }
+body.theme-ia .ia-rank-badge__title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  /* The rank badge background is always a strong gradient (purple in the
+     default IA theme, blue under RadNet) — white text keeps contrast
+     consistent across both variants. */
+  color: #ffffff;
+}
+
+/* ─── Stat card with progress ring ─────────────────────────────────────── */
+body.theme-ia .ia-stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+body.theme-ia .ia-stat-card {
+  background: var(--ia-surface);
+  border: 1px solid var(--ia-border);
+  border-radius: 20px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+body.theme-ia .ia-stat-card__label {
+  color: var(--ia-text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+body.theme-ia .ia-progress-ring {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  display: grid;
+  place-items: center;
+}
+body.theme-ia .ia-progress-ring__svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+body.theme-ia .ia-progress-ring__bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 4;
+}
+body.theme-ia .ia-progress-ring__fill {
+  fill: none;
+  stroke: url(#ia-ring-gradient);
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1.2s var(--ia-ease);
+}
+body.theme-ia .ia-progress-ring__text {
+  position: absolute;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-size: 1.5rem;
+}
+
+/* ─── Section heading row ──────────────────────────────────────────────── */
+body.theme-ia .ia-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+body.theme-ia .ia-section-heading h2 {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-size: 1.75rem;
+  letter-spacing: -0.015em;
+}
+body.theme-ia .ia-section-heading__aside {
+  color: var(--ia-text-muted);
+  font-size: 0.9rem;
+}
+
+/* ─── Course card grid + 3D tilt ───────────────────────────────────────── */
+body.theme-ia .ia-course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+body.theme-ia .ia-course-card {
+  background: var(--ia-surface);
+  border: 1px solid var(--ia-border);
+  border-radius: 20px;
+  overflow: hidden;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transition:
+    transform var(--ia-duration) var(--ia-ease),
+    box-shadow var(--ia-duration) var(--ia-ease),
+    border-color var(--ia-duration);
+}
+body.theme-ia .ia-course-card:hover {
+  transform: translateY(-6px) rotateX(2deg) rotateY(-2deg);
+  box-shadow: var(--ia-shadow-lg), var(--ia-shadow-glow);
+  border-color: rgba(108, 99, 255, 0.4);
+}
+body.theme-ia .ia-course-card__media {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background:
+    linear-gradient(135deg, rgba(108, 99, 255, 0.2), rgba(255, 101, 132, 0.2)),
+    var(--ia-surface-2);
+  display: grid;
+  place-items: center;
+}
+body.theme-ia .ia-course-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+body.theme-ia .ia-course-card__media--placeholder img {
+  width: 60px;
+  height: 60px;
+  opacity: 0.55;
+  filter: brightness(0) invert(1);
+}
+body.theme-ia .ia-course-card__body {
+  padding: 20px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+body.theme-ia .ia-course-card__title {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 600;
+  font-size: 1.05rem;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+body.theme-ia .ia-course-card__meta {
+  color: var(--ia-text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+body.theme-ia .ia-course-card__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+body.theme-ia .ia-course-card__status {
+  font-size: 0.75rem;
+  color: var(--ia-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ─── Badge ────────────────────────────────────────────────────────────── */
+body.theme-ia .ia-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  background: rgba(108, 99, 255, 0.15);
+  color: var(--ia-accent-1);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+body.theme-ia .ia-badge--sm { padding: 2px 8px; font-size: 0.7rem; }
+body.theme-ia .ia-badge--success {
+  background: rgba(67, 233, 123, 0.15);
+  color: var(--ia-accent-3);
+}
+
+/* ─── Catalog search + filters ─────────────────────────────────────────── */
+body.theme-ia .ia-catalog-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+body.theme-ia .ia-catalog-search {
+  flex: 1 1 320px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--ia-dark);
+  border: 1px solid var(--ia-border);
+  border-radius: 100px;
+  transition: border-color var(--ia-duration);
+}
+body.theme-ia .ia-catalog-search:focus-within {
+  border-color: var(--ia-accent-1);
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
+}
+body.theme-ia .ia-catalog-search input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--ia-text);
+  font-size: 0.95rem;
+  width: 100%;
+  font-family: inherit;
+}
+
+/* ─── Header (app-level) ───────────────────────────────────────────────── */
+body.theme-ia .ia-header {
+  background: rgba(10, 10, 15, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--ia-border);
+}
+body.theme-ia .ia-header__logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+body.theme-ia .ia-header__logo-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--ia-gradient-primary);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.85rem;
+  box-shadow: 0 6px 20px rgba(108, 99, 255, 0.4);
+}
+body.theme-ia .ia-header__nav-link {
+  position: relative;
+  padding: 6px 2px;
+  color: var(--ia-text-muted);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: color var(--ia-duration);
+}
+body.theme-ia .ia-header__nav-link:hover { color: var(--ia-text); }
+body.theme-ia .ia-header__nav-link--active { color: var(--ia-text); }
+body.theme-ia .ia-header__nav-link--active::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -4px;
+  height: 2px;
+  background: var(--ia-gradient-primary);
+  border-radius: 2px;
+}
+
+/* ─── Landing card ─────────────────────────────────────────────────────── */
+body.theme-ia .ia-landing-card {
+  background: var(--ia-surface);
+  border: 1px solid var(--ia-border);
+  border-radius: 28px;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: transform var(--ia-duration), box-shadow var(--ia-duration), border-color var(--ia-duration);
+}
+body.theme-ia .ia-landing-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--ia-shadow-glow);
+  border-color: rgba(108, 99, 255, 0.35);
+}
+body.theme-ia .ia-landing-card__icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--ia-gradient-primary);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(108, 99, 255, 0.4);
+}
+
+/* ─── Animation helper ─────────────────────────────────────────────────── */
+@keyframes ia-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+body.theme-ia .ia-animate { animation: ia-rise 0.6s var(--ia-ease) both; }
+
+/* =========================================================================
+ * Learning Hub page — ported from wordpress-theme learning-hub.php
+ * ========================================================================= */
+
+body.theme-ia .hub-hero {
+  position: relative;
+  background: var(--ia-gradient-hero);
+  padding: 64px 0 40px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--ia-border);
+}
+body.theme-ia .hub-hero__bg-dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(108, 99, 255, 0.07) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+}
+body.theme-ia .hub-hero__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 1;
+}
+body.theme-ia .hub-hero__left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+body.theme-ia .hub-hero__avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--ia-gradient-primary);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 4px rgba(108, 99, 255, 0.2), var(--ia-shadow-md);
+}
+body.theme-ia .hub-hero__avatar-letter {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 30px;
+  font-weight: 800;
+  color: #fff;
+}
+body.theme-ia .hub-hero__greeting {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ia-text-muted);
+  margin: 0 0 2px;
+  letter-spacing: 0.5px;
+}
+body.theme-ia .hub-hero__name {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(26px, 4vw, 38px);
+  font-weight: 800;
+  background: var(--ia-gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0 0 4px;
+  line-height: 1.2;
+}
+body.theme-ia .hub-hero__tagline {
+  font-size: 14px;
+  color: var(--ia-text-dim);
+  margin: 0;
+}
+body.theme-ia .hub-hero__date {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ia-text-dim);
+  text-align: right;
+  white-space: nowrap;
+}
+
+body.theme-ia .hub-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin: -28px 0 0;
+  position: relative;
+  z-index: 2;
+}
+body.theme-ia .hub-stat {
+  background: var(--ia-surface);
+  border: 1px solid var(--ia-border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+body.theme-ia .hub-stat:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--ia-shadow-md);
+}
+body.theme-ia .hub-stat__ring-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+body.theme-ia .hub-stat__ring-val {
+  position: absolute;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+}
+body.theme-ia .hub-stat__ring-val small { font-size: 12px; font-weight: 600; }
+body.theme-ia .hub-stat__label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--ia-text-dim);
+}
+
+body.theme-ia .hub-section { margin-top: 40px; }
+body.theme-ia .hub-section__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+body.theme-ia .hub-section__title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--ia-text);
+  margin: 0;
+}
+body.theme-ia .hub-section__sub {
+  font-size: 14px;
+  color: var(--ia-text-dim);
+  margin: 4px 0 0;
+}
+
+body.theme-ia .hub-filter { display: flex; gap: 6px; flex-wrap: wrap; }
+body.theme-ia .hub-filter__btn {
+  background: var(--ia-surface);
+  border: 1px solid var(--ia-border);
+  color: var(--ia-text-muted);
+  padding: 6px 16px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+body.theme-ia .hub-filter__btn:hover { border-color: var(--ia-accent-1); color: var(--ia-text); }
+body.theme-ia .hub-filter__btn--active {
+  background: var(--ia-gradient-primary);
+  border-color: transparent;
+  color: #fff;
+}
+
+body.theme-ia .hub-featured__card {
+  display: flex;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--ia-surface);
+  border: 1px solid var(--ia-border);
+  transition: box-shadow 0.3s ease;
+}
+body.theme-ia .hub-featured__card:hover { box-shadow: 0 8px 40px rgba(108, 99, 255, 0.15); }
+body.theme-ia .hub-featured__left {
+  flex: 2;
+  position: relative;
+  min-height: 220px;
+  background: var(--ia-surface-2);
+  overflow: hidden;
+}
+body.theme-ia .hub-featured__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  inset: 0;
+}
+body.theme-ia .hub-featured__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(10, 10, 15, 0) 0%, rgba(10, 10, 15, 0.85) 100%);
+}
+body.theme-ia .hub-featured__content {
+  position: relative;
+  z-index: 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
+  box-sizing: border-box;
+}
+body.theme-ia .hub-featured__badge {
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: rgba(108, 99, 255, 0.2);
+  color: var(--ia-accent-1);
+  padding: 4px 12px;
+  border-radius: 100px;
+  margin-bottom: 12px;
+}
+body.theme-ia .hub-featured__title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 6px;
+}
+body.theme-ia .hub-featured__desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+body.theme-ia .hub-featured__meta {
+  font-size: 11px;
+  color: var(--ia-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+body.theme-ia .hub-featured__right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 24px;
+  min-width: 200px;
+}
+body.theme-ia .hub-featured__ring-wrap { position: relative; display: grid; place-items: center; }
+body.theme-ia .hub-featured__ring-pct {
+  position: absolute;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  color: #fff;
+}
+body.theme-ia .hub-featured__resume {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--ia-gradient-primary);
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 100px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+body.theme-ia .hub-featured__resume:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 20px rgba(108, 99, 255, 0.4);
+}
+
+body.theme-ia .hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+body.theme-ia .hub-card {
+  background: var(--ia-surface);
+  border: 1px solid var(--ia-border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.25s ease;
+  display: flex;
+  flex-direction: column;
+}
+body.theme-ia .hub-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  border-color: rgba(108, 99, 255, 0.2);
+}
+body.theme-ia .hub-card__img {
+  height: 160px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--ia-surface-2);
+  display: grid;
+  place-items: center;
+}
+body.theme-ia .hub-card__img-placeholder {
+  width: 60px;
+  height: 60px;
+  opacity: 0.55;
+  filter: brightness(0) invert(1);
+}
+body.theme-ia .hub-card__body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+body.theme-ia .hub-card__status {
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 100px;
+  margin-bottom: 8px;
+}
+body.theme-ia .hub-card__status--done { background: rgba(67, 233, 123, 0.12); color: var(--ia-accent-3); }
+body.theme-ia .hub-card__status--progress { background: rgba(108, 99, 255, 0.12); color: var(--ia-accent-1); }
+body.theme-ia .hub-card__status--new { background: rgba(255, 255, 255, 0.05); color: var(--ia-text-dim); }
+body.theme-ia .hub-card__title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ia-text);
+  margin: 0 0 6px;
+  line-height: 1.3;
+}
+body.theme-ia .hub-card__desc {
+  font-size: 13px;
+  color: var(--ia-text-muted);
+  margin: 0 0 12px;
+  line-height: 1.5;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+body.theme-ia .hub-card__progress {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+body.theme-ia .hub-card__progress-bar {
+  height: 100%;
+  background: var(--ia-gradient-primary);
+  border-radius: 2px;
+  transition: width 1s ease;
+}
+body.theme-ia .hub-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+body.theme-ia .hub-card__pct { font-size: 12px; font-weight: 600; color: var(--ia-text-dim); }
+body.theme-ia .hub-card__open,
+body.theme-ia .hub-card__enroll {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 18px;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: auto;
+  border: 1px solid transparent;
+}
+body.theme-ia .hub-card__open {
+  background: var(--ia-gradient-primary);
+  color: #fff;
+}
+body.theme-ia .hub-card__open:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(108, 99, 255, 0.3);
+}
+body.theme-ia .hub-card__enroll {
+  background: var(--ia-surface-2);
+  border-color: var(--ia-border);
+  color: var(--ia-text);
+}
+body.theme-ia .hub-card__enroll:hover {
+  border-color: var(--ia-accent-1);
+  background: rgba(108, 99, 255, 0.1);
+}
+body.theme-ia .hub-card__enroll--done {
+  border-color: rgba(67, 233, 123, 0.3);
+  color: var(--ia-accent-3);
+  /* Stay interactive — completed courses should still open the player so
+     learners can review the content. */
+}
+body.theme-ia .hub-card__enroll--done:hover {
+  background: rgba(67, 233, 123, 0.1);
+  border-color: var(--ia-accent-3);
+}
+
+body.theme-ia .hub-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--ia-surface);
+  border: 1px solid var(--ia-border);
+  border-radius: 12px;
+  padding: 24px;
+}
+body.theme-ia .hub-pbar__label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+body.theme-ia .hub-pbar__name { font-size: 14px; font-weight: 600; color: var(--ia-text); }
+body.theme-ia .hub-pbar__pct {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--ia-text-muted);
+}
+body.theme-ia .hub-pbar__track {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  overflow: hidden;
+}
+body.theme-ia .hub-pbar__fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+body.theme-ia .hub-pbar__fill--progress { background: var(--ia-gradient-primary); }
+body.theme-ia .hub-pbar__fill--done { background: var(--ia-gradient-success); }
+
+/* ─── Clickable progress breakdown bars ───────────────────────────────── */
+body.theme-ia .hub-pbar {
+  all: unset;
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+}
+body.theme-ia .hub-pbar:hover,
+body.theme-ia .hub-pbar:focus-visible {
+  background-color: rgba(108, 99, 255, 0.08);
+  outline: none;
+}
+
+/* ─── News & Announcements ────────────────────────────────────────────── */
+body.theme-ia .hub-news {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+body.theme-ia .hub-news-card {
+  all: unset;
+  box-sizing: border-box;
+  background: var(--ia-surface);
+  border: 1px solid var(--ia-border);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s;
+}
+body.theme-ia .hub-news-card:hover,
+body.theme-ia .hub-news-card:focus-visible {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  border-color: rgba(108, 99, 255, 0.2);
+}
+body.theme-ia .hub-news-card__img {
+  height: 170px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--ia-surface-2);
+  display: grid;
+  place-items: center;
+}
+body.theme-ia .hub-news-card__img-placeholder {
+  width: 40px;
+  height: 40px;
+  opacity: 0.5;
+}
+body.theme-ia .hub-news-card__body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+body.theme-ia .hub-news-card__top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+body.theme-ia .hub-news-card__badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 100px;
+}
+body.theme-ia .hub-news-card__badge--new {
+  background: rgba(108, 99, 255, 0.15);
+  color: var(--ia-accent-1);
+}
+body.theme-ia .hub-news-card__badge--read {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ia-text-dim);
+}
+body.theme-ia .hub-news-card__date {
+  font-size: 11px;
+  color: var(--ia-text-dim);
+  font-weight: 500;
+}
+body.theme-ia .hub-news-card__title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ia-text);
+  margin: 0 0 8px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+body.theme-ia .hub-news-card__desc {
+  font-size: 13px;
+  color: var(--ia-text-muted);
+  line-height: 1.5;
+  margin: 0 0 14px;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+body.theme-ia .hub-news-card__author-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ia-border);
+}
+body.theme-ia .hub-news-card__author-avatar,
+body.theme-ia .hub-news-card__author-initial {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+body.theme-ia .hub-news-card__author-avatar { object-fit: cover; }
+body.theme-ia .hub-news-card__author-initial {
+  background: var(--ia-gradient-cool);
+  display: grid;
+  place-items: center;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+}
+body.theme-ia .hub-news-card__author-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ia-text-muted);
+}
+
+@media (max-width: 900px) {
+  body.theme-ia .hub-stats { grid-template-columns: repeat(2, 1fr); }
+  body.theme-ia .hub-featured__card { flex-direction: column; }
+  body.theme-ia .hub-featured__left { min-height: 180px; }
+  body.theme-ia .hub-featured__right { min-width: auto; }
+}
+@media (max-width: 640px) {
+  body.theme-ia .hub-hero__inner { flex-direction: column; align-items: flex-start; gap: 12px; }
+  body.theme-ia .hub-hero__date { text-align: left; }
+  body.theme-ia .hub-stats { grid-template-columns: repeat(2, 1fr); margin-top: -16px; }
+  body.theme-ia .hub-section__header { flex-direction: column; align-items: flex-start; }
+  body.theme-ia .hub-grid { grid-template-columns: 1fr; }
+  body.theme-ia .hub-news { grid-template-columns: 1fr; }
+}
+
+/* =========================================================================
+ * RadNet variant — overrides applied on top of the Infuse Academy layout
+ *
+ * Body carries BOTH `.theme-ia` and `.theme-radnet` when active, so every
+ * IA layout rule still fires. This block only redefines the color tokens
+ * and the few bespoke surfaces where RadNet's brand should read distinctly.
+ * Palette sourced from radnet.com CSS custom properties:
+ *   corporate red #851f1e  |  bright red #c82030  |  deep navy #233666
+ *   sky blue     #0e78be   |  dark gray #706f70   |  light gray #d6d7d7
+ * ========================================================================= */
+
+body.theme-radnet {
+  /* ── Palette ──────────────────────────────────────────────────────────
+     Flip to light mode. The IA layout rules still consume the same --ia-*
+     variables; redefining them switches the whole surface without touching
+     individual components. Corporate red + navy/sky blue accents mirror
+     radnet.com. */
+  --ia-black: #ffffff;       /* page background */
+  --ia-dark: #f4f4f5;        /* secondary surfaces (search input, subtle fills) */
+  --ia-surface: #ffffff;     /* card surface */
+  --ia-surface-2: #f7f8fa;   /* tertiary surface */
+  --ia-border: rgba(0, 0, 0, 0.1);
+
+  --ia-accent-1: #c82030; /* bright red (primary) */
+  --ia-accent-2: #0e78be; /* sky blue  (secondary) */
+  --ia-accent-3: #2d9c5d; /* forest green for completed states */
+  --ia-accent-4: #4f9dd1; /* lighter blue */
+  --ia-accent-5: #cc8400; /* amber */
+
+  --ia-text: #212529;        /* ← matches radnet.com body text */
+  --ia-text-muted: #706f70;  /* ← radnet-dark-gray */
+  --ia-text-dim: #9a9a9a;
+
+  --ia-gradient-primary: linear-gradient(135deg, #c82030 0%, #851f1e 100%);
+  --ia-gradient-success: linear-gradient(135deg, #2d9c5d 0%, #4ab98e 100%);
+  --ia-gradient-warm:    linear-gradient(135deg, #cc8400 0%, #c82030 100%);
+  --ia-gradient-cool:    linear-gradient(135deg, #0e78be 0%, #233666 100%);
+  /* Hero keeps a dark red banner (like radnet.com's image banner) so the
+     large white headline has contrast against the rest of the light page. */
+  --ia-gradient-hero:
+    linear-gradient(135deg, #1a0e0e 0%, #3c0e0e 45%, #851f1e 100%);
+
+  /* Subtle shadows in light mode — no neon glows. */
+  --ia-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --ia-shadow-md: 0 6px 20px rgba(0, 0, 0, 0.08);
+  --ia-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.12);
+  --ia-shadow-glow: 0 0 24px rgba(200, 32, 48, 0.18);
+}
+
+/* ── Body-level light-mode overrides ─────────────────────────────────── */
+body.theme-radnet {
+  /* Warm off-white (matches the cream/tan paper feel of radnet.com) with a
+     very subtle diagonal crosshatch echoing their texture overlay. The SVG
+     is inlined as a data-URI so no asset fetch is needed. */
+  background-color: #f6f1e9;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M0 12 L12 0' stroke='rgba(133,31,30,0.03)' stroke-width='1' /><path d='M-3 3 L3 -3 M9 15 L15 9' stroke='rgba(35,54,102,0.03)' stroke-width='1' /></svg>");
+  color: var(--ia-text);
+}
+
+/* ── Header: frosted white instead of frosted black, twice as tall,
+     nav styling tuned to match radnet.com (gray text, no gradient
+     underline, clean Open-Sans look). ──────────────────────────────── */
+body.theme-radnet .ia-header {
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+/* Two-row header layout for RadNet:
+   - Top row (corporate nav)   — 72px
+   - Bottom row (app + tools)  — 72px
+   Total 144px. Added via JSX in header.component.tsx. */
+body.theme-radnet .ia-header__nav-link {
+  font-family: "Open Sans", "Inter", sans-serif;
+  font-weight: 500;
+  font-size: 1rem;
+  color: #595959;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 10px 4px;
+}
+body.theme-radnet .ia-header__nav-link:hover { color: var(--ia-accent-1); }
+body.theme-radnet .ia-header__nav-link--active {
+  color: var(--ia-accent-1);
+  font-weight: 600;
+}
+/* Swap the gradient underline for a simpler red bar to echo radnet.com */
+body.theme-radnet .ia-header__nav-link--active::after {
+  background: var(--ia-accent-1);
+  height: 2px;
+  bottom: -8px;
+}
+
+/* The Learning Hub hero previously had marginTop: 72 inline to clear the
+   fixed header. With RadNet's 144px header that gap needs to double.
+   We bump the top-offset specifically on RadNet. */
+body.theme-radnet .hub-hero,
+body.theme-radnet .ia-hero {
+  margin-top: 144px !important;
+}
+
+/* ── Hero banner (used by My Courses + Catalog): swap the dark IA gradient
+     for the same RadNet home-banner-bg + blue/purple marketing gradient the
+     Learning Hub uses, so all three top banners share one visual language.
+     The Learning Hub has its own .hub-hero override below — this one covers
+     every OTHER page that renders .ia-hero. ───────────────────────────── */
+body.theme-radnet .ia-hero {
+  background-image:
+    url("https://www.radnet.com/files/corporate/assets/home/home-banner-bg.webp"),
+    linear-gradient(
+      92deg,
+      #c91a5a 0%,
+      #9124b8 28%,
+      #4c2ac4 48%,
+      #2a56d6 65%,
+      #18216d 100%
+    );
+  background-color: #18216d;
+  background-size: cover, auto;
+  background-position: center, center;
+  background-repeat: no-repeat;
+}
+/* Tone the existing radial glow layer so it reads with the new banner tint
+   rather than against the old navy IA base. */
+body.theme-radnet .ia-hero::before {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(200, 32, 48, 0.22) 0, transparent 55%),
+    radial-gradient(circle at 80% 70%, rgba(14, 120, 190, 0.22) 0, transparent 55%);
+}
+body.theme-radnet .ia-hero__title { color: #ffffff; }
+body.theme-radnet .ia-hero__sub { color: #ffffff; opacity: 0.9; }
+/* Gradient-text headline inside the hero should also force to white so it
+   reads cleanly on the banner. */
+body.theme-radnet .ia-hero .ia-text-gradient {
+  background: none;
+  -webkit-text-fill-color: #ffffff;
+  color: #ffffff;
+}
+/* The "Browse Catalog →" CTA lives on the hero banner (My Courses). For
+   the RadNet variant we keep the white pill but switch the label color to
+   the RadNet sky-blue accent (--ia-accent-2) so the CTA echoes the blue
+   half of the banner gradient rather than doubling up on the red. */
+body.theme-radnet .ia-hero .MuiButton-containedPrimary {
+  background: #ffffff;
+  color: var(--ia-accent-2);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+body.theme-radnet .ia-hero .MuiButton-containedPrimary:hover {
+  background: #ffffff;
+  /* Slightly darker sky-blue on hover (matches radnet.com link hover). */
+  color: #0a5f97;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+}
+
+/* The hub-hero name uses gradient text — make sure it stays white-ish on the
+   dark banner (gradient clip already handles it via --ia-gradient-primary). */
+body.theme-radnet .hub-hero__greeting { color: rgba(255, 255, 255, 0.75); }
+body.theme-radnet .hub-hero__tagline { color: rgba(255, 255, 255, 0.6); }
+body.theme-radnet .hub-hero__date { color: rgba(255, 255, 255, 0.65); }
+
+/* ── Tracks / fills that used white alphas for dark mode ─────────────── */
+body.theme-radnet .ia-xp-bar { background: rgba(0, 0, 0, 0.06); }
+body.theme-radnet .ia-xp-bar__fill {
+  box-shadow: 0 0 12px rgba(200, 32, 48, 0.35);
+}
+body.theme-radnet .ia-streak__dot { border-color: rgba(0, 0, 0, 0.15); }
+body.theme-radnet .ia-streak__day--active .ia-streak__dot {
+  box-shadow: 0 0 8px rgba(200, 32, 48, 0.35);
+}
+
+/* ── Cards: white with a crisp hairline border ──────────────────────── */
+body.theme-radnet .ia-course-card,
+body.theme-radnet .hub-card,
+body.theme-radnet .hub-news-card,
+body.theme-radnet .ia-landing-card,
+body.theme-radnet .ia-gamification-bar__grid,
+body.theme-radnet .hub-stat,
+body.theme-radnet .ia-stat-card,
+body.theme-radnet .hub-bars,
+body.theme-radnet .hub-featured__card {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+body.theme-radnet .ia-gamification-bar__item {
+  border-right-color: rgba(0, 0, 0, 0.08);
+}
+body.theme-radnet .ia-course-card:hover {
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(200, 32, 48, 0.2);
+  border-color: rgba(200, 32, 48, 0.25);
+}
+body.theme-radnet .hub-card:hover {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  border-color: rgba(200, 32, 48, 0.2);
+}
+body.theme-radnet .hub-news-card:hover,
+body.theme-radnet .hub-news-card:focus-visible {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  border-color: rgba(200, 32, 48, 0.2);
+}
+body.theme-radnet .hub-featured__card:hover {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+}
+
+/* Course-card media placeholder was inverted for dark mode — darken for light */
+body.theme-radnet .ia-course-card__media {
+  background:
+    linear-gradient(135deg, rgba(200, 32, 48, 0.08), rgba(14, 120, 190, 0.08)),
+    var(--ia-surface-2);
+}
+body.theme-radnet .ia-course-card__media--placeholder img {
+  filter: none;
+  opacity: 0.35;
+}
+body.theme-radnet .hub-card__img { background-color: var(--ia-surface-2); }
+body.theme-radnet .hub-card__img-placeholder {
+  filter: none;
+  opacity: 0.35;
+}
+
+/* Card inner progress bar (My Courses card) needs light track */
+body.theme-radnet .hub-card__progress { background: rgba(0, 0, 0, 0.06); }
+body.theme-radnet .hub-pbar__track { background: rgba(0, 0, 0, 0.05); }
+body.theme-radnet .hub-pbar:hover,
+body.theme-radnet .hub-pbar:focus-visible {
+  background-color: rgba(200, 32, 48, 0.06);
+}
+
+/* Progress ring background circle (SVG) uses a rgba currentColor in dark mode.
+   We target the specific background <circle> by the class we set. */
+body.theme-radnet .ia-progress-ring__bg { stroke: rgba(0, 0, 0, 0.08); }
+
+/* ── Catalog search pill ─────────────────────────────────────────────── */
+body.theme-radnet .ia-catalog-search {
+  background: var(--ia-surface-2);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+body.theme-radnet .ia-catalog-search:focus-within {
+  border-color: var(--ia-accent-1);
+  box-shadow: 0 0 0 3px rgba(200, 32, 48, 0.12);
+}
+body.theme-radnet .ia-catalog-search input { color: var(--ia-text); }
+
+/* ── Filter pills (hub) ──────────────────────────────────────────────── */
+body.theme-radnet .hub-filter__btn {
+  background: var(--ia-surface-2);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--ia-text-muted);
+}
+body.theme-radnet .hub-filter__btn:hover {
+  border-color: var(--ia-accent-1);
+  color: var(--ia-text);
+}
+body.theme-radnet .hub-filter__btn--active {
+  background: var(--ia-gradient-primary);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+/* ── Status / badges ─────────────────────────────────────────────────── */
+body.theme-radnet .ia-badge,
+body.theme-radnet .hub-card__status--progress {
+  background: rgba(200, 32, 48, 0.1);
+  color: var(--ia-accent-1);
+}
+body.theme-radnet .hub-card__status--new {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--ia-text-dim);
+}
+body.theme-radnet .hub-news-card__badge--new {
+  background: rgba(200, 32, 48, 0.1);
+  color: var(--ia-accent-1);
+}
+body.theme-radnet .hub-news-card__badge--read {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--ia-text-dim);
+}
+
+/* ── Stat cards / rings backgrounds ──────────────────────────────────── */
+body.theme-radnet .hub-stat__ring-val { color: var(--ia-text); }
+
+/* ── Rank badge shadow ───────────────────────────────────────────────── */
+body.theme-radnet .ia-rank-badge {
+  box-shadow: 0 4px 16px rgba(35, 54, 102, 0.25);
+}
+
+/* ── Header logo mark shadow (red pill behind the custom logo) ───────── */
+body.theme-radnet .ia-header__logo-mark {
+  box-shadow: 0 4px 12px rgba(200, 32, 48, 0.35);
+}
+
+/* ── Learning Hub news-article dialog reset for light background ─────── */
+body.theme-radnet .hub-featured__overlay {
+  /* Overlay sits on a course image behind the featured card content. Keep it
+     dark so the white text on top still has contrast. */
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.75) 100%);
+}
+
+/* ── Progress-bar fills: use the gradient vars so they become red/blue ─ */
+body.theme-radnet .hub-pbar__fill--progress { background: var(--ia-gradient-primary); }
+
+/* ── Header RadNet logo image replaces the square text mark ──────────── */
+body.theme-radnet .ia-header__logo--image .ia-header__logo-mark {
+  display: none;
+}
+/* Hide the RadNet-only logo nodes under the plain IA variant. Both rules
+   MUST come before the theme-radnet overrides below, so that for a body
+   carrying BOTH `theme-ia` AND `theme-radnet` classes the more-specific
+   `:not(.theme-radnet)` doesn't match and the theme-radnet rules win. */
+body.theme-ia:not(.theme-radnet) .ia-header__logo-img { display: none; }
+body.theme-ia:not(.theme-radnet) .ia-header__logo-radnet-svg { display: none; }
+
+/* RadNet logo display — larger than the 34px stub because the bottom band
+   is now 96px tall. */
+body.theme-radnet .ia-header__logo-img {
+  display: block;
+  height: 56px;
+  width: auto;
+  object-fit: contain;
+}
+body.theme-radnet .ia-header__logo-radnet-svg {
+  display: block;
+  height: 56px;
+  width: auto;
+}
+
+/* ── Learning Hub top banner: RadNet's actual home-banner-bg.webp, with
+     a CSS gradient fallback beneath it in case the network fetch fails.
+     Layered: image on top, gradient below; if the image 404s the browser
+     keeps rendering the lower layers. ─────────────────────────────────── */
+body.theme-radnet .hub-hero {
+  min-height: 540px;
+  display: flex;
+  align-items: center;
+
+  background-image:
+    url("https://www.radnet.com/files/corporate/assets/home/home-banner-bg.webp"),
+    linear-gradient(
+      92deg,
+      #c91a5a 0%,
+      #9124b8 28%,
+      #4c2ac4 48%,
+      #2a56d6 65%,
+      #18216d 100%
+    );
+  background-color: #18216d;
+  background-size: cover, auto;
+  background-position: center, center;
+  background-repeat: no-repeat;
+}
+body.theme-radnet .hub-hero__inner {
+  width: 100%;
+}
+body.theme-radnet .hub-hero__bg-dots { display: none; }
+
+/* Banner text: full white for readability on the blue gradient. */
+body.theme-radnet .hub-hero__greeting {
+  color: #ffffff;
+  opacity: 0.9;
+}
+body.theme-radnet .hub-hero__tagline {
+  color: #ffffff;
+  opacity: 0.8;
+}
+body.theme-radnet .hub-hero__date {
+  color: #ffffff;
+  opacity: 0.8;
+}
+/* The name uses gradient-text clip that maps to --ia-accent-1/2 which are
+   red/sky-blue in RadNet. Plain white reads cleaner on the blue banner. */
+body.theme-radnet .hub-hero__name {
+  color: #ffffff;
+  background: none;
+  -webkit-text-fill-color: #ffffff;
+}
+
+/* Hide the initial-avatar on the banner entirely in the RadNet hero — the
+   greeting text carries enough identity on its own, and the avatar chrome
+   fights with the tagline for visual weight. */
+body.theme-radnet .hub-hero__avatar {
+  display: none;
+}
+
+/* ─ RadNet hero layout: greeting row pinned to the top, tagline
+     vertically centered in the remaining banner space. ────────────────── */
+body.theme-radnet .hub-hero {
+  flex-direction: column;
+  justify-content: flex-start;  /* top row anchors to the top */
+  align-items: stretch;
+  padding-top: 28px;
+  padding-bottom: 28px;
+  gap: 0;
+}
+body.theme-radnet .hub-hero__inner {
+  /* Break out of the 1280px ia-container so the greeting anchors to the
+     far left edge of the banner and the date to the far right, matching
+     corporate marketing hero layouts. */
+  max-width: none;
+  width: 100%;
+  padding-left: 32px;
+  padding-right: 32px;
+  align-items: flex-start;
+}
+/* The tagline fills the remaining vertical space and centers its content
+   inside that space — horizontally + vertically. */
+body.theme-radnet .hub-hero__radnet-tagline {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  text-align: center;
+  font-family: "Open Sans", "Inter", sans-serif;
+  line-height: 1.1;
+  color: #ffffff;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.25);
+  padding: 16px 24px 0;
+}
+body.theme-radnet .hub-hero__radnet-tagline-light {
+  display: block;
+  font-weight: 300;
+  font-size: clamp(1.75rem, 4.5vw, 3.25rem);
+  letter-spacing: 0.005em;
+}
+body.theme-radnet .hub-hero__radnet-tagline-bold {
+  display: block;
+  font-weight: 800;
+  font-size: clamp(2.25rem, 5.5vw, 3.75rem);
+  letter-spacing: -0.005em;
+  margin-top: 6px;
+}
+
+/* ── Continue Learning ring percentage: fix invisible white-on-white ──── */
+body.theme-radnet .hub-featured__ring-pct {
+  color: var(--ia-text);
+}
+
+/* ── RadNet Investor Day banner ─────────────────────────────────────────
+   Wide blue bar with outlined uppercase headline and a white "Webcast
+   Replay" link. Sits between the Quick Stats strip and Continue Learning
+   on the Learning Hub, only rendered under the RadNet theme. */
+body.theme-radnet .rn-investor-banner {
+  margin: 40px auto 0;
+  max-width: 1280px;
+  background: #197ec1; /* radnet-blue-500 */
+  padding: 28px 32px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  color: #ffffff;
+  /* Subtle stretched-film border echoing the site's actual banner edges */
+  border-top: 2px solid rgba(255, 255, 255, 0.3);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+}
+body.theme-radnet .rn-investor-banner__title {
+  font-family: "Open Sans", "Inter", sans-serif;
+  font-weight: 700;
+  font-size: clamp(1.1rem, 2.2vw, 1.85rem);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  /* Outlined white letters (matches the reference). Fallback color for
+     browsers that don't support text-stroke. */
+  color: rgba(255, 255, 255, 0.92);
+  -webkit-text-stroke: 1.25px #ffffff;
+  text-stroke: 1.25px #ffffff;
+  -webkit-text-fill-color: transparent;
+  margin: 0;
+}
+body.theme-radnet .rn-investor-banner__divider {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(255, 255, 255, 0.55);
+  min-height: 28px;
+}
+body.theme-radnet .rn-investor-banner__link {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: "Open Sans", "Inter", sans-serif;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+body.theme-radnet .rn-investor-banner__link:hover,
+body.theme-radnet .rn-investor-banner__link:focus-visible {
+  opacity: 0.85;
+  transform: translateX(2px);
+  outline: none;
+}
+body.theme-radnet .rn-investor-banner__chev {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+/* Same concern on the "ONLINE COURSE" meta line which sits on a dark
+   overlay (stays white there) — nothing to change. But the right-panel
+   content (ring + resume) sits on white, so the ring numeric reads dark. */
+
+/* Progress-ring gradient uses IA's svg id so it'll already be re-defined
+   in root.tsx; but the additional green-ring defs need a red variant too. */
+
+/* =========================================================================
+ * RadNet footer (matches radnet.com — dark background, 3-col layout)
+ * ========================================================================= */
+.rn-footer {
+  background: #0a0a0a;
+  color: #ffffff;
+  padding: 56px 0 64px;
+  font-family: "Open Sans", "Inter", sans-serif;
+  margin-top: 64px;
+}
+.rn-footer__inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 48px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .rn-footer__inner {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+}
+
+/* ── Left column: brand ─────────────────────────────────────────────── */
+.rn-footer__brand { display: flex; flex-direction: column; gap: 28px; }
+.rn-footer__logo-row { display: flex; align-items: center; gap: 16px; }
+.rn-footer__logo { height: 64px; width: auto; display: block; }
+.rn-footer__tagline {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  padding-left: 16px;
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+.rn-footer__tagline-light {
+  font-weight: 300;
+  font-size: 0.9rem;
+  letter-spacing: 0.01em;
+}
+.rn-footer__tagline-bold {
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.01em;
+}
+
+.rn-footer__social { display: flex; gap: 10px; flex-wrap: wrap; }
+/*
+  Specificity note: `body.theme-ia a { color: var(--ia-accent-1) }` (defined
+  much earlier in this file) would otherwise win over the plain class
+  selectors below and tint these links RadNet-red. Scoping them to
+  `body.theme-radnet` raises their specificity enough to override that rule
+  and keeps them pure white as the footer design calls for.
+*/
+body.theme-radnet .rn-footer__social-link {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  transition: background 0.2s ease, transform 0.2s ease;
+  text-decoration: none;
+}
+body.theme-radnet .rn-footer__social-link:hover {
+  background: var(--ia-accent-1, #c82030);
+  transform: translateY(-1px);
+  color: #ffffff;
+}
+
+body.theme-radnet .rn-footer__careers {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: color 0.2s ease, transform 0.2s ease;
+  align-self: flex-start;
+}
+body.theme-radnet .rn-footer__careers svg {
+  padding: 6px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  box-sizing: content-box;
+  width: 18px;
+  height: 18px;
+}
+body.theme-radnet .rn-footer__careers:hover {
+  color: #ffffff;
+  transform: translateX(2px);
+  opacity: 0.85;
+}
+
+/* ── Right columns: operations + deephealth ─────────────────────────── */
+.rn-footer__col {
+  display: flex;
+  flex-direction: column;
+}
+.rn-footer__heading {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 8px;
+  letter-spacing: 0.005em;
+}
+.rn-footer__heading--spaced { margin-top: 28px; }
+.rn-footer__addr {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #ffffff;
+  margin: 0;
+}
+
+/* ─── Reduce motion for cards/hovers ───────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  body.theme-ia * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

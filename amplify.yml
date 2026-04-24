@@ -1,0 +1,33 @@
+version: 1
+applications:
+  - appRoot: .
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            # Use Node 20 to match Remix 2.10 expectations.
+            # Amplify's default image ships multiple Node versions; nvm is preinstalled.
+            - nvm use 20 || nvm install 20
+            - node -v
+            - npm ci
+        build:
+          commands:
+            # Remix + Vite produces two bundles:
+            #   build/client  -> static assets (served by CloudFront/Amplify edge)
+            #   build/server  -> Node handler (server loaders/actions)
+            - npm run build
+      artifacts:
+        # Amplify's SSR adapter for Remix expects the full build/ dir plus
+        # package.json and node_modules at the root. Do NOT strip these.
+        baseDirectory: .
+        files:
+          - build/**/*
+          - public/**/*
+          - package.json
+          - package-lock.json
+          - node_modules/**/*
+          - server.js    # only if you have a custom entry; safe to leave listed
+      cache:
+        paths:
+          - node_modules/**/*
+          - ~/.npm/**/*

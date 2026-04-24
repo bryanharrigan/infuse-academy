@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.active-button {
+  @apply text-blue-600 font-semibold;
+}
+.inactive-button {
+  @apply text-gray-500;
+}
