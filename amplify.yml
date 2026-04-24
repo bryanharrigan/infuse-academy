@@ -4,25 +4,47 @@ frontend:
     preBuild:
       commands:
         # Use Node 20 to match Remix 2.10 expectations.
-        # Amplify's default image ships multiple Node versions; nvm is preinstalled.
         - nvm use 20 || nvm install 20
         - node -v
         - npm ci
     build:
       commands:
-        # Remix + Vite produces two bundles:
-        #   build/client  -> static assets (served by CloudFront/Amplify edge)
-        #   build/server  -> Node handler (server loaders/actions)
+        # Build Remix (produces build/client and build/server).
         - npm run build
-  # Amplify's SSR runtime for Remix expects the build/ directory to be the
-  # artifact root. With baseDirectory: build + files: '**/*', Amplify sees
-  # both build/client and build/server at the expected locations, wires up
-  # the SSR Lambda from build/server/index.js, and serves build/client as
-  # the static edge assets. The previous config (baseDirectory: .,
-  # explicitly listing build, public, node_modules) caused the app to be
-  # detected as platform: WEB (static only), which 404s on SSR routes.
+
+        # ── Reshape into Amplify Hosting's deployment specification ──
+        # Amplify's SSR runtime expects a very specific directory layout:
+        #   .amplify-hosting/
+        #     ├─ deploy-manifest.json       (tells Amplify how to route)
+        #     ├─ static/                    (public, served by CDN)
+        #     └─ compute/default/           (Node entrypoint + its deps)
+        #         ├─ server.js              (starts Express + Remix)
+        #         ├─ server/index.js        (the Remix SSR bundle)
+        #         ├─ package.json
+        #         └─ node_modules/          (production-only)
+        - mkdir -p .amplify-hosting/compute/default
+
+        # Copy static assets: Remix's build/client/ contents + anything in public/
+        - cp -r build/client .amplify-hosting/static
+        - if [ -d public ]; then cp -r public/. .amplify-hosting/static/; fi
+
+        # Copy the Remix server bundle into the compute dir, preserving the
+        # `server/index.js` path that our server.js imports.
+        - mkdir -p .amplify-hosting/compute/default/server
+        - cp -r build/server/. .amplify-hosting/compute/default/server/
+
+        # Entrypoint + package metadata
+        - cp server.js .amplify-hosting/compute/default/server.js
+        - cp package.json .amplify-hosting/compute/default/package.json
+        - cp package-lock.json .amplify-hosting/compute/default/package-lock.json
+
+        # Production-only node_modules inside the compute bundle
+        - cd .amplify-hosting/compute/default && npm ci --omit=dev && cd ../../..
+
+        # Top-level manifest
+        - cp deploy-manifest.json .amplify-hosting/deploy-manifest.json
   artifacts:
-    baseDirectory: build
+    baseDirectory: .amplify-hosting
     files:
       - '**/*'
   cache:
