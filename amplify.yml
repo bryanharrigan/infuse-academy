@@ -1,33 +1,31 @@
 version: 1
-applications:
-  - appRoot: .
-    frontend:
-      phases:
-        preBuild:
-          commands:
-            # Use Node 20 to match Remix 2.10 expectations.
-            # Amplify's default image ships multiple Node versions; nvm is preinstalled.
-            - nvm use 20 || nvm install 20
-            - node -v
-            - npm ci
-        build:
-          commands:
-            # Remix + Vite produces two bundles:
-            #   build/client  -> static assets (served by CloudFront/Amplify edge)
-            #   build/server  -> Node handler (server loaders/actions)
-            - npm run build
-      artifacts:
-        # Amplify's SSR adapter for Remix expects the full build/ dir plus
-        # package.json and node_modules at the root. Do NOT strip these.
-        baseDirectory: .
-        files:
-          - build/**/*
-          - public/**/*
-          - package.json
-          - package-lock.json
-          - node_modules/**/*
-          - server.js    # only if you have a custom entry; safe to leave listed
-      cache:
-        paths:
-          - node_modules/**/*
-          - ~/.npm/**/*
+frontend:
+  phases:
+    preBuild:
+      commands:
+        # Use Node 20 to match Remix 2.10 expectations.
+        # Amplify's default image ships multiple Node versions; nvm is preinstalled.
+        - nvm use 20 || nvm install 20
+        - node -v
+        - npm ci
+    build:
+      commands:
+        # Remix + Vite produces two bundles:
+        #   build/client  -> static assets (served by CloudFront/Amplify edge)
+        #   build/server  -> Node handler (server loaders/actions)
+        - npm run build
+  # Amplify's SSR runtime for Remix expects the build/ directory to be the
+  # artifact root. With baseDirectory: build + files: '**/*', Amplify sees
+  # both build/client and build/server at the expected locations, wires up
+  # the SSR Lambda from build/server/index.js, and serves build/client as
+  # the static edge assets. The previous config (baseDirectory: .,
+  # explicitly listing build, public, node_modules) caused the app to be
+  # detected as platform: WEB (static only), which 404s on SSR routes.
+  artifacts:
+    baseDirectory: build
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - ~/.npm/**/*
