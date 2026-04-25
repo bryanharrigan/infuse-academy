@@ -9,6 +9,16 @@ const keyPath = path.resolve(__dirname, "certs/key.pem");
 const hasCerts = fs.existsSync(certPath) && fs.existsSync(keyPath);
 
 export default defineConfig({
+  // Force MUI + Emotion to be bundled into the SSR output (build/server/index.js)
+  // instead of being imported from node_modules at runtime. Required for
+  // production deploy on Node ESM runtimes (Amplify Hosting compute, Lambda,
+  // etc.) because MUI's published ESM uses directory imports without explicit
+  // /index.js, which Node's strict resolver rejects with ERR_UNSUPPORTED_DIR_IMPORT.
+  // This is the Vite-equivalent of the old `serverDependenciesToBundle` option
+  // that the Remix Compiler used (and which the Remix Vite plugin silently ignores).
+  ssr: {
+    noExternal: [/^@mui\//, /^@emotion\//],
+  },
   server: {
     host: "0.0.0.0",
     allowedHosts: ["infuse.bryanharrigan.dev"],
@@ -53,7 +63,9 @@ export default defineConfig({
       },
     },
     remix({
-      serverDependenciesToBundle: [/^@mui\//, /^@emotion\//],
+      // NOTE: `serverDependenciesToBundle` was a Remix Compiler option and is
+      // silently ignored by the Vite plugin. SSR bundling is now configured
+      // via top-level `ssr.noExternal` above.
       future: {
         v3_fetcherPersist: true,
         v3_relativeSplatPath: true,
