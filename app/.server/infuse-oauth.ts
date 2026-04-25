@@ -21,8 +21,11 @@
 import crypto from "node:crypto";
 import { createCookie } from "@remix-run/node";
 
-const PortalUrl =
-  process.env.INFUSE_PORTAL_URL ?? "https://bryanh.myabsorb.com";
+// OAuth endpoints live on the Infuse API host (per OpenAPI Server in the
+// docs), NOT the tenant portal. The `<portalroute>` placeholder in the
+// prose was misleading.
+const OAuthBaseUrl =
+  process.env.INFUSE_API_URL ?? "https://infuse.myabsorb.com";
 const ClientId = process.env.INFUSE_OAUTH_CLIENT_ID ?? "";
 const ClientSecret = process.env.INFUSE_OAUTH_CLIENT_SECRET ?? "";
 const PublicUrl = process.env.PUBLIC_URL ?? "https://infuse.bryanharrigan.dev";
@@ -59,7 +62,7 @@ export function buildAuthorizeUrl(state: string): string {
     scope: "learner openid profile email",
     state,
   });
-  return `${PortalUrl}/oauth/authorize?${params.toString()}`;
+  return `${OAuthBaseUrl}/oauth/authorize?${params.toString()}`;
 }
 
 export type TokenResponse = {
@@ -83,7 +86,7 @@ export type TokenResponse = {
 export async function exchangeCodeForTokens(
   code: string
 ): Promise<TokenResponse> {
-  const url = `${PortalUrl}/oauth/token`;
+  const url = `${OAuthBaseUrl}/oauth/token`;
   const nonce = crypto.randomBytes(8).toString("hex");
   const body = new URLSearchParams({
     grant_type: "authorization_code",
