@@ -43,6 +43,28 @@ frontend:
 
         # Top-level manifest
         - cp deploy-manifest.json .amplify-hosting/deploy-manifest.json
+
+        # ── Bake env vars into the compute bundle ──────────────────────
+        # Amplify Hosting console env vars are exposed to the BUILD phase
+        # as bash $VAR but are NOT automatically propagated to the SSR
+        # compute Lambda's runtime environment. Write them to a .env file
+        # inside the compute bundle so server.js can load them via dotenv
+        # at startup. This is the documented workaround for SSR apps that
+        # use a custom deploy-manifest.json layout.
+        # Secrets: this .env lives only in the deployment artifact (not
+        # source control); access is gated by the same IAM that protects
+        # the Amplify app.
+        - |
+          cat > .amplify-hosting/compute/default/.env <<EOF
+          COOKIE_SECRET=${COOKIE_SECRET}
+          INFUSE_API_KEY=${INFUSE_API_KEY}
+          INFUSE_API_URL=${INFUSE_API_URL}
+          INFUSE_BASE_URL=${INFUSE_BASE_URL}
+          INFUSE_PORTAL_URL=${INFUSE_PORTAL_URL}
+          INFUSE_OAUTH_CLIENT_ID=${INFUSE_OAUTH_CLIENT_ID}
+          INFUSE_OAUTH_CLIENT_SECRET=${INFUSE_OAUTH_CLIENT_SECRET}
+          PUBLIC_URL=${PUBLIC_URL:-https://infuse.bryanharrigan.dev}
+          EOF
   artifacts:
     baseDirectory: .amplify-hosting
     files:

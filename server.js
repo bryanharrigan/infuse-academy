@@ -1,3 +1,10 @@
+// Load env vars from .env BEFORE importing anything that reads process.env.
+// amplify.yml writes a .env file into this directory at build time because
+// Amplify Hosting's console env vars are NOT propagated to the SSR Lambda's
+// runtime environment automatically (only to the build phase). This shim
+// works around that.
+import "dotenv/config";
+
 // Express entrypoint for AWS Amplify Hosting's SSR compute runtime.
 //
 // amplify.yml reshapes the Remix build so this file lives at
