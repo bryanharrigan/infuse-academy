@@ -14,8 +14,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const { token } = await authenticate(username, password);
     const cookieHeader = await infuseJwtCookie.serialize(token);
     return redirect("/", { headers: { "Set-Cookie": cookieHeader } });
-  } catch {
-    return json({ error: "Invalid username or password" }, { status: 401 });
+  } catch (err) {
+    // TEMPORARY DIAGNOSTIC: surface the underlying error message so we can
+    // see exactly what Absorb returned (status code) and confirm the Lambda
+    // hit the right URL. Revert to the generic message once auth is working.
+    const detail = err instanceof Error ? err.message : String(err);
+    return json({ error: `Auth failed — ${detail}` }, { status: 401 });
   }
 };
 
