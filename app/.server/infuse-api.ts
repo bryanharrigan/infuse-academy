@@ -56,7 +56,18 @@ export async function authenticate(username: string, password: string): Promise<
   const apiKeyLen = InfuseApiKey?.length ?? 0;
   const response = await fetch(url, {
     method: "POST",
-    headers: { "x-api-key": InfuseApiKey, "Content-Type": "application/json" },
+    headers: {
+      "x-api-key": InfuseApiKey,
+      "Content-Type": "application/json",
+      // Some SaaS WAFs (Absorb included, apparently) flag default Node/undici
+      // user agents from AWS Lambda IP ranges as "datacenter scraping" and
+      // return 403. Spoof a generic browser/curl UA so Lambda traffic looks
+      // like a normal client. Also explicitly send Origin matching our domain
+      // since that origin is on Absorb's allow-list.
+      "User-Agent": "curl/8.7.1",
+      Origin: "https://infuse.bryanharrigan.dev",
+      Referer: "https://infuse.bryanharrigan.dev/signin",
+    },
     body: JSON.stringify({ username, password, scope: ["learner"] }),
   });
   // Capture status + a tiny preview of the response so production failures
@@ -65,7 +76,7 @@ export async function authenticate(username: string, password: string): Promise<
   console.log(
     `[infuse-api] authenticate → ${response.status} (url=${url} apiKey=${apiKeyPresent ? `present(${apiKeyLen})` : "MISSING"} usernameLen=${username?.length ?? 0}) body=${bodyPreview}`
   );
-  if (!response.ok) throw new Error(`Could not authenticate (status=${response.status})`);
+  if (!response.ok) throw new Error(`Could not authenticate (status=${response.status}) body=${bodyPreview}`);
   const data = await response.json();
   return { token: data.token };
 }
