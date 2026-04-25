@@ -94,9 +94,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Paths that DON'T require auth and shouldn't bounce through /signin:
   //   /signin       — entry point that itself redirects to OAuth provider
   //   /auth/callback — OAuth callback receiving the authorization code
-  //   /diag         — diagnostic endpoint (env var presence, no secrets)
-  const isPublicPath =
-    path === "/signin" || path === "/auth/callback" || path === "/diag";
+  const isPublicPath = path === "/signin" || path === "/auth/callback";
 
   if (!token && !isPublicPath) return redirect("/signin");
   if (token && path === "/signin") return redirect("/");
