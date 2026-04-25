@@ -21,11 +21,15 @@
 import crypto from "node:crypto";
 import { createCookie } from "@remix-run/node";
 
-// OAuth endpoints live on the Infuse API host (per OpenAPI Server in the
-// docs), NOT the tenant portal. The `<portalroute>` placeholder in the
-// prose was misleading.
+// OAuth endpoints live on the TENANT PORTAL (e.g. https://bryanh.myabsorb.com),
+// not on infuse.myabsorb.com. Despite the OpenAPI doc's Server field listing
+// infuse.myabsorb.com, that host's /oauth/authorize is actually an API
+// Gateway proxy that returns "Missing Authentication Token" — it doesn't
+// serve the OAuth front-end. The tenant subdomain is correct: it returns
+// proper OAuth error envelopes (e.g. invalid_client) and renders the
+// hosted login page.
 const OAuthBaseUrl =
-  process.env.INFUSE_API_URL ?? "https://infuse.myabsorb.com";
+  process.env.INFUSE_PORTAL_URL ?? "https://bryanh.myabsorb.com";
 const ClientId = process.env.INFUSE_OAUTH_CLIENT_ID ?? "";
 const ClientSecret = process.env.INFUSE_OAUTH_CLIENT_SECRET ?? "";
 const PublicUrl = process.env.PUBLIC_URL ?? "https://infuse.bryanharrigan.dev";
