@@ -1,11 +1,13 @@
-// Diagnostic endpoint — visible at /__diag.
+// Diagnostic endpoint — visible at /diag.
+//
+// Resource route: this file deliberately has NO default export, so Remix
+// treats it as a data-only endpoint and returns the loader's JSON Response
+// directly without wrapping it in an HTML page render. With a default
+// export, the JSON would only be embedded in window.__remixContext__ and
+// curl would receive HTML.
 //
 // Exposes whether each env var the app needs is set in the running Lambda.
-// Reports presence + length only; never leaks secret values. Helpful when
-// you've added env vars in the Amplify console but the redeploy doesn't
-// seem to have picked them up.
-//
-// Safe to leave deployed: no secret values are returned.
+// Reports presence + length only; never leaks secret values.
 
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
@@ -45,6 +47,3 @@ export const loader = async (_args: LoaderFunctionArgs) => {
   });
 };
 
-export default function Diag() {
-  return null;
-}
