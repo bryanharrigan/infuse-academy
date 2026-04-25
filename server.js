@@ -1,22 +1,21 @@
 // Minimal Express entrypoint for AWS Amplify Hosting's SSR compute runtime.
 //
-// Amplify's deployment spec expects a single Node entrypoint (per
-// deploy-manifest.json -> computeResources.entrypoint) that listens on
-// process.env.PORT and serves the app.
+// Amplify's deployment spec expects a Node entrypoint that listens on
+// process.env.PORT and serves HTTP traffic. amplify.yml reshapes the build
+// so this file lives at .amplify-hosting/compute/default/server.js with the
+// Remix server bundle at ./server/index.js (relative to this file).
 //
-// At build time, amplify.yml reshapes the Remix build output so that:
-//   - this file lives at .amplify-hosting/compute/default/server.js
-//   - the Remix server bundle is at ./server/index.js (relative to this file)
-//   - public/ static files are served from the sibling .amplify-hosting/static/
-//     directory (handled by Amplify itself, not by this Express server)
-//
-// We only need to handle Remix's SSR routes here — static assets are served
-// directly by Amplify's edge/CDN layer via the "Static" routes in
-// deploy-manifest.json.
+// Static imports (no top-level await) and a verbose startup log help us
+// diagnose Lambda cold-start crashes via CloudWatch.
+
 import { createRequestHandler } from "@remix-run/express";
 import express from "express";
+import * as build from "./server/index.js";
 
-const build = await import("./server/index.js");
+console.log("[server] booting Remix Express handler");
+console.log("[server] NODE_ENV =", process.env.NODE_ENV);
+console.log("[server] PORT =", process.env.PORT);
+console.log("[server] build keys =", Object.keys(build));
 
 const app = express();
 app.disable("x-powered-by");
@@ -25,11 +24,11 @@ app.all(
   "*",
   createRequestHandler({
     build,
-    mode: process.env.NODE_ENV,
+    mode: process.env.NODE_ENV ?? "production",
   })
 );
 
-const port = process.env.PORT || 3000;
+const port = Number(process.env.PORT) || 3000;
 app.listen(port, () => {
-  console.log(`Remix server listening on :${port}`);
+  console.log(`[server] Remix listening on :${port}`);
 });
