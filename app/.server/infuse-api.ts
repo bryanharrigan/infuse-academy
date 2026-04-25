@@ -46,12 +46,26 @@ function authHeaders(token: string): HeadersInit {
 export type UserProfileResponse = { firstName: string; lastName: string };
 
 export async function authenticate(username: string, password: string): Promise<{ token: string }> {
-  const response = await fetch(infuseUrl("authentication"), {
+  // Use the Infuse API's /authentication endpoint (https://infuse.myabsorb.com/authentication)
+  // instead of the legacy Integration API v2 endpoint on the tenant subdomain.
+  // Per Absorb's Infuse API docs (Section 3 - Authentication), this is the
+  // documented "basic method for authentication" and returns a standard JWT
+  // valid for four hours.
+  const url = infuseApiUrl("authentication");
+  const apiKeyPresent = !!InfuseApiKey;
+  const apiKeyLen = InfuseApiKey?.length ?? 0;
+  const response = await fetch(url, {
     method: "POST",
-    headers: { "X-Absorb-API-Key": InfuseApiKey, "Content-Type": "application/json" },
+    headers: { "x-api-key": InfuseApiKey, "Content-Type": "application/json" },
     body: JSON.stringify({ username, password, scope: ["learner"] }),
   });
-  if (response.status !== 201) throw new Error("Could not authenticate");
+  // Capture status + a tiny preview of the response so production failures
+  // are diagnosable in CloudWatch. Never log the password or full token.
+  const bodyPreview = await response.clone().text().then((t) => t.slice(0, 200)).catch(() => "<unreadable>");
+  console.log(
+    `[infuse-api] authenticate → ${response.status} (url=${url} apiKey=${apiKeyPresent ? `present(${apiKeyLen})` : "MISSING"} usernameLen=${username?.length ?? 0}) body=${bodyPreview}`
+  );
+  if (!response.ok) throw new Error(`Could not authenticate (status=${response.status})`);
   const data = await response.json();
   return { token: data.token };
 }
