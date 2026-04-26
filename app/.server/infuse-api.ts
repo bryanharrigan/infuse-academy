@@ -45,41 +45,13 @@ function authHeaders(token: string): HeadersInit {
 
 export type UserProfileResponse = { firstName: string; lastName: string };
 
-export async function authenticate(username: string, password: string): Promise<{ token: string }> {
-  // Use the Infuse API's /authentication endpoint (https://infuse.myabsorb.com/authentication)
-  // instead of the legacy Integration API v2 endpoint on the tenant subdomain.
-  // Per Absorb's Infuse API docs (Section 3 - Authentication), this is the
-  // documented "basic method for authentication" and returns a standard JWT
-  // valid for four hours.
-  const url = infuseApiUrl("authentication");
-  const apiKeyPresent = !!InfuseApiKey;
-  const apiKeyLen = InfuseApiKey?.length ?? 0;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "x-api-key": InfuseApiKey,
-      "Content-Type": "application/json",
-      // Some SaaS WAFs (Absorb included, apparently) flag default Node/undici
-      // user agents from AWS Lambda IP ranges as "datacenter scraping" and
-      // return 403. Spoof a generic browser/curl UA so Lambda traffic looks
-      // like a normal client. Also explicitly send Origin matching our domain
-      // since that origin is on Absorb's allow-list.
-      "User-Agent": "curl/8.7.1",
-      Origin: "https://infuse.bryanharrigan.dev",
-      Referer: "https://infuse.bryanharrigan.dev/signin",
-    },
-    body: JSON.stringify({ username, password, scope: ["learner"] }),
-  });
-  // Capture status + a tiny preview of the response so production failures
-  // are diagnosable in CloudWatch. Never log the password or full token.
-  const bodyPreview = await response.clone().text().then((t) => t.slice(0, 200)).catch(() => "<unreadable>");
-  console.log(
-    `[infuse-api] authenticate → ${response.status} (url=${url} apiKey=${apiKeyPresent ? `present(${apiKeyLen})` : "MISSING"} usernameLen=${username?.length ?? 0}) body=${bodyPreview}`
-  );
-  if (!response.ok) throw new Error(`Could not authenticate (status=${response.status}) body=${bodyPreview}`);
-  const data = await response.json();
-  return { token: data.token };
-}
+// NOTE: The basic-auth `authenticate(username, password)` flow that used to
+// live here has been replaced by the OAuth 2.0 Authorization Code flow in
+// app/.server/infuse-oauth.ts (driven by app/routes/signin.tsx and
+// app/routes/auth.callback.tsx). The OAuth flow is required because Absorb's
+// WAF returns 403 to the basic-auth endpoint when called from AWS datacenter
+// IP ranges. Keep this comment as a breadcrumb if anyone needs to reintroduce
+// a server-to-server password flow later.
 
 export async function getUserProfile(token: string): Promise<UserProfileResponse> {
   const r = await fetch(infuseUrl("my-profile"), { method: "GET", headers: authHeaders(token) });
