@@ -18,12 +18,19 @@ const THEME_STORAGE_KEY = "ia:theme-variant";
 /**
  * Branded variants share the IA (Infuse Academy) layout + components.
  *
- * NOTE: "experimental" is intentionally NOT a branded variant — it has its own
- * standalone layout, palette, typography, and route (/learning-hub-experimental)
- * and does not inherit from `body.theme-ia` styles.
+ * NOTE: "experimental" IS treated as branded for layout purposes — it
+ * inherits the IA chrome (header, hub-grid card styling, etc.) on every
+ * route EXCEPT its own dedicated /learning-hub-experimental page, which
+ * carries its own complete layout. Without this, /catalog and /my-courses
+ * render unstyled (no card borders, no IA header) when the experimental
+ * theme is active because they were authored against `body.theme-ia` rules.
+ *
+ * The experimental hub route stays distinct via its own `body.theme-experimental`
+ * class + the `exp-*` selectors, which override the IA defaults wherever
+ * needed.
  */
 export function isBrandedVariant(v: ThemeVariant): boolean {
-  return v === "infuse-academy" || v === "radnet";
+  return v === "infuse-academy" || v === "radnet" || v === "experimental";
 }
 
 type AppStateContextType = {

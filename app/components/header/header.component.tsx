@@ -44,9 +44,14 @@ export const Header = () => {
     setThemeVariant,
   } = useHeader();
 
-  // "Branded" covers any variant that should use the IA layout (IA or RadNet).
+  // "Branded" covers any variant that should use the IA layout (IA, RadNet,
+  // or Experimental). Experimental is included so /catalog and /my-courses
+  // inherit the IA chrome when the experimental theme is active — the
+  // experimental hub itself ships its own layout via the dedicated route.
   const isBranded =
-    themeVariant === "infuse-academy" || themeVariant === "radnet";
+    themeVariant === "infuse-academy" ||
+    themeVariant === "radnet" ||
+    themeVariant === "experimental";
   // Alias kept so existing conditionals keep working.
   const isIA = isBranded;
   const isRadNet = themeVariant === "radnet";
