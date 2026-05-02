@@ -83,7 +83,7 @@ export default function MyCourses() {
     curriculumCourse,
     handleCardClick,
     handleStartCourse,
-    handleStartCourseDirect,
+    handlePickChildCourse,
     handleCloseDetailModal,
     handleClosePlayer,
     handleCloseSessions,
@@ -278,12 +278,9 @@ export default function MyCourses() {
           curriculumId={curriculumCourse?.id ?? null}
           curriculumTitle={curriculumCourse?.name}
           onClose={handleCloseCurriculum}
-          onPickCourse={(child) => {
-            window.setTimeout(
-              () => handleStartCourseDirect(child, data.portalBaseUrl),
-              0
-            );
-          }}
+          onPickCourse={(child) =>
+            handlePickChildCourse(child, data.portalBaseUrl)
+          }
         />
       </div>
     );
@@ -350,12 +347,9 @@ export default function MyCourses() {
         curriculumId={curriculumCourse?.id ?? null}
         curriculumTitle={curriculumCourse?.name}
         onClose={handleCloseCurriculum}
-        onPickCourse={(child) => {
-          window.setTimeout(
-            () => handleStartCourseDirect(child, data.portalBaseUrl),
-            0
-          );
-        }}
+        onPickCourse={(child) =>
+          handlePickChildCourse(child, data.portalBaseUrl)
+        }
       />
     </div>
   );

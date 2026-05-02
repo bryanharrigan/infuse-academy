@@ -17,6 +17,18 @@ export function useCatalog(data: { catalog: MyCoursesResource }) {
   const [playingCourse, setPlayingCourse] = useState<Course | null>(null);
   const [sessionsCourse, setSessionsCourse] = useState<Course | null>(null);
   const [curriculumCourse, setCurriculumCourse] = useState<Course | null>(null);
+  /** Curriculum to reopen on next downstream-modal close. */
+  const [returnToCurriculum, setReturnToCurriculum] = useState<Course | null>(
+    null
+  );
+
+  const popReturnToCurriculum = () => {
+    if (returnToCurriculum) {
+      const ret = returnToCurriculum;
+      setReturnToCurriculum(null);
+      window.setTimeout(() => setCurriculumCourse(ret), 0);
+    }
+  };
 
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -107,8 +119,29 @@ export function useCatalog(data: { catalog: MyCoursesResource }) {
     }
   }, [navigation.state, enrollmentInProgress, enrollmentStartedAt]);
 
-  const handleCloseSessions = () => setSessionsCourse(null);
-  const handleCloseCurriculum = () => setCurriculumCourse(null);
+  const handleCloseSessions = () => {
+    setSessionsCourse(null);
+    popReturnToCurriculum();
+  };
+  const handleCloseCurriculum = () => {
+    setCurriculumCourse(null);
+    setReturnToCurriculum(null);
+  };
+  const handleClosePlayerWithReturn = () => {
+    setPlayingCourse(null);
+    popReturnToCurriculum();
+  };
+
+  /** Picks a child out of the CurriculumModal and queues the parent to
+   *  reopen when the child closes. */
+  const handlePickChildCourse = (child: Course, portalBaseUrl?: string) => {
+    if (curriculumCourse) setReturnToCurriculum(curriculumCourse);
+    setCurriculumCourse(null);
+    window.setTimeout(
+      () => handleStartCourseDirect(child, portalBaseUrl),
+      0
+    );
+  };
 
   return {
     catalog,
@@ -121,10 +154,11 @@ export function useCatalog(data: { catalog: MyCoursesResource }) {
     curriculumCourse,
     handleStartCourse,
     handleStartCourseDirect,
+    handlePickChildCourse,
     handleEnroll,
     handleCardClick,
     handleCloseDetailModal,
-    handleClosePlayer,
+    handleClosePlayer: handleClosePlayerWithReturn,
     handleCloseSessions,
     handleCloseCurriculum,
   };

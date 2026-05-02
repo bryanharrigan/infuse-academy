@@ -385,6 +385,15 @@ export default function LearningHubExperimental() {
   const [sessionsCourse, setSessionsCourse] = useState<Course | null>(null);
   /** Curriculum currently driving the CurriculumModal (null = closed). */
   const [curriculumCourse, setCurriculumCourse] = useState<Course | null>(null);
+  /**
+   * When set, closing the lesson player / sessions modal / nested
+   * curriculum returns the learner to THIS curriculum modal rather than
+   * dropping back to the hub. Captured at the moment a child course is
+   * picked from inside a curriculum so we can hop back where we came from.
+   */
+  const [returnToCurriculum, setReturnToCurriculum] = useState<Course | null>(
+    null
+  );
 
   /**
    * Wraps the lesson-player launch with a courseType branch:
@@ -1415,6 +1424,12 @@ export default function LearningHubExperimental() {
           // for a possible lesson completion event. Real completion data
           // refreshes on next loader run.
           fireConfetti();
+          // Bounce back to the curriculum if we drilled in from one.
+          if (returnToCurriculum) {
+            const ret = returnToCurriculum;
+            setReturnToCurriculum(null);
+            window.setTimeout(() => setCurriculumCourse(ret), 0);
+          }
         }}
       />
 
@@ -1427,6 +1442,11 @@ export default function LearningHubExperimental() {
         onClose={() => {
           setPlaying(null);
           fireConfetti();
+          if (returnToCurriculum) {
+            const ret = returnToCurriculum;
+            setReturnToCurriculum(null);
+            window.setTimeout(() => setCurriculumCourse(ret), 0);
+          }
         }}
       />
 
@@ -1438,21 +1458,37 @@ export default function LearningHubExperimental() {
           fireConfetti();
           revalidator.revalidate();
         }}
-        onClose={() => setSessionsCourse(null)}
+        onClose={() => {
+          setSessionsCourse(null);
+          // If we got here from a curriculum, reopen it.
+          if (returnToCurriculum) {
+            const ret = returnToCurriculum;
+            setReturnToCurriculum(null);
+            window.setTimeout(() => setCurriculumCourse(ret), 0);
+          }
+        }}
       />
 
-      {/* Curriculum modal — Curriculum cards land here, child clicks
-          re-enter playOrOpen for the picked child course. */}
+      {/* Curriculum modal — Curriculum cards land here. Child clicks
+          remember the parent curriculum so closing the child returns
+          the learner here rather than dropping to the hub. */}
       <CurriculumModal
         curriculumId={curriculumCourse?.id ?? null}
         curriculumTitle={curriculumCourse?.name}
-        onClose={() => setCurriculumCourse(null)}
+        onClose={() => {
+          setCurriculumCourse(null);
+          // Manual close clears any pending return — we're not going
+          // back into a deeper modal that would need to bounce here.
+          setReturnToCurriculum(null);
+        }}
         onPickCourse={(child) => {
-          // The CurriculumModal closes itself before this fires, so by the
-          // time we mount the next modal the bundle dialog is already gone.
-          // Defer one tick so React has a chance to commit the unmount
-          // before we open the next dialog (avoids a flash of two stacked
-          // dialogs and lets focus management settle).
+          // Remember which curriculum we came from BEFORE we close it
+          // and open the child's modal.
+          const parent = curriculumCourse;
+          setCurriculumCourse(null);
+          if (parent) setReturnToCurriculum(parent);
+          // Defer one tick so React commits the unmount before the next
+          // modal mounts — avoids stacked-dialog flashes.
           window.setTimeout(() => playOrOpen(child), 0);
         }}
       />

@@ -17,6 +17,9 @@ type UseMyCoursesResult = {
   handleCloseCurriculum: () => void;
   /** Used by the CurriculumModal to launch a picked child course. */
   handleStartCourseDirect: (course: Course, portalBaseUrl?: string) => void;
+  /** Picks a child course from inside a curriculum AND remembers the
+   *  parent so the user is bounced back to the curriculum on close. */
+  handlePickChildCourse: (child: Course, portalBaseUrl?: string) => void;
 };
 
 export const useMyCourses = (data?: {
@@ -26,8 +29,24 @@ export const useMyCourses = (data?: {
   const [playingCourse, setPlayingCourse] = useState<Course | null>(null);
   const [sessionsCourse, setSessionsCourse] = useState<Course | null>(null);
   const [curriculumCourse, setCurriculumCourse] = useState<Course | null>(null);
+  /**
+   * Curriculum to reopen when the next downstream modal closes — set
+   * when the learner picks a child course out of a CurriculumModal so
+   * we can hop back into the curriculum after they finish a child.
+   */
+  const [returnToCurriculum, setReturnToCurriculum] = useState<Course | null>(
+    null
+  );
 
   const courses = data?.myCourses?._embedded.courses || [];
+
+  const popReturnToCurriculum = () => {
+    if (returnToCurriculum) {
+      const ret = returnToCurriculum;
+      setReturnToCurriculum(null);
+      window.setTimeout(() => setCurriculumCourse(ret), 0);
+    }
+  };
 
   /**
    * Dispatches based on courseType to the correct in-app modal.
@@ -76,12 +95,41 @@ export const useMyCourses = (data?: {
     setSelectedCourse(null);
   };
 
-  const handleClosePlayer = () => {
+  /**
+   * Close handlers — each one also pops a queued return-to-curriculum,
+   * so a learner who drilled in via a curriculum lands back on it after
+   * closing the child rather than dropping to /my-courses.
+   */
+  const handleClosePlayerWithReturn = () => {
     setPlayingCourse(null);
+    popReturnToCurriculum();
+  };
+  const handleCloseSessions = () => {
+    setSessionsCourse(null);
+    popReturnToCurriculum();
+  };
+  const handleCloseCurriculum = () => {
+    setCurriculumCourse(null);
+    setReturnToCurriculum(null);
   };
 
-  const handleCloseSessions = () => setSessionsCourse(null);
-  const handleCloseCurriculum = () => setCurriculumCourse(null);
+  /**
+   * Picking a child course out of a CurriculumModal: stash the parent
+   * curriculum so we know where to return on close, then dispatch.
+   */
+  const handlePickChildCourse = (
+    child: Course,
+    portalBaseUrl?: string
+  ) => {
+    if (curriculumCourse) {
+      setReturnToCurriculum(curriculumCourse);
+    }
+    setCurriculumCourse(null);
+    window.setTimeout(
+      () => handleStartCourseDirect(child, portalBaseUrl),
+      0
+    );
+  };
 
   return {
     courses,
@@ -92,8 +140,9 @@ export const useMyCourses = (data?: {
     handleCardClick,
     handleStartCourse,
     handleStartCourseDirect,
+    handlePickChildCourse,
     handleCloseDetailModal,
-    handleClosePlayer,
+    handleClosePlayer: handleClosePlayerWithReturn,
     handleCloseSessions,
     handleCloseCurriculum,
   };

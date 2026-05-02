@@ -295,17 +295,12 @@ export type Session = {
 /**
  * Fetch the child courses inside a Curriculum bundle.
  *
- *   GET {INFUSE_BASE_URL}/my-courses?curriculumId={id}&_limit=30
+ *   GET {INFUSE_BASE_URL}/my-courses?curriculumId={id}&_limit=20
  *
- * Verified against the live Absorb V2 API: this is the documented
- * (well, observed) endpoint that returns per-learner course records —
- * including enrollmentStatus / progress — for every course nested
- * inside a curriculum the learner is enrolled in. Other patterns
- * (`/curricula/:id/courses`, `/my-curricula/:id/courses`,
- * `/curriculum-enrollments/:id/courses`) all 404 against this tenant.
- *
- * Returns courses shaped like everything else the hubs render so the
- * existing CourseCard / playOrOpen logic just works.
+ * Verified against the live Absorb V2 API. Notes:
+ *   - `_limit` cannot exceed 20 on this tenant (others 422).
+ *   - Absorb includes the *parent* curriculum itself in the result set.
+ *     We filter it out so the modal lists genuine sub-courses only.
  */
 export async function getCurriculumChildren(
   token: string,
@@ -314,7 +309,7 @@ export async function getCurriculumChildren(
   const url = infuseUrl("my-courses", {
     params: {
       curriculumId,
-      _limit: "30",
+      _limit: "20",
       showCompleted: "true",
     },
   });
@@ -325,7 +320,171 @@ export async function getCurriculumChildren(
     throw new Error("Error fetching curriculum children: " + r.status);
   }
   const data: MyCoursesResource = await r.json();
-  return data?._embedded?.courses ?? [];
+  const all = data?._embedded?.courses ?? [];
+  // Drop the curriculum itself if it appears in its own children list.
+  return all.filter((c) => c.id !== curriculumId);
+}
+
+/**
+ * Curriculum group — the "completion bucket" inside a curriculum.
+ * Tenants typically configure groups with a completion rule like
+ * "complete all courses" or "complete N of M". Field names vary across
+ * Absorb versions, so we surface the few we can reliably parse and let
+ * the UI fall back to a generic label when it can't determine the rule.
+ */
+export type CurriculumGroup = {
+  id: string;
+  name?: string;
+  /** Free-form description, often used to render the completion rule. */
+  description?: string;
+  /**
+   * Completion requirement type: "All" means every course in the group
+   * must be completed; "Some" / "AnyN" means a configurable count.
+   * Stringly-typed because Absorb uses different enum names per tenant.
+   */
+  completionType?: string;
+  /** When `completionType` implies a count (e.g. "Some"), the required N. */
+  completionCount?: number;
+  /** Total course count in the group, for percent computation. */
+  totalCourses?: number;
+  /** Course ids in this group — populated when the embed includes them. */
+  courseIds?: string[];
+  /** Some tenants embed the full course objects directly under `_embedded`. */
+  courses?: MyCoursesResource["_embedded"]["courses"];
+};
+
+/**
+ * Fetch the groups inside a curriculum. The Absorb V2 endpoint at
+ *   GET /curricula/:id/groups?_limit=20
+ * returns groups but the response shape varies by tenant. We accept any
+ * of the common HAL-ish wrappers and best-effort the completion-rule
+ * fields. Returns empty array on 404 or shape mismatch so the modal can
+ * gracefully degrade to a flat course list.
+ */
+export async function getCurriculumGroups(
+  token: string,
+  curriculumId: string
+): Promise<CurriculumGroup[]> {
+  const url = infuseUrl(`curricula/${curriculumId}/groups`, {
+    params: { _limit: "20" },
+  });
+  const r = await fetch(url, { method: "GET", headers: authHeaders(token) });
+  console.log(`[infuse-api] GET /curricula/:id/groups → ${r.status}`);
+  if (!r.ok) return [];
+  let data: unknown;
+  try {
+    data = await r.json();
+  } catch {
+    return [];
+  }
+
+  type RawGroup = Record<string, unknown> & {
+    _embedded?: Record<string, unknown>;
+  };
+  const rawList: RawGroup[] = (() => {
+    const d = data as Record<string, unknown>;
+    if (Array.isArray(d)) return d as RawGroup[];
+    const embedded = d._embedded as Record<string, unknown> | undefined;
+    return (
+      (embedded?.groups as RawGroup[]) ??
+      (d.groups as RawGroup[]) ??
+      (embedded?.curriculumGroups as RawGroup[]) ??
+      []
+    );
+  })();
+
+  return rawList.map((g) => {
+    const id = String(g.id ?? g.groupId ?? "");
+    const embed = g._embedded as Record<string, unknown> | undefined;
+    const embeddedCourses =
+      (embed?.courses as MyCoursesResource["_embedded"]["courses"]) ??
+      undefined;
+    const courseIds = Array.isArray(g.courses)
+      ? (g.courses as Array<{ id?: string } | string>).map((c) =>
+          typeof c === "string" ? c : String(c?.id ?? "")
+        )
+      : Array.isArray(g.courseIds)
+      ? (g.courseIds as string[])
+      : embeddedCourses?.map((c) => c.id) ?? undefined;
+
+    return {
+      id,
+      name:
+        (g.name as string | undefined) ??
+        (g.title as string | undefined) ??
+        (g.label as string | undefined),
+      description: g.description as string | undefined,
+      completionType:
+        (g.completionType as string | undefined) ??
+        (g.completionRule as string | undefined) ??
+        ((g.completionRequirements as Record<string, unknown> | undefined)
+          ?.type as string | undefined),
+      completionCount:
+        (g.completionCount as number | undefined) ??
+        (g.requiredCount as number | undefined) ??
+        ((g.completionRequirements as Record<string, unknown> | undefined)
+          ?.count as number | undefined),
+      totalCourses:
+        (g.courseCount as number | undefined) ??
+        (Array.isArray(courseIds) ? courseIds.length : undefined),
+      courseIds,
+      courses: embeddedCourses,
+    };
+  });
+}
+
+/**
+ * Curriculum-level progress + enrollment metadata. Read off the
+ * /my-course-enrollments/:id endpoint. The hub's overall progress
+ * indicator surfaces this — separate from per-course progress so the
+ * curriculum's headline progress reads more prominently.
+ */
+export type CurriculumEnrollmentSummary = {
+  /** 0..100 percent across all child courses, per Absorb's own math. */
+  progress: number;
+  enrollmentStatus: string | null;
+  enrollmentDate?: string | null;
+  completionDate?: string | null;
+  dueDate?: string | null;
+};
+
+/**
+ * Aggregate fetch for the CurriculumModal: groups + children + the
+ * learner's enrollment summary in parallel. Used to render the modal
+ * with prominent overall progress and grouped course sections in a
+ * single round trip from the client.
+ */
+export type CurriculumOverview = {
+  groups: CurriculumGroup[];
+  courses: MyCoursesResource["_embedded"]["courses"];
+  enrollment: CurriculumEnrollmentSummary | null;
+};
+
+export async function getCurriculumOverview(
+  token: string,
+  curriculumId: string
+): Promise<CurriculumOverview> {
+  const [courses, groups, enrollment] = await Promise.all([
+    getCurriculumChildren(token, curriculumId),
+    getCurriculumGroups(token, curriculumId).catch((err) => {
+      console.warn(
+        "[infuse-api] curriculum groups fetch failed:",
+        err instanceof Error ? err.message : err
+      );
+      return [] as CurriculumGroup[];
+    }),
+    getMyCourseEnrollment(token, curriculumId)
+      .then(
+        (e): CurriculumEnrollmentSummary => ({
+          progress: typeof e.progress === "number" ? e.progress : 0,
+          enrollmentStatus: e.enrollmentStatus ?? null,
+          enrollmentDate: e.enrollmentDate ?? null,
+          completionDate: e.completionDate ?? null,
+        })
+      )
+      .catch(() => null),
+  ]);
+  return { groups, courses, enrollment };
 }
 
 /**

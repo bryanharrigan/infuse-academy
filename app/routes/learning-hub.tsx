@@ -264,6 +264,20 @@ export default function LearningHub() {
   const [sessionsCourse, setSessionsCourse] = useState<Course | null>(null);
   /** Curriculum currently driving the CurriculumModal (null = closed). */
   const [curriculumCourse, setCurriculumCourse] = useState<Course | null>(null);
+  /** Return-to-curriculum context — see learning-hub-experimental for
+   *  the full pattern. */
+  const [returnToCurriculum, setReturnToCurriculum] = useState<Course | null>(
+    null
+  );
+
+  /** Reopens the parent curriculum modal if a return was queued. */
+  const popReturnToCurriculum = () => {
+    if (returnToCurriculum) {
+      const ret = returnToCurriculum;
+      setReturnToCurriculum(null);
+      window.setTimeout(() => setCurriculumCourse(ret), 0);
+    }
+  };
 
   /**
    * Dispatches a course click to the right modal based on courseType.
@@ -1002,7 +1016,10 @@ export default function LearningHub() {
           playing && playing.mode === "lesson" ? playing.course.id : null
         }
         courseTitle={playing?.course.name}
-        onClose={() => setPlaying(null)}
+        onClose={() => {
+          setPlaying(null);
+          popReturnToCurriculum();
+        }}
       />
 
       {/* Course player modal (sidebar + per-lesson iframe) */}
@@ -1011,7 +1028,10 @@ export default function LearningHub() {
           playing && playing.mode === "course" ? playing.course.id : null
         }
         courseTitle={playing?.course.name}
-        onClose={() => setPlaying(null)}
+        onClose={() => {
+          setPlaying(null);
+          popReturnToCurriculum();
+        }}
       />
 
       {/* Sessions modal — InstructorLedCourse cards land here */}
@@ -1019,15 +1039,26 @@ export default function LearningHub() {
         courseId={sessionsCourse?.id ?? null}
         courseTitle={sessionsCourse?.name}
         onRegistered={() => revalidator.revalidate()}
-        onClose={() => setSessionsCourse(null)}
+        onClose={() => {
+          setSessionsCourse(null);
+          popReturnToCurriculum();
+        }}
       />
 
-      {/* Curriculum modal — Curriculum cards land here */}
+      {/* Curriculum modal — Curriculum cards land here. Picking a child
+          stashes the parent so closing the child returns here rather
+          than dropping back to the hub. */}
       <CurriculumModal
         curriculumId={curriculumCourse?.id ?? null}
         curriculumTitle={curriculumCourse?.name}
-        onClose={() => setCurriculumCourse(null)}
+        onClose={() => {
+          setCurriculumCourse(null);
+          setReturnToCurriculum(null);
+        }}
         onPickCourse={(child) => {
+          const parent = curriculumCourse;
+          setCurriculumCourse(null);
+          if (parent) setReturnToCurriculum(parent);
           window.setTimeout(() => playOrOpen(child, "course"), 0);
         }}
       />

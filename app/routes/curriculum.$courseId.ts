@@ -20,7 +20,7 @@
  */
 
 import { LoaderFunctionArgs, json } from "@remix-run/node";
-import { getCurriculumChildren } from "~/.server/infuse-api";
+import { getCurriculumOverview } from "~/.server/infuse-api";
 import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -36,11 +36,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   try {
-    const courses = await getCurriculumChildren(token, courseId);
-    return json({ courses });
+    const overview = await getCurriculumOverview(token, courseId);
+    return json(overview);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[curriculum] courseId=${courseId} failed:`, message);
-    return json({ courses: [], error: message });
+    return json(
+      { courses: [], groups: [], enrollment: null, error: message },
+      { status: 200 }
+    );
   }
 }
