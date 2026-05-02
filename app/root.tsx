@@ -2,6 +2,7 @@ import * as React from "react";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLocation } from "@remix-run/react";
 import "./tailwind.css";
 import "./styles/infuse-academy.css";
+import "./styles/experimental.css";
 import { withEmotionCache } from "@emotion/react";
 import {
   ThemeProvider,
@@ -13,6 +14,7 @@ import ClientStyleContext from "./context/client-style.context";
 import defaultTheme from "./mui/theme";
 import infuseAcademyTheme from "./mui/theme-infuse-academy";
 import radnetTheme from "./mui/theme-radnet";
+import experimentalTheme from "./mui/theme-experimental";
 import { Header } from "./components/header/header.component";
 import { RadnetFooter } from "./components/footer/radnet-footer.component";
 import {
@@ -120,6 +122,8 @@ const ThemedShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       ? radnetTheme
       : themeVariant === "infuse-academy"
       ? infuseAcademyTheme
+      : themeVariant === "experimental"
+      ? experimentalTheme
       : defaultTheme;
   return <ThemeProvider theme={activeTheme}>{children}</ThemeProvider>;
 };
@@ -127,11 +131,16 @@ const ThemedShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 export default function App() {
   const location = useLocation();
   const isNotLoginPage = location.pathname !== "/signin";
+  // The experimental Learning Hub renders its own in-page topbar — skip the
+  // global header on that route so we don't get two stacked navs.
+  const isExperimentalHub =
+    location.pathname === "/learning-hub-experimental";
+  const showHeader = isNotLoginPage && !isExperimentalHub;
   return (
     <Document>
       <AppStateProvider>
         <ThemedShell>
-          {isNotLoginPage && <Header />}
+          {showHeader && <Header />}
           <Outlet />
           {isNotLoginPage && <RadnetFooter />}
         </ThemedShell>

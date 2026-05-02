@@ -8,10 +8,20 @@ import React, {
   useMemo,
 } from "react";
 
-export type ThemeVariant = "default" | "infuse-academy" | "radnet";
+export type ThemeVariant =
+  | "default"
+  | "infuse-academy"
+  | "radnet"
+  | "experimental";
 const THEME_STORAGE_KEY = "ia:theme-variant";
 
-/** Branded variants share the IA (Infuse Academy) layout + components. */
+/**
+ * Branded variants share the IA (Infuse Academy) layout + components.
+ *
+ * NOTE: "experimental" is intentionally NOT a branded variant — it has its own
+ * standalone layout, palette, typography, and route (/learning-hub-experimental)
+ * and does not inherit from `body.theme-ia` styles.
+ */
 export function isBrandedVariant(v: ThemeVariant): boolean {
   return v === "infuse-academy" || v === "radnet";
 }
@@ -43,6 +53,7 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({
       if (
         stored === "infuse-academy" ||
         stored === "radnet" ||
+        stored === "experimental" ||
         stored === "default"
       ) {
         setThemeVariantState(stored);
@@ -56,11 +67,17 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({
   //   "infuse-academy" → body has `theme-ia`
   //   "radnet"         → body has `theme-ia theme-radnet` (inherits IA layout,
   //                      then .theme-radnet overrides the IA color variables)
-  //   "default"        → neither class
+  //   "experimental"   → body has `theme-experimental` (its own standalone
+  //                      stylesheet — does NOT inherit from theme-ia)
+  //   "default"        → none of the above
   useEffect(() => {
     if (typeof document === "undefined") return;
     document.body.classList.toggle("theme-ia", isBrandedVariant(themeVariant));
     document.body.classList.toggle("theme-radnet", themeVariant === "radnet");
+    document.body.classList.toggle(
+      "theme-experimental",
+      themeVariant === "experimental"
+    );
   }, [themeVariant]);
 
   const setThemeVariant = useCallback((v: ThemeVariant) => {

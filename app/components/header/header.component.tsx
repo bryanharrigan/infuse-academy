@@ -50,6 +50,14 @@ export const Header = () => {
   // Alias kept so existing conditionals keep working.
   const isIA = isBranded;
   const isRadNet = themeVariant === "radnet";
+  const isExperimental = themeVariant === "experimental";
+
+  // The Learning Hub link routes to the dedicated experimental page when
+  // the Experimental theme is active. Other variants keep the standard
+  // /learning-hub route.
+  const learningHubPath = isExperimental
+    ? "/learning-hub-experimental"
+    : "/learning-hub";
 
   const handleThemeChange = (e: SelectChangeEvent<ThemeVariant>) => {
     setThemeVariant(e.target.value as ThemeVariant);
@@ -87,7 +95,7 @@ export const Header = () => {
     <>
       {renderNavLink("/my-courses", "My Courses")}
       {renderNavLink("/catalog", "Catalog")}
-      {renderNavLink("/learning-hub", "Learning Hub")}
+      {renderNavLink(learningHubPath, "Learning Hub")}
     </>
   );
 
@@ -114,6 +122,7 @@ export const Header = () => {
         <MenuItem value="default">Default</MenuItem>
         <MenuItem value="infuse-academy">Infuse Academy</MenuItem>
         <MenuItem value="radnet">RadNet</MenuItem>
+        <MenuItem value="experimental">Experimental</MenuItem>
       </Select>
     </FormControl>
   );

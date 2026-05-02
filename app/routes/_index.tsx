@@ -5,7 +5,8 @@
  * the user is logged in and we can show a welcome + nav.
  */
 
-import { Link, useRouteLoaderData } from "@remix-run/react";
+import { useEffect } from "react";
+import { Link, useNavigate, useRouteLoaderData } from "@remix-run/react";
 import { Box, Button, Typography, Paper, Stack } from "@mui/material";
 import {
   School as SchoolIcon,
@@ -22,8 +23,20 @@ export default function Index() {
   const data = useRouteLoaderData("root") as RootData | null;
   const firstName = data?.userProfile?.firstName ?? "";
   const { themeVariant } = useAppStateContext();
-  // IA layout also powers the RadNet variant.
-  const isIA = themeVariant !== "default";
+  const navigate = useNavigate();
+
+  // Experimental theme uses /learning-hub-experimental as its single default
+  // page — silently bounce there once we know the variant on hydration.
+  useEffect(() => {
+    if (themeVariant === "experimental") {
+      navigate("/learning-hub-experimental", { replace: true });
+    }
+  }, [themeVariant, navigate]);
+
+  // IA layout powers Infuse Academy + RadNet (NOT Experimental, which has
+  // its own dedicated layout via the route above).
+  const isIA =
+    themeVariant === "infuse-academy" || themeVariant === "radnet";
 
   // ─── Infuse Academy variant ──────────────────────────────────────────
   if (isIA) {

@@ -19,6 +19,38 @@ export default defineConfig({
   ssr: {
     noExternal: [/^@mui\//, /^@emotion\//],
   },
+  /**
+   * MUI v5 ships parallel build trees inside @mui/system and
+   * @mui/icons-material:
+   *   - CJS files at the package root  (e.g. .../createStyled.js)
+   *   - ESM files under /esm/          (e.g. .../esm/createStyled.js)
+   *
+   * Their package.json has no `exports` map, so any subpath import like
+   * `@mui/system/createStyled` resolves to the CJS file. Vite's SSR
+   * module runner then evaluates that CJS file as ESM and crashes with
+   * `ReferenceError: require is not defined` at line 5.
+   *
+   * Workaround: rewrite every subpath import on these two packages to
+   * the /esm/ variant. We exclude `esm/` itself so we don't double-prefix.
+   * `@mui/material` already handles this via its own per-subdir
+   * package.json files (where `main` points to ../node/* CJS and `module`
+   * points to the ESM at the normal path), so we leave it alone.
+   *
+   * Applies to dev + build — the ESM files are what should be bundled in
+   * production anyway, so this keeps both code paths consistent.
+   */
+  resolve: {
+    alias: [
+      {
+        find: /^@mui\/system\/(?!esm\/)(.+)$/,
+        replacement: "@mui/system/esm/$1",
+      },
+      {
+        find: /^@mui\/icons-material\/(?!esm\/)(.+)$/,
+        replacement: "@mui/icons-material/esm/$1",
+      },
+    ],
+  },
   server: {
     host: "0.0.0.0",
     allowedHosts: ["infuse.bryanharrigan.dev"],

@@ -5,6 +5,10 @@ node_modules
 .env
 .env.local
 
+# Vite writes these when reloading vite.config.ts under Node ESM — they're
+# transient and shouldn't be tracked.
+vite.config.ts.timestamp-*.mjs
+
 # Infuse OAuth admin refresh token — NEVER commit
 .infuse-admin-token.json
 

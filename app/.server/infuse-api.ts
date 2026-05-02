@@ -229,6 +229,66 @@ export async function getNewsArticles(
   );
 }
 
+/**
+ * Resource library item — Absorb's "Resources" feature exposed via the
+ * Integration API v2 at /resources. The exact field set varies by tenant,
+ * so we type only the fields we actually surface in the Experimental hub.
+ */
+export type Resource = {
+  id: string;
+  name?: string;
+  title?: string;
+  description?: string;
+  /** "Document", "Video", "Audio", "Link", etc. */
+  resourceType?: string;
+  /** Direct URL to the resource asset (PDF link, video file, external page). */
+  url?: string;
+  /** Some tenants surface a thumbnail. */
+  imageUri?: string;
+  imageUrl?: string;
+  /** Optional categorisation. */
+  category?: string;
+  dateCreated?: string;
+  dateModified?: string;
+};
+
+/**
+ * Fetch tenant resource library items.
+ *
+ *   GET {INFUSE_BASE_URL}/resources?_limit=&_offset=
+ *
+ * Not every tenant has the Resources module enabled — when it's missing
+ * Absorb returns 403/404. Callers should wrap in try/catch and treat an
+ * empty array as the no-resources state.
+ *
+ * Response shape varies between portal versions; we accept any of the
+ * common HAL-ish wrappings (`resources`, `_embedded.resources`,
+ * `_embedded.["resources"]`).
+ */
+export async function getResources(
+  token: string,
+  options?: { limit?: number; offset?: number }
+): Promise<Resource[]> {
+  const url = infuseUrl("resources", {
+    params: {
+      _limit: String(options?.limit ?? 12),
+      _offset: String(options?.offset ?? 0),
+    },
+  });
+  const r = await fetch(url, { method: "GET", headers: authHeaders(token) });
+  console.log(`[infuse-api] GET /resources → ${r.status}`);
+  if (!r.ok) {
+    throw new Error("Error fetching resources: " + r.status);
+  }
+  const data = await r.json();
+  return (
+    data?.resources ??
+    data?._embedded?.resources ??
+    data?._embedded?.["resources"] ??
+    []
+  );
+}
+
 export async function getMyCourseEnrollment(token: string, courseId: string): Promise<MyCourseEnrollment> {
   const r = await fetch(infuseUrl("my-course-enrollments/" + courseId), { method: "GET", headers: authHeaders(token) });
   if (r.status === 200) {
