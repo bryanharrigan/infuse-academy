@@ -66,16 +66,87 @@ export async function getUserAvatar(token: string): Promise<string> {
   return data.avatar;
 }
 
+/**
+ * NOTE on courseTypes: omitting the param returns OnlineCourse +
+ * InstructorLedCourse + Curriculum. Earlier versions of this app
+ * hard-filtered to "OnlineCourse" because the embedded lesson player
+ * only works for online content; we now surface all three types and
+ * branch the click handler at render time (online → lesson player,
+ * ILT/Curriculum → Absorb portal in a new tab).
+ */
 export async function getMyCourses(token: string, options?: { limit?: number; showCompleted?: boolean }): Promise<MyCoursesResource> {
-  const r = await fetch(infuseUrl("my-courses", { params: { _limit: String(options?.limit ?? 20), showCompleted: String(options?.showCompleted ?? false), courseTypes: "OnlineCourse" } }), { method: "GET", headers: authHeaders(token) });
+  const r = await fetch(infuseUrl("my-courses", { params: { _limit: String(options?.limit ?? 20), showCompleted: String(options?.showCompleted ?? false) } }), { method: "GET", headers: authHeaders(token) });
   if (r.status !== 200) throw new Error("Error fetching my courses: " + r.status);
   return r.json();
 }
 
 export async function getMyCatalog(token: string, options?: { limit?: number; showCompleted?: boolean }): Promise<MyCoursesResource> {
-  const r = await fetch(infuseUrl("my-catalog", { params: { _limit: String(options?.limit ?? 20), showCompleted: String(options?.showCompleted ?? false), courseTypes: "OnlineCourse" } }), { method: "GET", headers: authHeaders(token) });
+  const r = await fetch(infuseUrl("my-catalog", { params: { _limit: String(options?.limit ?? 20), showCompleted: String(options?.showCompleted ?? false) } }), { method: "GET", headers: authHeaders(token) });
   if (r.status !== 200) throw new Error("Error fetching catalog: " + r.status);
   return r.json();
+}
+
+/**
+ * Build the Absorb learner-portal URL for a course's "details" page.
+ * The portal's hash router (#/courses/:id) renders type-aware UI:
+ * sessions list for InstructorLedCourse, lesson list for OnlineCourse,
+ * child-course tree for Curriculum. Use this when the embedded player
+ * doesn't apply (anything other than OnlineCourse) so the learner can
+ * still register / navigate via Absorb's native UI.
+ */
+export function getPortalCourseUrl(courseId: string): string {
+  const portal = InfusePortalUrl.replace(/\/$/, "");
+  return `${portal}/#/courses/${encodeURIComponent(courseId)}`;
+}
+
+/**
+ * Walk every page of /my-catalog, returning the full set of courses the
+ * learner is permitted to enroll in across all course types
+ * (OnlineCourse + InstructorLedCourse + Curriculum). Absorb caps each page
+ * at ~30 (_limit > 30 returns 422), so we paginate via _offset until a
+ * page returns fewer results than requested.
+ *
+ * Use this for the Catalog page where the learner expects to see every
+ * available course. Stick with `getMyCatalog` for hub previews where a
+ * single capped fetch is plenty.
+ *
+ * Bounded by MAX_PAGES (20 → ~600 courses) so a misbehaving tenant can't
+ * spin a server loader forever.
+ */
+export async function getAllAvailableCatalog(token: string): Promise<MyCoursesResource> {
+  const PAGE_SIZE = 30;
+  const MAX_PAGES = 20;
+
+  type CatalogCourse = MyCoursesResource["_embedded"]["courses"][number];
+  const all: CatalogCourse[] = [];
+  let offset = 0;
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const r = await fetch(
+      infuseUrl("my-catalog", {
+        params: {
+          _limit: String(PAGE_SIZE),
+          _offset: String(offset),
+          showCompleted: "true",
+          // Intentionally NO courseTypes filter — include OnlineCourse,
+          // InstructorLedCourse, and Curriculum so the catalog page shows
+          // everything the learner can enroll in.
+        },
+      }),
+      { method: "GET", headers: authHeaders(token) }
+    );
+    if (r.status !== 200) {
+      throw new Error("Error fetching catalog: " + r.status);
+    }
+    const data: MyCoursesResource = await r.json();
+    const courses = data?._embedded?.courses ?? [];
+    if (courses.length === 0) break;
+    all.push(...courses);
+    if (courses.length < PAGE_SIZE) break; // last page
+    offset += PAGE_SIZE;
+  }
+
+  return { _embedded: { courses: all } };
 }
 
 /**

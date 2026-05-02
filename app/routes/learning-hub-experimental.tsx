@@ -64,6 +64,7 @@ import {
   getNewsArticles,
   getResources,
   getChaptersForCourse,
+  InfusePortalUrl,
   type NewsArticle,
   type Resource,
   type Chapter,
@@ -152,6 +153,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     news,
     resources,
     gamification,
+    // Base URL of the Absorb learner portal — used by the client to build
+    // deep links for InstructorLedCourse / Curriculum cards (the embedded
+    // lesson player only handles OnlineCourse).
+    portalBaseUrl: InfusePortalUrl.replace(/\/$/, ""),
   });
 };
 
@@ -371,8 +376,34 @@ const ConfettiLayer: React.FC<{ bursts: ConfettiBurst[] }> = ({ bursts }) => {
 /* ─── Page ──────────────────────────────────────────────────────────────── */
 
 export default function LearningHubExperimental() {
-  const { myCourses, catalog, news, resources, gamification } =
+  const { myCourses, catalog, news, resources, gamification, portalBaseUrl } =
     useLoaderData<typeof loader>();
+
+  /**
+   * Open the Absorb learner portal page for a course in a new tab. Used
+   * for InstructorLedCourse (where the user picks a session to register
+   * for) and Curriculum (where they drill into the bundle's child
+   * courses) — neither of which the embedded lesson player handles.
+   */
+  const openInPortal = (courseId: string) => {
+    if (typeof window === "undefined") return;
+    const url = `${portalBaseUrl}/#/courses/${encodeURIComponent(courseId)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  /**
+   * Wraps the lesson-player launch with a courseType branch:
+   *   OnlineCourse        → embedded course player modal (current behavior)
+   *   InstructorLedCourse → open Absorb portal in new tab
+   *   Curriculum          → open Absorb portal in new tab (curriculum drill)
+   */
+  const playOrOpen = (course: Course) => {
+    if (course.courseType === "OnlineCourse") {
+      playOrOpen(course);
+    } else {
+      openInPortal(course.id);
+    }
+  };
   const rootData = useRouteLoaderData("root") as RootData | null;
   const { themeVariant, setThemeVariant } = useAppStateContext();
   const navigate = useNavigate();
@@ -522,7 +553,7 @@ export default function LearningHubExperimental() {
             // Click anywhere on a non-enrolled card kicks off enrollment.
             handleEnroll(course.id);
           } else {
-            setPlaying({ course, mode: "course" });
+            playOrOpen(course);
           }
         }}
       >
@@ -569,7 +600,7 @@ export default function LearningHubExperimental() {
                     if (!isEnrolled) {
                       handleEnroll(course.id);
                     } else {
-                      setPlaying({ course, mode: "course" });
+                      playOrOpen(course);
                     }
                   }}
                 >
@@ -598,7 +629,7 @@ export default function LearningHubExperimental() {
                 onClick={(e) => {
                   e.stopPropagation();
                   if (isEnrolled) {
-                    setPlaying({ course, mode: "course" });
+                    playOrOpen(course);
                   } else {
                     handleEnroll(course.id);
                   }
@@ -959,9 +990,7 @@ export default function LearningHubExperimental() {
                 <button
                   type="button"
                   className="exp-featured__cta"
-                  onClick={() =>
-                    setPlaying({ course: featured, mode: "course" })
-                  }
+                  onClick={() => playOrOpen(featured)}
                 >
                   <PlayArrow fontSize="small" />
                   Resume now

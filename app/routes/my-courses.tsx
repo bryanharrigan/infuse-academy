@@ -1,7 +1,7 @@
 import { Box, CircularProgress, Typography, Button } from "@mui/material";
 import { json, LoaderFunctionArgs } from "@remix-run/node";
 import { Link, useLoaderData, useRouteLoaderData } from "@remix-run/react";
-import { getMyCourses } from "~/.server/infuse-api";
+import { getMyCourses, InfusePortalUrl } from "~/.server/infuse-api";
 import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
 import { useMyCourses } from "~/routes/use-my-courses.hook";
 import { CourseDetailModal } from "~/components/modal/course-detail-modal";
@@ -23,7 +23,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     showCompleted: true,
   });
 
-  return json({ myCourses });
+  return json({
+    myCourses,
+    portalBaseUrl: InfusePortalUrl.replace(/\/$/, ""),
+  });
 };
 
 /**
@@ -236,7 +239,7 @@ export default function MyCourses() {
                   courseType={course.courseType}
                   description={course.description}
                   enrollmentStatus={course.enrollmentStatus}
-                  onClick={handleStartCourse}
+                  onClick={(id) => handleStartCourse(id, data.portalBaseUrl)}
                   isEnrolling={false}
                   onCardClick={() => handleCardClick(course.id)}
                 />
@@ -294,7 +297,7 @@ export default function MyCourses() {
               courseType={course.courseType}
               description={course.description}
               enrollmentStatus={course.enrollmentStatus}
-              onClick={handleStartCourse}
+              onClick={(id) => handleStartCourse(id, data.portalBaseUrl)}
               isEnrolling={false}
               onCardClick={() => handleCardClick(course.id)}
             />

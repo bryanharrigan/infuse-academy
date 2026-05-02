@@ -11,22 +11,31 @@ import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
 import { MyCoursesResource } from "~/.server/my-courses.resource";
 import { useCatalog } from "~/routes/use-catalog.hook";
 import {
-  getMyCatalog,
+  getAllAvailableCatalog,
   startEnrollment,
   getMyCourseEnrollment,
+  InfusePortalUrl,
 } from "~/.server/infuse-api";
 import { useAppStateContext } from "~/context/app-state.context";
 
+/**
+ * Loader returns every course in the learner's catalog — paginated across
+ * Absorb's ~30-per-page limit and unfiltered by course type, so all
+ * OnlineCourse / InstructorLedCourse / Curriculum entries are present.
+ *
+ * The page itself shows enrolled and not-yet-enrolled courses side-by-side;
+ * the in-card click handler differentiates enroll vs. start.
+ */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const cookieHeader = request.headers.get("Cookie");
   const tokenValue = await infuseJwtCookie.parse(cookieHeader);
 
-  const catalog: MyCoursesResource = await getMyCatalog(tokenValue, {
-    limit: 30,
-    showCompleted: true,
-  });
+  const catalog: MyCoursesResource = await getAllAvailableCatalog(tokenValue);
 
-  return json({ catalog });
+  return json({
+    catalog,
+    portalBaseUrl: InfusePortalUrl.replace(/\/$/, ""),
+  });
 };
 
 export const action: ActionFunction = async ({ request }) => {
@@ -162,7 +171,7 @@ export default function MyCatalog() {
                     if (!course.enrollmentStatus) {
                       handleEnroll(course.id);
                     } else {
-                      handleStartCourse(course.id);
+                      handleStartCourse(course.id, data.portalBaseUrl);
                     }
                   }}
                   onCardClick={() => handleCardClick(course.id)}
@@ -220,7 +229,7 @@ export default function MyCatalog() {
               if (!course.enrollmentStatus) {
                 handleEnroll(course.id);
               } else {
-                handleStartCourse(course.id);
+                handleStartCourse(course.id, data.portalBaseUrl);
               }
             }}
             onCardClick={() => handleCardClick(course.id)}

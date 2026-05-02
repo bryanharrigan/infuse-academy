@@ -21,10 +21,31 @@ export function useCatalog(data: { catalog: MyCoursesResource }) {
 
   const catalog = data?.catalog?._embedded.courses || [];
 
-  // "Start / Resume" on an enrolled catalog course → open the modal player.
-  const handleStartCourse = (id: string) => {
+  // "Start / Resume" on an enrolled catalog course.
+  //   OnlineCourse        → open the modal player (current behavior)
+  //   InstructorLedCourse → open Absorb learner portal in a new tab so
+  //                         the user can pick a session to register for
+  //   Curriculum          → open Absorb learner portal so the user can
+  //                         drill into the bundle's child courses
+  // The portal base URL is built from `window.location.origin` plus the
+  // tenant portal hash route — works because the app and the Absorb
+  // portal share the same hostname (or a known sibling). When that's
+  // not the case (multi-tenant deploys), the caller can pass an explicit
+  // `portalBaseUrl` via the second argument.
+  const handleStartCourse = (id: string, portalBaseUrl?: string) => {
     const course = catalog.find((c) => c.id === id) || null;
-    setPlayingCourse(course);
+    if (!course) return;
+    if (course.courseType === "OnlineCourse") {
+      setPlayingCourse(course);
+      return;
+    }
+    if (typeof window === "undefined") return;
+    const base = portalBaseUrl ?? window.location.origin;
+    window.open(
+      `${base}/#/courses/${encodeURIComponent(course.id)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
   };
 
   const handleClosePlayer = () => setPlayingCourse(null);

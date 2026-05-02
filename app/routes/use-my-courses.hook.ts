@@ -6,7 +6,7 @@ type UseMyCoursesResult = {
   selectedCourse: Course | null;
   playingCourse: Course | null;
   handleCardClick: (courseId: string) => void;
-  handleStartCourse: (id: string) => void;
+  handleStartCourse: (id: string, portalBaseUrl?: string) => void;
   handleCloseDetailModal: () => void;
   handleClosePlayer: () => void;
 };
@@ -20,14 +20,27 @@ export const useMyCourses = (data?: {
   const courses = data?.myCourses?._embedded.courses || [];
 
   /**
-   * "Start / Resume" button on a course card → open the LessonPlayerModal.
-   * Modal fetches /lesson-player/:courseId and iframes Absorb's
-   * /learn/lessonplayer. No legacy new-tab fallback now that the iframe
-   * embed is working.
+   * "Start / Resume" on a course card.
+   *   OnlineCourse        → embedded LessonPlayerModal (current behavior).
+   *   InstructorLedCourse → opens Absorb's learner portal in a new tab so
+   *                         the user can pick a session to register for.
+   *   Curriculum          → opens Absorb's portal so the user can drill
+   *                         into the bundle's child courses.
    */
-  const handleStartCourse = (id: string) => {
+  const handleStartCourse = (id: string, portalBaseUrl?: string) => {
     const course = courses.find((c) => c.id === id) || null;
-    setPlayingCourse(course);
+    if (!course) return;
+    if (course.courseType === "OnlineCourse") {
+      setPlayingCourse(course);
+      return;
+    }
+    if (typeof window === "undefined") return;
+    const base = portalBaseUrl ?? window.location.origin;
+    window.open(
+      `${base}/#/courses/${encodeURIComponent(course.id)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
   };
 
   const handleCardClick = (courseId: string) => {

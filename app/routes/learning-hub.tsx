@@ -41,6 +41,7 @@ import {
   getMyCatalog,
   getMyCourses,
   getNewsArticles,
+  InfusePortalUrl,
   type NewsArticle,
 } from "~/.server/infuse-api";
 import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
@@ -76,6 +77,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     myCourses: myCoursesRes._embedded.courses,
     catalog: catalogRes._embedded.courses,
     news,
+    // Used client-side to deep-link InstructorLedCourse + Curriculum
+    // cards into the Absorb learner portal where the lesson player
+    // can't render them.
+    portalBaseUrl: InfusePortalUrl.replace(/\/$/, ""),
   });
 };
 
@@ -250,7 +255,28 @@ const BigRing: React.FC<{ percent: number }> = ({ percent }) => {
 /* ───────── Page ─────────────────────────────────────────────────────── */
 
 export default function LearningHub() {
-  const { myCourses, catalog, news } = useLoaderData<typeof loader>();
+  const { myCourses, catalog, news, portalBaseUrl } =
+    useLoaderData<typeof loader>();
+
+  /**
+   * For non-OnlineCourse cards (InstructorLedCourse, Curriculum), the
+   * embedded course/lesson player can't render them — open Absorb's
+   * learner portal in a new tab so the user can register for a session
+   * or drill into a curriculum.
+   */
+  const playOrOpen = (course: Course, mode: "lesson" | "course") => {
+    if (course.courseType === "OnlineCourse") {
+      setPlaying({ course, mode });
+      return;
+    }
+    if (typeof window !== "undefined") {
+      window.open(
+        `${portalBaseUrl}/#/courses/${encodeURIComponent(course.id)}`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    }
+  };
   const rootData = useRouteLoaderData("root") as RootData | null;
   const { themeVariant } = useAppStateContext();
   // IA layout also powers the RadNet variant.
@@ -296,10 +322,16 @@ export default function LearningHub() {
       setEnrollingId(null);
     }
   };
-  // Legacy alias used by existing card/featured click handlers (defaults to
-  // "lesson" mode). Progress Breakdown bars pass "course" instead.
-  const setPlayingCourse = (c: Course | null) =>
-    setPlaying(c ? { course: c, mode: "lesson" } : null);
+  // Legacy alias used by existing card/featured click handlers (defaults
+  // to "lesson" mode). Progress Breakdown bars pass "course" instead.
+  // Now type-aware: routes ILT / Curriculum to the Absorb portal.
+  const setPlayingCourse = (c: Course | null) => {
+    if (!c) {
+      setPlaying(null);
+      return;
+    }
+    playOrOpen(c, "lesson");
+  };
 
   // Index myCourses by id so Progress Breakdown bars can resolve clicks.
   const courseById = useMemo(() => {
@@ -674,9 +706,10 @@ export default function LearningHub() {
                     className="hub-pbar"
                     onClick={() => {
                       const course = courseById.get(c.id) ?? c;
-                      // Launch the multi-lesson Course Player (sidebar of
-                      // lessons) rather than the single-lesson player.
-                      setPlaying({ course, mode: "course" });
+                      // Launch the multi-lesson Course Player for online
+                      // content; ILT / Curriculum bounces to the Absorb
+                      // portal in a new tab.
+                      playOrOpen(course, "course");
                     }}
                     aria-label={`Open ${c.name} in the course player — ${pct} percent complete`}
                   >
