@@ -265,15 +265,19 @@ const Whirlpool: React.FC<{
   return (
     <div className="exp-whirlpool" aria-hidden>
       {rings.map((ring, i) => {
-        // Stretch a SINGLE pass of the words around the full circumference
-        // using textLength + lengthAdjust=spacingAndGlyphs. This guarantees:
-        //   1. Every adjacent pair gets a " • " separator
-        //   2. The trailing " • " wraps back to the first word visually,
-        //      so the seam looks intentional rather than a smashed pair
-        //   3. No partial-word fragments (LE / PR / DIV / EXPLORELEARN)
-        //      because the renderer never overruns the path
-        const circumference = 2 * Math.PI * ring.r;
-        const text = ring.words.join(" • ") + " • ";
+        // Cross-browser-safe approach: repeat the joined word string
+        // enough times that it OVERFILLS the path. SVG natively
+        // truncates excess at the end of the path, so the visible
+        // result is a continuous ring of repeating text. No
+        // `textLength`/`lengthAdjust` — those work in Chrome/Safari but
+        // produce visible gaps in Firefox where lengthAdjust=
+        // spacingAndGlyphs has rendering bugs.
+        //
+        // Because every repetition is identical, the wrap point lands
+        // on the same word as if the path continued — no fragmented
+        // letters or "EXPLORELEARN"-style smash artefacts.
+        const baseText = ring.words.join(" • ") + " • ";
+        const repeated = baseText.repeat(4);
         return (
           <div
             key={i}
@@ -295,12 +299,8 @@ const Whirlpool: React.FC<{
                 className={ring.color}
                 fontSize={i === 0 ? 22 : i === 1 ? 19 : i === 2 ? 17 : 15}
               >
-                <textPath
-                  href={`#exp-whirlpool-path-${i}`}
-                  textLength={circumference}
-                  lengthAdjust="spacingAndGlyphs"
-                >
-                  {text}
+                <textPath href={`#exp-whirlpool-path-${i}`}>
+                  {repeated}
                 </textPath>
               </text>
             </svg>
