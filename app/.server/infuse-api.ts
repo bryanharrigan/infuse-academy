@@ -293,12 +293,16 @@ export type Session = {
 };
 
 /**
- * Fetch the child courses inside a Curriculum bundle. Tries the
- * learner-scoped endpoint first (returns per-course enrollmentStatus so
- * the modal can show progress), then falls back to the catalog-style
- * curriculum endpoint when the learner-scoped one isn't available
- * (some tenants gate it behind extra perms or return 404 for
- * not-yet-enrolled curricula).
+ * Fetch the child courses inside a Curriculum bundle.
+ *
+ *   GET {INFUSE_BASE_URL}/my-courses?curriculumId={id}&_limit=30
+ *
+ * Verified against the live Absorb V2 API: this is the documented
+ * (well, observed) endpoint that returns per-learner course records —
+ * including enrollmentStatus / progress — for every course nested
+ * inside a curriculum the learner is enrolled in. Other patterns
+ * (`/curricula/:id/courses`, `/my-curricula/:id/courses`,
+ * `/curriculum-enrollments/:id/courses`) all 404 against this tenant.
  *
  * Returns courses shaped like everything else the hubs render so the
  * existing CourseCard / playOrOpen logic just works.
@@ -307,41 +311,21 @@ export async function getCurriculumChildren(
   token: string,
   curriculumId: string
 ): Promise<MyCoursesResource["_embedded"]["courses"]> {
-  type CatalogCourse = MyCoursesResource["_embedded"]["courses"][number];
-
-  // Endpoints to try, in priority order. The first one that returns 2xx
-  // with a non-empty embedded courses array wins.
-  const candidates = [
-    infuseUrl(`my-curricula/${curriculumId}/courses`, { params: { _limit: "30" } }),
-    infuseUrl(`my-courses/${curriculumId}/courses`, { params: { _limit: "30" } }),
-    infuseUrl(`curricula/${curriculumId}/courses`, { params: { _limit: "30" } }),
-  ];
-
-  let lastStatus = 0;
-  for (const url of candidates) {
-    try {
-      const r = await fetch(url, { method: "GET", headers: authHeaders(token) });
-      lastStatus = r.status;
-      console.log(`[infuse-api] GET curriculum children ${url} → ${r.status}`);
-      if (!r.ok) continue;
-      const data = await r.json();
-      const courses: CatalogCourse[] =
-        data?._embedded?.courses ??
-        data?.courses ??
-        data?._embedded?.["courses"] ??
-        [];
-      if (courses.length > 0) return courses;
-    } catch (err) {
-      console.warn(
-        `[infuse-api] curriculum children ${url} threw:`,
-        err instanceof Error ? err.message : err
-      );
-    }
+  const url = infuseUrl("my-courses", {
+    params: {
+      curriculumId,
+      _limit: "30",
+      showCompleted: "true",
+    },
+  });
+  const r = await fetch(url, { method: "GET", headers: authHeaders(token) });
+  console.log(`[infuse-api] GET /my-courses?curriculumId=:id → ${r.status}`);
+  if (r.status === 404) return [];
+  if (!r.ok) {
+    throw new Error("Error fetching curriculum children: " + r.status);
   }
-  console.warn(
-    `[infuse-api] no curriculum children for ${curriculumId} (last status ${lastStatus})`
-  );
-  return [];
+  const data: MyCoursesResource = await r.json();
+  return data?._embedded?.courses ?? [];
 }
 
 /**
