@@ -215,6 +215,7 @@ export default function MyCatalog() {
         <SessionsModal
           courseId={sessionsCourse?.id ?? null}
           courseTitle={sessionsCourse?.name}
+          course={sessionsCourse}
           onClose={handleCloseSessions}
         />
         <CurriculumModal
@@ -275,6 +276,7 @@ export default function MyCatalog() {
       <SessionsModal
         courseId={sessionsCourse?.id ?? null}
         courseTitle={sessionsCourse?.name}
+        course={sessionsCourse}
         onClose={handleCloseSessions}
       />
       <CurriculumModal

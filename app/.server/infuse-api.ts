@@ -264,11 +264,14 @@ export async function startEnrollment(
  * Instructor-Led Course session. Field names follow Absorb V2 REST API
  * conventions; many are optional because tenants configure ILT sessions
  * differently (some include capacity, some don't; some have a single
- * instructor, some have multiple).
+ * instructor, some have multiple; some are webinars with a Zoom URL,
+ * others are in-person with a physical address).
  */
 export type Session = {
   id: string;
   name?: string;
+  /** Optional per-session description (overrides course description when present). */
+  description?: string;
   /** ISO timestamp for session start. */
   startDate?: string;
   /** ISO timestamp for session end. */
@@ -278,7 +281,14 @@ export type Session = {
   /** Free-form location string ("Acme HQ — Room 4B" or "Online"). */
   location?: string;
   venue?: string;
+  /** Full street address when present. */
+  address?: string;
+  /** Sub-venue identifiers — Absorb tenants populate these inconsistently. */
+  building?: string;
+  room?: string;
   city?: string;
+  state?: string;
+  postalCode?: string;
   country?: string;
   /** Primary instructor name. */
   instructor?: string;
@@ -290,6 +300,21 @@ export type Session = {
   seatsAvailable?: number;
   /** Whether the current learner is already registered for this session. */
   enrollmentStatus?: string | null;
+  /**
+   * Session delivery format. Common values: "Classroom", "Webinar",
+   * "VirtualClassroom", "Hybrid". Stringly-typed because Absorb uses
+   * different enum names per tenant — UI should detect "webinar"-ness
+   * via lowercase substring match.
+   */
+  meetingType?: string;
+  /**
+   * Webinar join URL (Zoom, Teams, Webex, etc.). When present, the
+   * SessionsModal renders an embedded webinar player; otherwise it
+   * renders a Google Maps embed for the physical address.
+   */
+  webinarUrl?: string;
+  /** Optional dial-in info / connection details displayed alongside the join URL. */
+  connectionInfo?: string;
 };
 
 /**
@@ -495,13 +520,20 @@ export async function getCurriculumOverview(
  * Returns an empty array on 404 (some tenants don't expose this endpoint
  * for every course type or version) so the UI can render a "no sessions"
  * empty state rather than blowing up.
+ *
+ * Response normalisation: Absorb V2 returns ILT sessions in slightly
+ * different shapes per tenant — fields like `webinarUrl` may live under
+ * any of `webinarUrl` / `meetingUrl` / `connectionUrl` / `joinUrl`, and
+ * the address may be flat (`address`) or split into `building` / `room`
+ * / `city` / etc. We surface a single canonical `Session` shape so the
+ * UI doesn't have to care.
  */
 export async function getSessionsForCourse(
   token: string,
   courseId: string
 ): Promise<Session[]> {
   const url = infuseUrl(`instructor-led-courses/${courseId}/sessions`, {
-    params: { _limit: "30" },
+    params: { _limit: "20" },
   });
   const r = await fetch(url, { method: "GET", headers: authHeaders(token) });
   console.log(`[infuse-api] GET /instructor-led-courses/:id/sessions → ${r.status}`);
@@ -510,12 +542,87 @@ export async function getSessionsForCourse(
     throw new Error("Error fetching sessions: " + r.status);
   }
   const data = await r.json();
-  return (
+  const raw: Array<Record<string, unknown>> =
     data?.sessions ??
     data?._embedded?.sessions ??
     data?._embedded?.["sessions"] ??
-    []
-  );
+    [];
+
+  // Map raw Absorb objects → canonical Session shape, preferring the
+  // first non-empty value across known field aliases.
+  const pick = (o: Record<string, unknown>, keys: string[]): string | undefined => {
+    for (const k of keys) {
+      const v = o[k];
+      if (typeof v === "string" && v.trim().length > 0) return v;
+    }
+    return undefined;
+  };
+  const pickNum = (
+    o: Record<string, unknown>,
+    keys: string[]
+  ): number | undefined => {
+    for (const k of keys) {
+      const v = o[k];
+      if (typeof v === "number") return v;
+    }
+    return undefined;
+  };
+
+  return raw.map((s): Session => ({
+    id: String(s.id ?? s.sessionId ?? ""),
+    name: pick(s, ["name", "title"]),
+    description: pick(s, ["description", "summary"]),
+    startDate: pick(s, ["startDate", "startTime", "startsAt"]),
+    endDate: pick(s, ["endDate", "endTime", "endsAt"]),
+    timezone: pick(s, ["timezone", "timeZone", "tz"]),
+    location: pick(s, ["location", "locationName"]),
+    venue: pick(s, ["venue", "venueName"]),
+    address: pick(s, ["address", "streetAddress", "addressLine1"]),
+    building: pick(s, ["building"]),
+    room: pick(s, ["room", "roomName"]),
+    city: pick(s, ["city"]),
+    state: pick(s, ["state", "stateProvince", "region"]),
+    postalCode: pick(s, ["postalCode", "zip", "zipCode"]),
+    country: pick(s, ["country", "countryCode"]),
+    instructor:
+      pick(s, ["instructor", "instructorName"]) ??
+      (Array.isArray(s.instructors) && s.instructors.length > 0
+        ? typeof s.instructors[0] === "string"
+          ? (s.instructors[0] as string)
+          : ((s.instructors[0] as { name?: string })?.name ??
+            ((s.instructors[0] as { fullName?: string })?.fullName))
+        : undefined),
+    capacity: pickNum(s, ["capacity", "totalSeats", "maxSeats"]),
+    registeredCount: pickNum(s, [
+      "registeredCount",
+      "registered",
+      "enrolledCount",
+      "filledSeats",
+    ]),
+    seatsAvailable: pickNum(s, [
+      "seatsAvailable",
+      "availableSeats",
+      "seatsRemaining",
+      "remainingSeats",
+    ]),
+    enrollmentStatus: (pick(s, ["enrollmentStatus", "registrationStatus"]) ??
+      null) as string | null,
+    meetingType: pick(s, ["meetingType", "deliveryType", "format", "sessionType"]),
+    webinarUrl: pick(s, [
+      "webinarUrl",
+      "meetingUrl",
+      "connectionUrl",
+      "joinUrl",
+      "joinLink",
+      "url",
+    ]),
+    connectionInfo: pick(s, [
+      "connectionInfo",
+      "connectionDetails",
+      "joinDetails",
+      "additionalDetails",
+    ]),
+  }));
 }
 
 export type NewsArticle = {

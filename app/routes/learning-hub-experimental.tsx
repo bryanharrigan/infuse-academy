@@ -1454,6 +1454,7 @@ export default function LearningHubExperimental() {
       <SessionsModal
         courseId={sessionsCourse?.id ?? null}
         courseTitle={sessionsCourse?.name}
+        course={sessionsCourse}
         onRegistered={() => {
           fireConfetti();
           revalidator.revalidate();

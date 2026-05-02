@@ -1038,6 +1038,7 @@ export default function LearningHub() {
       <SessionsModal
         courseId={sessionsCourse?.id ?? null}
         courseTitle={sessionsCourse?.name}
+        course={sessionsCourse}
         onRegistered={() => revalidator.revalidate()}
         onClose={() => {
           setSessionsCourse(null);

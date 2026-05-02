@@ -43,16 +43,27 @@ import {
   LocationOn as LocationOnIcon,
   Person as PersonIcon,
   Group as GroupIcon,
+  Videocam as VideocamIcon,
+  ArrowOutward as ArrowOutwardIcon,
 } from "@mui/icons-material";
 import { useEffect, useMemo, useState } from "react";
 
 import type { Session } from "~/.server/infuse-api";
+import type { Course } from "~/.server/course.resource";
+import { WebinarModal } from "./webinar-modal";
+import { MapModal } from "./map-modal";
 
 type SessionsModalProps = {
   /** Non-null while the modal should be open. */
   courseId: string | null;
   /** Course title for the dialog header. */
   courseTitle?: string;
+  /**
+   * Optional full course object — when provided we show the course
+   * description in the modal header. Pass it through whenever you have it;
+   * the legacy callers that pass only id+title still work.
+   */
+  course?: Course | null;
   /** Fired when the modal is closed (escape, backdrop, X, or after register). */
   onClose: () => void;
   /** Optional — fires after a successful registration so caller can revalidate. */
@@ -144,9 +155,81 @@ function seatsBadge(s: Session): { text: string; color: "success" | "warning" | 
   return { text: `${seats} seats open`, color: "success" };
 }
 
+/* ─── webinar detection + map query helpers ──────────────────────────── */
+
+/**
+ * True when the session is a webinar / virtual classroom — we either have
+ * an explicit join URL OR the meetingType / location strings strongly
+ * suggest "online".
+ */
+function isWebinarSession(s: Session): boolean {
+  if (s.webinarUrl && s.webinarUrl.length > 0) return true;
+  const mt = (s.meetingType ?? "").toLowerCase();
+  if (
+    mt.includes("webinar") ||
+    mt.includes("virtual") ||
+    mt.includes("online") ||
+    mt.includes("remote")
+  ) {
+    return true;
+  }
+  const loc = (s.location ?? "").toLowerCase();
+  if (loc === "online" || loc === "virtual" || loc === "webinar") return true;
+  return false;
+}
+
+/**
+ * Build the address string we feed to Google Maps. Prefers the most
+ * specific fields available and falls back to whatever is present.
+ */
+function mapAddressFor(s: Session): string | null {
+  const parts: string[] = [];
+  if (s.venue) parts.push(s.venue);
+  if (s.address) parts.push(s.address);
+  // Keep building / room out of the map query — they're noise to the
+  // geocoder. They still display in the venue text alongside the map link.
+  if (s.city) parts.push(s.city);
+  if (s.state) parts.push(s.state);
+  if (s.postalCode) parts.push(s.postalCode);
+  if (s.country) parts.push(s.country);
+  // If we have nothing structured, fall back to the free-form location
+  // string when it looks like an address (not "Online" / "Virtual").
+  if (parts.length === 0 && s.location) {
+    const loc = s.location.toLowerCase();
+    if (
+      !["online", "virtual", "webinar", "remote"].some((k) =>
+        loc.includes(k)
+      )
+    ) {
+      parts.push(s.location);
+    }
+  }
+  if (parts.length === 0) return null;
+  return parts.join(", ");
+}
+
+function stripHtmlToText(html: string | undefined | null): string {
+  if (!html) return "";
+  return html
+    .replace(/<(style|script)[^>]*>[\s\S]*?<\/\1>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&hellip;/g, "…")
+    .replace(/&mdash;/g, "—")
+    .replace(/&ndash;/g, "–")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function SessionsModal({
   courseId,
   courseTitle,
+  course,
   onClose,
   onRegistered,
 }: SessionsModalProps) {
@@ -159,6 +242,15 @@ export function SessionsModal({
   const [registeringId, setRegisteringId] = useState<string | null>(null);
   const [registeredIds, setRegisteredIds] = useState<Set<string>>(new Set());
 
+  /**
+   * Sub-modal state — when a learner taps a session's location row we
+   * either pop a webinar embed (Zoom / Teams / Webex) or a Google Maps
+   * embed for the physical address. Captured per-session so the title
+   * bar of the sub-modal can show the right session name.
+   */
+  const [webinarSession, setWebinarSession] = useState<Session | null>(null);
+  const [mapSession, setMapSession] = useState<Session | null>(null);
+
   const open = courseId !== null;
 
   useEffect(() => {
@@ -169,6 +261,8 @@ export function SessionsModal({
       setError(null);
       setRegisteringId(null);
       setRegisteredIds(new Set());
+      setWebinarSession(null);
+      setMapSession(null);
       return;
     }
     let cancelled = false;
@@ -297,7 +391,7 @@ export function SessionsModal({
               wordBreak: "break-word",
             }}
           >
-            {courseTitle || "Instructor-Led Course"}
+            {courseTitle || course?.name || "Instructor-Led Course"}
           </Typography>
         </Box>
         <IconButton
@@ -311,6 +405,49 @@ export function SessionsModal({
       </DialogTitle>
 
       <DialogContent dividers sx={{ borderColor: "rgba(255,255,255,0.1)" }}>
+        {/* Course description block — surfaced from the parent course
+            object when provided. Folds at 4 lines so a long Absorb
+            description doesn't push every session off-screen. */}
+        {course?.description && stripHtmlToText(course.description).length > 0 && (
+          <Box
+            sx={{
+              mb: 2.5,
+              p: 2,
+              borderRadius: 3,
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.1)",
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                color: "rgba(245,243,255,0.55)",
+                textTransform: "uppercase",
+                letterSpacing: "0.16em",
+                fontWeight: 700,
+                fontSize: "0.65rem",
+                display: "block",
+                mb: 0.5,
+              }}
+            >
+              About this course
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "rgba(245,243,255,0.85)",
+                lineHeight: 1.55,
+                display: "-webkit-box",
+                WebkitLineClamp: 4,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {stripHtmlToText(course.description)}
+            </Typography>
+          </Box>
+        )}
+
         {state === "loading" && (
           <Box sx={{ display: "grid", placeItems: "center", py: 6 }}>
             <CircularProgress sx={{ color: "#5eead4" }} />
@@ -351,6 +488,13 @@ export function SessionsModal({
                 isSessionRegistered(s) || registeredIds.has(s.id);
               const isRegistering = registeringId === s.id;
               const isFull = seats?.text === "Full";
+              const webinar = isWebinarSession(s);
+              const mapAddress = webinar ? null : mapAddressFor(s);
+              const venueClickable =
+                (webinar && s.webinarUrl) || (!webinar && mapAddress);
+              const venueText = webinar
+                ? location ?? "Join webinar"
+                : location;
 
               return (
                 <Box
@@ -391,10 +535,32 @@ export function SessionsModal({
                         text={s.timezone}
                       />
                     )}
-                    {location && (
-                      <SessionMetaRow
-                        icon={<LocationOnIcon fontSize="small" />}
-                        text={location}
+                    {venueText && (
+                      <ClickableMetaRow
+                        icon={
+                          webinar ? (
+                            <VideocamIcon fontSize="small" />
+                          ) : (
+                            <LocationOnIcon fontSize="small" />
+                          )
+                        }
+                        text={venueText}
+                        accent={webinar ? "aqua" : "magenta"}
+                        actionLabel={
+                          webinar
+                            ? "Join webinar"
+                            : mapAddress
+                            ? "View on map"
+                            : undefined
+                        }
+                        onClick={
+                          venueClickable
+                            ? () => {
+                                if (webinar) setWebinarSession(s);
+                                else setMapSession(s);
+                              }
+                            : undefined
+                        }
                       />
                     )}
                     {s.instructor && (
@@ -503,6 +669,42 @@ export function SessionsModal({
           </Stack>
         )}
       </DialogContent>
+
+      {/* Webinar embed sub-modal — opens when learner taps a session whose
+          location resolves to a webinar URL. */}
+      <WebinarModal
+        url={webinarSession?.webinarUrl ?? null}
+        title={
+          webinarSession?.name ??
+          courseTitle ??
+          course?.name ??
+          "Webinar session"
+        }
+        caption={
+          webinarSession
+            ? [
+                formatSessionDateRange(
+                  webinarSession.startDate,
+                  webinarSession.endDate
+                ),
+                webinarSession.timezone,
+                webinarSession.connectionInfo,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : undefined
+        }
+        onClose={() => setWebinarSession(null)}
+      />
+
+      {/* Map embed sub-modal — opens for physical sessions when the
+          learner taps the venue row. */}
+      <MapModal
+        query={mapSession ? mapAddressFor(mapSession) : null}
+        title={mapSession?.venue ?? mapSession?.name ?? "Venue"}
+        caption={mapSession ? mapAddressFor(mapSession) ?? undefined : undefined}
+        onClose={() => setMapSession(null)}
+      />
     </Dialog>
   );
 }
@@ -531,3 +733,80 @@ const SessionMetaRow: React.FC<{ icon: React.ReactNode; text: string }> = ({
     <span style={{ wordBreak: "break-word" }}>{text}</span>
   </Box>
 );
+
+/**
+ * Like SessionMetaRow but tappable — used for the venue row so the
+ * learner can pop the webinar or map sub-modal. Passing no `onClick`
+ * renders inline like SessionMetaRow (no hover, no action label).
+ */
+const ClickableMetaRow: React.FC<{
+  icon: React.ReactNode;
+  text: string;
+  accent?: "aqua" | "magenta";
+  actionLabel?: string;
+  onClick?: () => void;
+}> = ({ icon, text, accent = "aqua", actionLabel, onClick }) => {
+  const accentColor = accent === "magenta" ? "#f0abfc" : "#5eead4";
+  if (!onClick) {
+    return <SessionMetaRow icon={icon} text={text} />;
+  }
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      sx={{
+        all: "unset",
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        cursor: "pointer",
+        color: "rgba(245,243,255,0.92)",
+        fontFamily: "inherit",
+        fontSize: "inherit",
+        padding: "2px 6px",
+        marginLeft: "-6px",
+        borderRadius: 8,
+        transition: "background 0.2s, color 0.2s",
+        "&:hover": {
+          background: "rgba(255,255,255,0.06)",
+          color: accentColor,
+        },
+        "&:focus-visible": {
+          outline: `2px solid ${accentColor}`,
+          outlineOffset: 2,
+        },
+      }}
+    >
+      <Box
+        sx={{
+          display: "inline-flex",
+          color: accentColor,
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </Box>
+      <span style={{ wordBreak: "break-word" }}>{text}</span>
+      {actionLabel && (
+        <Box
+          component="span"
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.25,
+            color: accentColor,
+            fontSize: "0.78rem",
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            ml: 0.25,
+          }}
+        >
+          {actionLabel}
+          <ArrowOutwardIcon sx={{ fontSize: "0.85rem" }} />
+        </Box>
+      )}
+    </Box>
+  );
+};
