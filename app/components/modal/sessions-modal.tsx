@@ -72,6 +72,7 @@ type SessionsModalProps = {
 type FetcherState = "idle" | "loading" | "loaded" | "error";
 
 function isSessionRegistered(s: Session): boolean {
+  if (s.isLearnerEnrolled === true) return true;
   const status = (s.enrollmentStatus ?? "").toLowerCase();
   return (
     status === "enrolled" ||
@@ -500,13 +501,18 @@ export function SessionsModal({
                 ? location ?? "Join webinar"
                 : location;
               // Is the learner registered for some OTHER session in this
-              // course already? If so, the CTA on this row says "Switch"
-              // instead of "Register".
+              // course already? If so AND the tenant allows switching,
+              // the CTA on this row says "Switch" instead of "Register".
+              // When canSwitch is explicitly false we keep "Register" so
+              // the API call doesn't 4xx (Absorb rejects switches when
+              // disabled at the tenant level).
               const otherRegistered = sortedSessions.some(
                 (sess) =>
                   sess.id !== s.id &&
                   (isSessionRegistered(sess) || registeredIds.has(sess.id))
               );
+              const switchAllowed = s.canSwitch !== false; // default to true when undefined
+              const isSwitch = otherRegistered && switchAllowed;
 
               return (
                 <Box
@@ -668,12 +674,12 @@ export function SessionsModal({
                         }}
                       >
                         {isRegistering
-                          ? otherRegistered
+                          ? isSwitch
                             ? "Switching…"
                             : "Registering…"
                           : isFull
                           ? "Full"
-                          : otherRegistered
+                          : isSwitch
                           ? "Switch to this"
                           : "Register"}
                       </Button>

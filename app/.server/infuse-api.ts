@@ -240,16 +240,41 @@ export async function getRefreshTokenForCoursePlayer(
 }
 
 /**
- * Enroll the learner in a course. Optionally registers them in a specific
- * InstructorLedCourse session by including `sessionId` in the request body.
- * Absorb's `/my-enrollments` endpoint accepts both shapes — `{courseId}`
- * for self-paced enrollment and `{courseId, sessionId}` for ILT registration.
+ * Enroll the learner in a course. Two paths depending on shape:
+ *
+ *   - Plain enrollment (online / curriculum / ILT-without-session):
+ *       POST /my-enrollments  { courseId }
+ *
+ *   - Specific ILT session — uses Absorb's documented session-enrollment
+ *     endpoint surfaced via the session's `_links.enroll` rel:
+ *       POST /my-course-enrollments/:courseId/session-enrollments/:sessionId
+ *     Falls back to the legacy /my-enrollments shape if the proper path
+ *     returns 404 / 405 (older tenants).
  */
 export async function startEnrollment(
   token: string,
   courseId: string,
   options?: { sessionId?: string }
 ): Promise<void> {
+  if (options?.sessionId) {
+    const url = infuseUrl(
+      `my-course-enrollments/${courseId}/session-enrollments/${options.sessionId}`
+    );
+    const r = await fetch(url, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify({}),
+    });
+    if (r.status === 200 || r.status === 201 || r.status === 204) return;
+    // Fall through to the legacy path on 404/405.
+    if (r.status !== 404 && r.status !== 405) {
+      const body = await r.text().catch(() => "");
+      throw new Error(
+        `Failed to register session: ${r.status} ${body.slice(0, 200)}`
+      );
+    }
+  }
+
   const body: Record<string, string> = { courseId };
   if (options?.sessionId) body.sessionId = options.sessionId;
   const r = await fetch(infuseUrl("my-enrollments"), {
@@ -257,7 +282,12 @@ export async function startEnrollment(
     headers: authHeaders(token),
     body: JSON.stringify(body),
   });
-  if (r.status !== 201) throw new Error("Failed to start enrollment: " + r.status);
+  if (r.status !== 200 && r.status !== 201 && r.status !== 204) {
+    const text = await r.text().catch(() => "");
+    throw new Error(
+      `Failed to start enrollment: ${r.status} ${text.slice(0, 200)}`
+    );
+  }
 }
 
 /**
@@ -266,15 +296,20 @@ export async function startEnrollment(
  * differently (some include capacity, some don't; some have a single
  * instructor, some have multiple; some are webinars with a Zoom URL,
  * others are in-person with a physical address).
+ *
+ * Absorb stores the actual schedule + venue inside `currentClass` (the
+ * upcoming class for this session — sessions can have multiple classes
+ * if `totalClassCount > 1`). The parser flattens that nested object
+ * into the canonical fields below so the UI doesn't have to reach in.
  */
 export type Session = {
   id: string;
   name?: string;
   /** Optional per-session description (overrides course description when present). */
   description?: string;
-  /** ISO timestamp for session start. */
+  /** ISO timestamp for session start (already normalised to UTC with Z). */
   startDate?: string;
-  /** ISO timestamp for session end. */
+  /** ISO timestamp for session end (already normalised to UTC with Z). */
   endDate?: string;
   /** IANA timezone (e.g. "America/Los_Angeles"). */
   timezone?: string;
@@ -292,14 +327,23 @@ export type Session = {
   country?: string;
   /** Primary instructor name. */
   instructor?: string;
-  /** Total seat count. */
+  /** Total seat count (Absorb's enrollmentLimit). */
   capacity?: number;
-  /** How many learners are already enrolled. */
+  /** How many learners are already enrolled (Absorb's enrollmentCount). */
   registeredCount?: number;
-  /** Convenience: capacity - registeredCount when both are populated. */
+  /** Seats still open (Absorb's seatsRemaining; canonical for the UI). */
   seatsAvailable?: number;
   /** Whether the current learner is already registered for this session. */
   enrollmentStatus?: string | null;
+  /** Boolean version of registration state (Absorb's `enrolled` field). */
+  isLearnerEnrolled?: boolean;
+  /**
+   * Whether the tenant allows learners to switch *between* sessions of
+   * the same course. When false, alternative sessions render Register
+   * (instead of "Switch to this") and the API call would 4xx if the
+   * learner is already enrolled in another.
+   */
+  canSwitch?: boolean;
   /**
    * Session delivery format. Common values: "Classroom", "Webinar",
    * "VirtualClassroom", "Hybrid". Stringly-typed because Absorb uses
@@ -309,12 +353,14 @@ export type Session = {
   meetingType?: string;
   /**
    * Webinar join URL (Zoom, Teams, Webex, etc.). When present, the
-   * SessionsModal renders an embedded webinar player; otherwise it
-   * renders a Google Maps embed for the physical address.
+   * SessionsModal opens it in a new tab when the learner taps the
+   * venue row. Maps to Absorb's `meetingUrl` field.
    */
   webinarUrl?: string;
   /** Optional dial-in info / connection details displayed alongside the join URL. */
   connectionInfo?: string;
+  /** Total scheduled classes in this session (1 unless multi-day). */
+  totalClassCount?: number;
 };
 
 /**
@@ -548,102 +594,192 @@ export async function getSessionsForCourse(
     data?._embedded?.["sessions"] ??
     [];
 
-  // Map raw Absorb objects → canonical Session shape, preferring the
-  // first non-empty value across known field aliases.
-  const pick = (o: Record<string, unknown>, keys: string[]): string | undefined => {
-    for (const k of keys) {
-      const v = o[k];
-      if (typeof v === "string" && v.trim().length > 0) return v;
+  // Pickers that look across BOTH the session top-level AND its
+  // `currentClass` nested object (the place Absorb actually stores the
+  // schedule + venue). Absorb's seatsRemaining/enrollmentLimit/Count
+  // come back as strings on some tenants and numbers on others, so we
+  // coerce both ways.
+  const pick = (
+    objs: Array<Record<string, unknown> | undefined>,
+    keys: string[]
+  ): string | undefined => {
+    for (const o of objs) {
+      if (!o) continue;
+      for (const k of keys) {
+        const v = o[k];
+        if (typeof v === "string" && v.trim().length > 0) return v;
+      }
     }
     return undefined;
   };
   const pickNum = (
-    o: Record<string, unknown>,
+    objs: Array<Record<string, unknown> | undefined>,
     keys: string[]
   ): number | undefined => {
-    for (const k of keys) {
-      const v = o[k];
-      if (typeof v === "number") return v;
+    for (const o of objs) {
+      if (!o) continue;
+      for (const k of keys) {
+        const v = o[k];
+        if (typeof v === "number" && Number.isFinite(v)) return v;
+        if (typeof v === "string" && v.trim().length > 0) {
+          const n = Number(v);
+          if (Number.isFinite(n)) return n;
+        }
+      }
+    }
+    return undefined;
+  };
+  const pickBool = (
+    objs: Array<Record<string, unknown> | undefined>,
+    keys: string[]
+  ): boolean | undefined => {
+    for (const o of objs) {
+      if (!o) continue;
+      for (const k of keys) {
+        const v = o[k];
+        if (typeof v === "boolean") return v;
+        if (typeof v === "string") {
+          if (v.toLowerCase() === "true") return true;
+          if (v.toLowerCase() === "false") return false;
+        }
+      }
     }
     return undefined;
   };
 
-  return raw.map((s): Session => ({
-    id: String(s.id ?? s.sessionId ?? ""),
-    name: pick(s, ["name", "title"]),
-    description: pick(s, ["description", "summary"]),
-    startDate: pick(s, [
-      "startDate",
-      "startTime",
-      "startsAt",
-      "startsOn",
-      "start",
-      "scheduledStartDate",
-      "scheduledStart",
-      "sessionStartDate",
-      "sessionStart",
-      "datetime",
-    ]),
-    endDate: pick(s, [
-      "endDate",
-      "endTime",
-      "endsAt",
-      "endsOn",
-      "end",
-      "scheduledEndDate",
-      "scheduledEnd",
-      "sessionEndDate",
-      "sessionEnd",
-    ]),
-    timezone: pick(s, ["timezone", "timeZone", "tz"]),
-    location: pick(s, ["location", "locationName"]),
-    venue: pick(s, ["venue", "venueName"]),
-    address: pick(s, ["address", "streetAddress", "addressLine1"]),
-    building: pick(s, ["building"]),
-    room: pick(s, ["room", "roomName"]),
-    city: pick(s, ["city"]),
-    state: pick(s, ["state", "stateProvince", "region"]),
-    postalCode: pick(s, ["postalCode", "zip", "zipCode"]),
-    country: pick(s, ["country", "countryCode"]),
-    instructor:
-      pick(s, ["instructor", "instructorName"]) ??
-      (Array.isArray(s.instructors) && s.instructors.length > 0
-        ? typeof s.instructors[0] === "string"
-          ? (s.instructors[0] as string)
-          : ((s.instructors[0] as { name?: string })?.name ??
-            ((s.instructors[0] as { fullName?: string })?.fullName))
-        : undefined),
-    capacity: pickNum(s, ["capacity", "totalSeats", "maxSeats"]),
-    registeredCount: pickNum(s, [
-      "registeredCount",
-      "registered",
-      "enrolledCount",
-      "filledSeats",
-    ]),
-    seatsAvailable: pickNum(s, [
-      "seatsAvailable",
-      "availableSeats",
-      "seatsRemaining",
-      "remainingSeats",
-    ]),
-    enrollmentStatus: (pick(s, ["enrollmentStatus", "registrationStatus"]) ??
-      null) as string | null,
-    meetingType: pick(s, ["meetingType", "deliveryType", "format", "sessionType"]),
-    webinarUrl: pick(s, [
-      "webinarUrl",
-      "meetingUrl",
-      "connectionUrl",
-      "joinUrl",
-      "joinLink",
-      "url",
-    ]),
-    connectionInfo: pick(s, [
-      "connectionInfo",
-      "connectionDetails",
-      "joinDetails",
-      "additionalDetails",
-    ]),
-  }));
+  /**
+   * Absorb's `utcStartDate` / `utcEndDate` fields look like
+   * `"2026-05-13T19:00:00"` — no `Z` suffix even though the value is
+   * UTC. JavaScript's Date constructor treats unsuffixed ISO strings
+   * as LOCAL time, which would shift the displayed time by the
+   * learner's offset. Append `Z` so the browser parses it as UTC.
+   */
+  const ensureUtc = (s: string | undefined): string | undefined => {
+    if (!s) return undefined;
+    if (/Z$|[+-]\d{2}:?\d{2}$/.test(s)) return s; // already has tz suffix
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return s + "Z";
+    return s;
+  };
+
+  return raw.map((s): Session => {
+    const cc =
+      (s.currentClass as Record<string, unknown> | null | undefined) ??
+      undefined;
+    const both: Array<Record<string, unknown> | undefined> = [s, cc];
+
+    return {
+      id: String(s.id ?? s.sessionId ?? ""),
+      name: pick(both, ["name", "title"]),
+      description: pick(both, ["description", "summary"]),
+      // Date fields — Absorb's canonical names are utcStartDate /
+      // utcEndDate inside currentClass. Other variants kept as fallbacks
+      // for tenants on older API versions.
+      startDate: ensureUtc(
+        pick(both, [
+          "utcStartDate",
+          "startDate",
+          "startTime",
+          "startsAt",
+          "startsOn",
+          "start",
+          "scheduledStartDate",
+          "scheduledStart",
+          "sessionStartDate",
+          "sessionStart",
+          "datetime",
+          "localStartDate",
+        ])
+      ),
+      endDate: ensureUtc(
+        pick(both, [
+          "utcEndDate",
+          "endDate",
+          "endTime",
+          "endsAt",
+          "endsOn",
+          "end",
+          "scheduledEndDate",
+          "scheduledEnd",
+          "sessionEndDate",
+          "sessionEnd",
+          "localEndDate",
+        ])
+      ),
+      timezone: pick(both, ["timezone", "timeZone", "tz", "timeZoneId"]),
+      location: pick(both, ["location", "locationName"]),
+      venue: pick(both, ["venue", "venueName"]),
+      address: pick(both, ["address", "streetAddress", "addressLine1"]),
+      building: pick(both, ["building"]),
+      room: pick(both, ["room", "roomName"]),
+      city: pick(both, ["city"]),
+      state: pick(both, ["state", "stateProvince", "region"]),
+      postalCode: pick(both, ["postalCode", "zip", "zipCode"]),
+      country: pick(both, ["country", "countryCode"]),
+      instructor: (() => {
+        const direct = pick(both, ["instructor", "instructorName"]);
+        if (direct) return direct;
+        const arr = s.instructors;
+        if (Array.isArray(arr) && arr.length > 0) {
+          const first = arr[0];
+          if (typeof first === "string") return first;
+          const o = first as { name?: string; fullName?: string };
+          return o?.fullName ?? o?.name;
+        }
+        return undefined;
+      })(),
+      capacity: pickNum(both, [
+        "enrollmentLimit",
+        "capacity",
+        "totalSeats",
+        "maxSeats",
+      ]),
+      registeredCount: pickNum(both, [
+        "enrollmentCount",
+        "registeredCount",
+        "registered",
+        "enrolledCount",
+        "filledSeats",
+      ]),
+      seatsAvailable: pickNum(both, [
+        "seatsRemaining",
+        "seatsAvailable",
+        "availableSeats",
+        "remainingSeats",
+      ]),
+      enrollmentStatus: (pick(both, [
+        "enrollmentStatus",
+        "registrationStatus",
+      ]) ?? null) as string | null,
+      isLearnerEnrolled: pickBool(both, ["enrolled", "isEnrolled"]),
+      canSwitch: pickBool(both, [
+        "isSessionSwitchAllowed",
+        "canSwitchSession",
+        "allowSessionSwitch",
+      ]),
+      meetingType: pick(both, [
+        "meetingType",
+        "deliveryType",
+        "format",
+        "sessionType",
+      ]),
+      webinarUrl: pick(both, [
+        "meetingUrl",
+        "webinarUrl",
+        "connectionUrl",
+        "joinUrl",
+        "joinLink",
+        "url",
+      ]),
+      connectionInfo: pick(both, [
+        "meetingDescription",
+        "connectionInfo",
+        "connectionDetails",
+        "joinDetails",
+        "additionalDetails",
+      ]),
+      totalClassCount: pickNum(both, ["totalClassCount", "classCount"]),
+    };
+  });
 }
 
 export type NewsArticle = {
