@@ -256,38 +256,49 @@ const Whirlpool: React.FC<{
 
   return (
     <div className="exp-whirlpool" aria-hidden>
-      {rings.map((ring, i) => (
-        <div
-          key={i}
-          className={`exp-whirlpool__ring exp-whirlpool__ring--${i + 1}`}
-        >
-          <svg
-            className="exp-whirlpool__svg"
-            viewBox="-230 -230 460 460"
-            xmlns="http://www.w3.org/2000/svg"
+      {rings.map((ring, i) => {
+        // Stretch a SINGLE pass of the words around the full circumference
+        // using textLength + lengthAdjust=spacingAndGlyphs. This guarantees:
+        //   1. Every adjacent pair gets a " • " separator
+        //   2. The trailing " • " wraps back to the first word visually,
+        //      so the seam looks intentional rather than a smashed pair
+        //   3. No partial-word fragments (LE / PR / DIV / EXPLORELEARN)
+        //      because the renderer never overruns the path
+        const circumference = 2 * Math.PI * ring.r;
+        const text = ring.words.join(" • ") + " • ";
+        return (
+          <div
+            key={i}
+            className={`exp-whirlpool__ring exp-whirlpool__ring--${i + 1}`}
           >
-            <defs>
-              <path
-                id={`exp-whirlpool-path-${i}`}
-                d={`M 0 ${-ring.r} A ${ring.r} ${ring.r} 0 1 1 -0.01 ${-ring.r}`}
-                fill="none"
-              />
-            </defs>
-            <text
-              className={ring.color}
-              fontSize={i === 0 ? 22 : i === 1 ? 19 : i === 2 ? 17 : 15}
+            <svg
+              className="exp-whirlpool__svg"
+              viewBox="-230 -230 460 460"
+              xmlns="http://www.w3.org/2000/svg"
             >
-              <textPath href={`#exp-whirlpool-path-${i}`}>
-                {/* Repeat the words enough times that the glyphs
-                    completely fill the perimeter. */}
-                {Array.from({ length: 6 })
-                  .map(() => ring.words.join("  •  "))
-                  .join("  •  ")}
-              </textPath>
-            </text>
-          </svg>
-        </div>
-      ))}
+              <defs>
+                <path
+                  id={`exp-whirlpool-path-${i}`}
+                  d={`M 0 ${-ring.r} A ${ring.r} ${ring.r} 0 1 1 -0.01 ${-ring.r}`}
+                  fill="none"
+                />
+              </defs>
+              <text
+                className={ring.color}
+                fontSize={i === 0 ? 22 : i === 1 ? 19 : i === 2 ? 17 : 15}
+              >
+                <textPath
+                  href={`#exp-whirlpool-path-${i}`}
+                  textLength={circumference}
+                  lengthAdjust="spacingAndGlyphs"
+                >
+                  {text}
+                </textPath>
+              </text>
+            </svg>
+          </div>
+        );
+      })}
       <button
         type="button"
         className="exp-whirlpool__core"
