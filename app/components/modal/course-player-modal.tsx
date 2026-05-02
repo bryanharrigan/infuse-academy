@@ -7,12 +7,15 @@ import {
   DialogTitle,
   IconButton,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
 import {
   Close as CloseIcon,
   OpenInNew as OpenInNewIcon,
   PlayCircleOutline,
   CheckCircle,
+  MenuBook as MenuBookIcon,
+  ChevronLeft as ChevronLeftIcon,
 } from "@mui/icons-material";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Chapter, Lesson } from "~/.server/infuse-api";
@@ -73,6 +76,30 @@ export function CoursePlayerModal({
 
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [iframeBlocked, setIframeBlocked] = useState(false);
+
+  /**
+   * Sidebar collapse state.
+   *
+   * The 320px lessons sidebar overwhelms a phone-sized viewport, leaving
+   * the iframe with only ~50–70px of usable width. To fix this we default
+   * the sidebar OPEN on desktop (≥701px) and CLOSED on mobile (≤700px),
+   * with an explicit toggle button in the title bar so the learner can
+   * always pop the lessons list open when they need to navigate.
+   *
+   * On mobile the sidebar slides in as an overlay (with a backdrop) over
+   * the player; on desktop it occupies the existing left column. Either
+   * way the same React tree renders — only the layout changes.
+   */
+  const isMobile = useMediaQuery("(max-width: 700px)");
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(!isMobile);
+
+  // Re-snap the sidebar to the right default whenever the modal is
+  // (re-)opened or the viewport crosses the breakpoint while open.
+  useEffect(() => {
+    if (courseId) {
+      setSidebarOpen(!isMobile);
+    }
+  }, [courseId, isMobile]);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -161,6 +188,12 @@ export function CoursePlayerModal({
     setIframeBlocked(false);
     setLoadingLesson(true);
 
+    // On mobile, picking a lesson should immediately close the sidebar so
+    // the learner sees the lesson play. Desktop keeps the sidebar pinned.
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+
     fetch(
       `/lesson-player/${courseId}?lessonId=${encodeURIComponent(lessonId)}`,
       { headers: { Accept: "application/json" } }
@@ -211,6 +244,42 @@ export function CoursePlayerModal({
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+          {/* Lessons toggle — labelled button on desktop, icon-only on
+              phone-sized title bars. Always visible so learners can pop
+              the panel open at any moment, even after it auto-collapsed. */}
+          {hasLessons && (
+            <Button
+              size="small"
+              variant={sidebarOpen ? "contained" : "outlined"}
+              color={sidebarOpen ? "primary" : "inherit"}
+              onClick={() => setSidebarOpen((s) => !s)}
+              startIcon={
+                sidebarOpen ? (
+                  <ChevronLeftIcon fontSize="small" />
+                ) : (
+                  <MenuBookIcon fontSize="small" />
+                )
+              }
+              sx={{
+                flexShrink: 0,
+                minWidth: 0,
+                px: { xs: 1, sm: 1.5 },
+                "& .MuiButton-startIcon": {
+                  mr: { xs: 0, sm: 0.5 },
+                },
+              }}
+              aria-label={sidebarOpen ? "Hide lessons" : "Show lessons"}
+              aria-expanded={sidebarOpen}
+            >
+              {/* Compact label on desktop, count-only chip on mobile */}
+              <Box sx={{ display: { xs: "none", sm: "inline" } }}>
+                {sidebarOpen ? "Hide" : "Lessons"} ({flatLessons.length})
+              </Box>
+              <Box sx={{ display: { xs: "inline", sm: "none" } }}>
+                {flatLessons.length}
+              </Box>
+            </Button>
+          )}
           <Typography
             variant="subtitle1"
             sx={{
@@ -256,18 +325,62 @@ export function CoursePlayerModal({
           flex: 1,
           display: "flex",
           minHeight: 0,
+          position: "relative",
           background: "var(--ia-black, #0a0a0f)",
         }}
       >
-        {/* Sidebar */}
+        {/* Mobile-only backdrop — tap-to-close behind the sidebar overlay */}
+        {isMobile && sidebarOpen && (
+          <Box
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden
+            sx={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 1,
+              background: "rgba(0,0,0,0.55)",
+              backdropFilter: "blur(2px)",
+              WebkitBackdropFilter: "blur(2px)",
+            }}
+          />
+        )}
+
+        {/* Sidebar.
+            On desktop (≥701px): a left column whose width animates between
+              320px (open) and 0px (collapsed). Children stay mounted so
+              chapter scroll position is preserved across toggles.
+            On mobile (≤700px): positioned-absolute overlay that slides in
+              from the left over the player iframe, with a backdrop. */}
         <Box
           sx={{
-            width: 320,
             flexShrink: 0,
-            borderRight: "1px solid",
-            borderRightColor: "divider",
             overflowY: "auto",
+            overflowX: "hidden",
             background: "var(--ia-dark, #12121a)",
+            transition:
+              "width 280ms cubic-bezier(0.22, 1, 0.36, 1), transform 280ms cubic-bezier(0.22, 1, 0.36, 1)",
+            ...(isMobile
+              ? {
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  bottom: 0,
+                  zIndex: 2,
+                  width: "min(86%, 340px)",
+                  transform: sidebarOpen
+                    ? "translateX(0)"
+                    : "translateX(-100%)",
+                  borderRight: "1px solid",
+                  borderRightColor: "divider",
+                  boxShadow: sidebarOpen
+                    ? "8px 0 28px rgba(0,0,0,0.55)"
+                    : "none",
+                }
+              : {
+                  width: sidebarOpen ? 320 : 0,
+                  borderRight: sidebarOpen ? "1px solid" : "none",
+                  borderRightColor: "divider",
+                }),
           }}
         >
           <Box sx={{ p: 2, borderBottom: "1px solid", borderBottomColor: "divider" }}>
