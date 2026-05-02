@@ -5,10 +5,16 @@ type UseMyCoursesResult = {
   courses: Course[];
   selectedCourse: Course | null;
   playingCourse: Course | null;
+  /**
+   * Course currently powering the SessionsModal (InstructorLedCourse only).
+   * Null when no sessions modal should be open.
+   */
+  sessionsCourse: Course | null;
   handleCardClick: (courseId: string) => void;
   handleStartCourse: (id: string, portalBaseUrl?: string) => void;
   handleCloseDetailModal: () => void;
   handleClosePlayer: () => void;
+  handleCloseSessions: () => void;
 };
 
 export const useMyCourses = (data?: {
@@ -16,22 +22,27 @@ export const useMyCourses = (data?: {
 }): UseMyCoursesResult => {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [playingCourse, setPlayingCourse] = useState<Course | null>(null);
+  const [sessionsCourse, setSessionsCourse] = useState<Course | null>(null);
 
   const courses = data?.myCourses?._embedded.courses || [];
 
   /**
    * "Start / Resume" on a course card.
    *   OnlineCourse        → embedded LessonPlayerModal (current behavior).
-   *   InstructorLedCourse → opens Absorb's learner portal in a new tab so
-   *                         the user can pick a session to register for.
-   *   Curriculum          → opens Absorb's portal so the user can drill
-   *                         into the bundle's child courses.
+   *   InstructorLedCourse → native SessionsModal (lists scheduled sessions
+   *                         with Register CTAs).
+   *   Curriculum          → opens Absorb's portal in a new tab so the user
+   *                         can drill into the bundle's child courses.
    */
   const handleStartCourse = (id: string, portalBaseUrl?: string) => {
     const course = courses.find((c) => c.id === id) || null;
     if (!course) return;
     if (course.courseType === "OnlineCourse") {
       setPlayingCourse(course);
+      return;
+    }
+    if (course.courseType === "InstructorLedCourse") {
+      setSessionsCourse(course);
       return;
     }
     if (typeof window === "undefined") return;
@@ -56,13 +67,17 @@ export const useMyCourses = (data?: {
     setPlayingCourse(null);
   };
 
+  const handleCloseSessions = () => setSessionsCourse(null);
+
   return {
     courses,
     selectedCourse,
     playingCourse,
+    sessionsCourse,
     handleCardClick,
     handleStartCourse,
     handleCloseDetailModal,
     handleClosePlayer,
+    handleCloseSessions,
   };
 };

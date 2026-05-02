@@ -6,6 +6,7 @@ import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
 import { useMyCourses } from "~/routes/use-my-courses.hook";
 import { CourseDetailModal } from "~/components/modal/course-detail-modal";
 import { LessonPlayerModal } from "~/components/modal/lesson-player-modal";
+import { SessionsModal } from "~/components/modal/sessions-modal";
 import { CourseCard } from "~/components/course-card/course-card.component";
 import { useAppStateContext } from "~/context/app-state.context";
 
@@ -77,10 +78,12 @@ export default function MyCourses() {
     courses,
     selectedCourse,
     playingCourse,
+    sessionsCourse,
     handleCardClick,
     handleStartCourse,
     handleCloseDetailModal,
     handleClosePlayer,
+    handleCloseSessions,
   } = useMyCourses(data);
 
   // Derive quick progress stats for the IA dashboard hero / rings.
@@ -262,6 +265,11 @@ export default function MyCourses() {
           courseTitle={playingCourse?.name}
           onClose={handleClosePlayer}
         />
+        <SessionsModal
+          courseId={sessionsCourse?.id ?? null}
+          courseTitle={sessionsCourse?.name}
+          onClose={handleCloseSessions}
+        />
       </div>
     );
   }
@@ -317,6 +325,11 @@ export default function MyCourses() {
         courseId={playingCourse?.id ?? null}
         courseTitle={playingCourse?.name}
         onClose={handleClosePlayer}
+      />
+      <SessionsModal
+        courseId={sessionsCourse?.id ?? null}
+        courseTitle={sessionsCourse?.name}
+        onClose={handleCloseSessions}
       />
     </div>
   );

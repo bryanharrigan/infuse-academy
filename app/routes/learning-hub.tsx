@@ -48,6 +48,7 @@ import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
 import { Course } from "~/.server/course.resource";
 import { LessonPlayerModal } from "~/components/modal/lesson-player-modal";
 import { CoursePlayerModal } from "~/components/modal/course-player-modal";
+import { SessionsModal } from "~/components/modal/sessions-modal";
 import OnlineCourseSVG from "~/assets/online-course.svg";
 import { useAppStateContext } from "~/context/app-state.context";
 
@@ -258,15 +259,25 @@ export default function LearningHub() {
   const { myCourses, catalog, news, portalBaseUrl } =
     useLoaderData<typeof loader>();
 
+  /** Course currently driving the SessionsModal (null = closed). */
+  const [sessionsCourse, setSessionsCourse] = useState<Course | null>(null);
+
   /**
-   * For non-OnlineCourse cards (InstructorLedCourse, Curriculum), the
-   * embedded course/lesson player can't render them — open Absorb's
-   * learner portal in a new tab so the user can register for a session
-   * or drill into a curriculum.
+   * For non-OnlineCourse cards, the embedded course/lesson player can't
+   * render them. We split the handling:
+   *   InstructorLedCourse → native SessionsModal (lists scheduled sessions
+   *                         with Register CTAs that POST sessionId to
+   *                         /enroll/:courseId)
+   *   Curriculum          → open Absorb learner portal in a new tab so the
+   *                         user can drill into the bundle's child courses
    */
   const playOrOpen = (course: Course, mode: "lesson" | "course") => {
     if (course.courseType === "OnlineCourse") {
       setPlaying({ course, mode });
+      return;
+    }
+    if (course.courseType === "InstructorLedCourse") {
+      setSessionsCourse(course);
       return;
     }
     if (typeof window !== "undefined") {
@@ -982,6 +993,14 @@ export default function LearningHub() {
         }
         courseTitle={playing?.course.name}
         onClose={() => setPlaying(null)}
+      />
+
+      {/* Sessions modal — InstructorLedCourse cards land here */}
+      <SessionsModal
+        courseId={sessionsCourse?.id ?? null}
+        courseTitle={sessionsCourse?.name}
+        onRegistered={() => revalidator.revalidate()}
+        onClose={() => setSessionsCourse(null)}
       />
 
       {/* Bottom padding */}

@@ -7,6 +7,7 @@ import { CourseCard } from "~/components/course-card/course-card.component";
 import { EnrollmentToast } from "~/components/modal/toast-notification.component";
 import { CourseDetailModal } from "~/components/modal/course-detail-modal";
 import { LessonPlayerModal } from "~/components/modal/lesson-player-modal";
+import { SessionsModal } from "~/components/modal/sessions-modal";
 import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
 import { MyCoursesResource } from "~/.server/my-courses.resource";
 import { useCatalog } from "~/routes/use-catalog.hook";
@@ -95,11 +96,13 @@ export default function MyCatalog() {
     enrollingCourseId,
     selectedCourse,
     playingCourse,
+    sessionsCourse,
     handleStartCourse,
     handleEnroll,
     handleCardClick,
     handleCloseDetailModal,
     handleClosePlayer,
+    handleCloseSessions,
   } = useCatalog(data);
 
   const [query, setQuery] = useState("");
@@ -205,6 +208,11 @@ export default function MyCatalog() {
           courseTitle={playingCourse?.name}
           onClose={handleClosePlayer}
         />
+        <SessionsModal
+          courseId={sessionsCourse?.id ?? null}
+          courseTitle={sessionsCourse?.name}
+          onClose={handleCloseSessions}
+        />
       </>
     );
   }
@@ -251,6 +259,11 @@ export default function MyCatalog() {
         courseId={playingCourse?.id ?? null}
         courseTitle={playingCourse?.name}
         onClose={handleClosePlayer}
+      />
+      <SessionsModal
+        courseId={sessionsCourse?.id ?? null}
+        courseTitle={sessionsCourse?.name}
+        onClose={handleCloseSessions}
       />
     </>
   );

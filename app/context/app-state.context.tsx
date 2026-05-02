@@ -49,10 +49,12 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [isAnotherModalOpen, setIsAnotherModalOpen] = useState(false);
-  // We can't read localStorage on the server, so SSR renders "default" and
-  // the effect below flips to the persisted choice on hydration.
+  // SSR-safe initial state. The new product default is "experimental" so a
+  // first-time learner lands on the liquid-glass hub. Returning users with
+  // a persisted choice in localStorage have it restored on hydration by
+  // the effect below — that path always wins over the default.
   const [themeVariant, setThemeVariantState] =
-    useState<ThemeVariant>("default");
+    useState<ThemeVariant>("experimental");
 
   useEffect(() => {
     try {

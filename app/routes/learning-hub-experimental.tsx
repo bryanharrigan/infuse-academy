@@ -73,6 +73,7 @@ import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
 import { Course } from "~/.server/course.resource";
 import { LessonPlayerModal } from "~/components/modal/lesson-player-modal";
 import { CoursePlayerModal } from "~/components/modal/course-player-modal";
+import { SessionsModal } from "~/components/modal/sessions-modal";
 import OnlineCourseSVG from "~/assets/online-course.svg";
 import { useAppStateContext } from "~/context/app-state.context";
 import {
@@ -391,15 +392,22 @@ export default function LearningHubExperimental() {
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
+  /** Course currently driving the SessionsModal (null = closed). */
+  const [sessionsCourse, setSessionsCourse] = useState<Course | null>(null);
+
   /**
    * Wraps the lesson-player launch with a courseType branch:
-   *   OnlineCourse        → embedded course player modal (current behavior)
-   *   InstructorLedCourse → open Absorb portal in new tab
-   *   Curriculum          → open Absorb portal in new tab (curriculum drill)
+   *   OnlineCourse        → embedded course player modal
+   *   InstructorLedCourse → native SessionsModal listing scheduled sessions
+   *   Curriculum          → open Absorb portal in new tab (curriculum drill
+   *                         is a follow-up; the portal renders the bundle
+   *                         tree natively in the meantime)
    */
   const playOrOpen = (course: Course) => {
     if (course.courseType === "OnlineCourse") {
-      playOrOpen(course);
+      setPlaying({ course, mode: "course" });
+    } else if (course.courseType === "InstructorLedCourse") {
+      setSessionsCourse(course);
     } else {
       openInPortal(course.id);
     }
@@ -1397,6 +1405,17 @@ export default function LearningHubExperimental() {
           setPlaying(null);
           fireConfetti();
         }}
+      />
+
+      {/* Sessions modal — InstructorLedCourse cards land here */}
+      <SessionsModal
+        courseId={sessionsCourse?.id ?? null}
+        courseTitle={sessionsCourse?.name}
+        onRegistered={() => {
+          fireConfetti();
+          revalidator.revalidate();
+        }}
+        onClose={() => setSessionsCourse(null)}
       />
 
       {/* Loading fallback while courses haven't arrived (very rare) */}

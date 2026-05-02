@@ -15,6 +15,7 @@ export function useCatalog(data: { catalog: MyCoursesResource }) {
   );
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [playingCourse, setPlayingCourse] = useState<Course | null>(null);
+  const [sessionsCourse, setSessionsCourse] = useState<Course | null>(null);
 
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -37,6 +38,10 @@ export function useCatalog(data: { catalog: MyCoursesResource }) {
     if (!course) return;
     if (course.courseType === "OnlineCourse") {
       setPlayingCourse(course);
+      return;
+    }
+    if (course.courseType === "InstructorLedCourse") {
+      setSessionsCourse(course);
       return;
     }
     if (typeof window === "undefined") return;
@@ -89,6 +94,8 @@ export function useCatalog(data: { catalog: MyCoursesResource }) {
     }
   }, [navigation.state, enrollmentInProgress, enrollmentStartedAt]);
 
+  const handleCloseSessions = () => setSessionsCourse(null);
+
   return {
     catalog,
     enrollmentToastOpen,
@@ -96,10 +103,12 @@ export function useCatalog(data: { catalog: MyCoursesResource }) {
     enrollingCourseId,
     selectedCourse,
     playingCourse,
+    sessionsCourse,
     handleStartCourse,
     handleEnroll,
     handleCardClick,
     handleCloseDetailModal,
     handleClosePlayer,
+    handleCloseSessions,
   };
 }

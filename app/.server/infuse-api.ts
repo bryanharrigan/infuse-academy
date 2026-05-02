@@ -239,9 +239,88 @@ export async function getRefreshTokenForCoursePlayer(
   return data.token;
 }
 
-export async function startEnrollment(token: string, courseId: string): Promise<void> {
-  const r = await fetch(infuseUrl("my-enrollments"), { method: "POST", headers: authHeaders(token), body: JSON.stringify({ courseId }) });
+/**
+ * Enroll the learner in a course. Optionally registers them in a specific
+ * InstructorLedCourse session by including `sessionId` in the request body.
+ * Absorb's `/my-enrollments` endpoint accepts both shapes — `{courseId}`
+ * for self-paced enrollment and `{courseId, sessionId}` for ILT registration.
+ */
+export async function startEnrollment(
+  token: string,
+  courseId: string,
+  options?: { sessionId?: string }
+): Promise<void> {
+  const body: Record<string, string> = { courseId };
+  if (options?.sessionId) body.sessionId = options.sessionId;
+  const r = await fetch(infuseUrl("my-enrollments"), {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
   if (r.status !== 201) throw new Error("Failed to start enrollment: " + r.status);
+}
+
+/**
+ * Instructor-Led Course session. Field names follow Absorb V2 REST API
+ * conventions; many are optional because tenants configure ILT sessions
+ * differently (some include capacity, some don't; some have a single
+ * instructor, some have multiple).
+ */
+export type Session = {
+  id: string;
+  name?: string;
+  /** ISO timestamp for session start. */
+  startDate?: string;
+  /** ISO timestamp for session end. */
+  endDate?: string;
+  /** IANA timezone (e.g. "America/Los_Angeles"). */
+  timezone?: string;
+  /** Free-form location string ("Acme HQ — Room 4B" or "Online"). */
+  location?: string;
+  venue?: string;
+  city?: string;
+  country?: string;
+  /** Primary instructor name. */
+  instructor?: string;
+  /** Total seat count. */
+  capacity?: number;
+  /** How many learners are already enrolled. */
+  registeredCount?: number;
+  /** Convenience: capacity - registeredCount when both are populated. */
+  seatsAvailable?: number;
+  /** Whether the current learner is already registered for this session. */
+  enrollmentStatus?: string | null;
+};
+
+/**
+ * Fetch sessions for an Instructor-Led Course.
+ *
+ *   GET {INFUSE_BASE_URL}/instructor-led-courses/{courseId}/sessions
+ *
+ * Returns an empty array on 404 (some tenants don't expose this endpoint
+ * for every course type or version) so the UI can render a "no sessions"
+ * empty state rather than blowing up.
+ */
+export async function getSessionsForCourse(
+  token: string,
+  courseId: string
+): Promise<Session[]> {
+  const url = infuseUrl(`instructor-led-courses/${courseId}/sessions`, {
+    params: { _limit: "30" },
+  });
+  const r = await fetch(url, { method: "GET", headers: authHeaders(token) });
+  console.log(`[infuse-api] GET /instructor-led-courses/:id/sessions → ${r.status}`);
+  if (r.status === 404) return [];
+  if (!r.ok) {
+    throw new Error("Error fetching sessions: " + r.status);
+  }
+  const data = await r.json();
+  return (
+    data?.sessions ??
+    data?._embedded?.sessions ??
+    data?._embedded?.["sessions"] ??
+    []
+  );
 }
 
 export type NewsArticle = {

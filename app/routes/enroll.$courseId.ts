@@ -43,9 +43,27 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return json({ error: "courseId required" }, { status: 400 });
   }
 
+  // Accept optional sessionId from a JSON body (ILT registration). The
+  // Experimental + IA hubs send `{ sessionId: "..." }` for InstructorLedCourse
+  // bookings, plain enrollments send no body.
+  let sessionId: string | undefined;
   try {
-    await startEnrollment(token, courseId);
-    return json({ ok: true });
+    const ct = request.headers.get("Content-Type") ?? "";
+    if (ct.includes("application/json")) {
+      const body = (await request.json().catch(() => ({}))) as {
+        sessionId?: string;
+      };
+      if (typeof body.sessionId === "string" && body.sessionId.length > 0) {
+        sessionId = body.sessionId;
+      }
+    }
+  } catch {
+    // ignore body parse errors — treat as plain enrollment
+  }
+
+  try {
+    await startEnrollment(token, courseId, sessionId ? { sessionId } : undefined);
+    return json({ ok: true, sessionId });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     // Absorb sometimes returns 409 / "already enrolled" for repeat calls.
