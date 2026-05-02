@@ -49,23 +49,38 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       [];
   }
 
-  // For each session, list its top-level keys and a tiny preview value
-  // so we can see what's populated without dumping huge nested objects.
-  const summary = sessions.slice(0, 5).map((s) => {
+  // For each session, list its top-level keys, preview values, AND
+  // recursively crack open any nested objects (currentClass, instructors,
+  // recurrenceRule) so we can see where the schedule + venue actually live.
+  const summarise = (s: Record<string, unknown>): Record<string, unknown> => {
     const keys = Object.keys(s);
-    const preview: Record<string, string> = {};
+    const preview: Record<string, unknown> = {};
     for (const k of keys) {
       const v = s[k];
       if (v === null || v === undefined) continue;
-      if (typeof v === "string") preview[k] = v.slice(0, 80);
+      if (typeof v === "string") preview[k] = v.slice(0, 100);
       else if (typeof v === "number" || typeof v === "boolean")
-        preview[k] = String(v);
-      else if (Array.isArray(v))
-        preview[k] = `[Array(${v.length})] ${JSON.stringify(v).slice(0, 80)}`;
-      else preview[k] = `[Object] ${JSON.stringify(v).slice(0, 100)}`;
+        preview[k] = v;
+      else if (Array.isArray(v)) {
+        preview[k] = {
+          __type: `Array(${v.length})`,
+          first:
+            v.length > 0
+              ? typeof v[0] === "object" && v[0] !== null
+                ? summarise(v[0] as Record<string, unknown>)
+                : v[0]
+              : null,
+        };
+      } else if (typeof v === "object") {
+        preview[k] = summarise(v as Record<string, unknown>);
+      }
     }
-    return { id: s.id ?? s.sessionId ?? "<no-id>", keys, preview };
-  });
+    return { __keys: keys, ...preview };
+  };
+  const summary = sessions.slice(0, 5).map((s) => ({
+    id: s.id ?? s.sessionId ?? "<no-id>",
+    fields: summarise(s),
+  }));
 
   return json({
     courseId,
