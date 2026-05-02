@@ -67,8 +67,12 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   onCardClick,
 }) => {
   const { themeVariant } = useAppStateContext();
+  const isExperimental = themeVariant === "experimental";
   // Any branded variant (Infuse Academy, RadNet) uses the IA layout + tokens.
-  const isIA = themeVariant !== "default";
+  // Experimental gets its own treatment below — splitting so isIA only
+  // covers the non-experimental branded themes.
+  const isIA =
+    themeVariant === "infuse-academy" || themeVariant === "radnet";
   const buttonTitle = formatEnrollmentStatus(enrollmentStatus, isEnrolling);
 
   const getDefaultImage = () => {
@@ -95,6 +99,90 @@ export const CourseCard: React.FC<CourseCardProps> = ({
   const handleViewDetailsClick = useCallback(() => {
     onCardClick(id);
   }, [onCardClick, id]);
+
+  // ─── Experimental variant — uses the Learning Hub's exp-card styling ──
+  if (isExperimental) {
+    const statusClass =
+      enrollmentStatus === "Complete" || enrollmentStatus === "Completed"
+        ? "exp-card__status--done"
+        : enrollmentStatus === "InProgress"
+        ? "exp-card__status--progress"
+        : "exp-card__status--new";
+    const statusLabel =
+      enrollmentStatus === "Complete" || enrollmentStatus === "Completed"
+        ? "Completed"
+        : enrollmentStatus === "InProgress"
+        ? "In Progress"
+        : enrollmentStatus
+        ? "Not Started"
+        : "Available";
+    return (
+      <article
+        className="exp-card"
+        onClick={handleViewDetailsClick}
+        role="button"
+        tabIndex={0}
+      >
+        <div
+          className="exp-card__img"
+          style={
+            imageUrl
+              ? { backgroundImage: `url(${imageUrl})` }
+              : undefined
+          }
+        >
+          {!imageUrl && (
+            <div className="exp-card__img-empty">
+              <img src={getDefaultImage()} alt="" />
+            </div>
+          )}
+        </div>
+        <div className="exp-card__body">
+          <span className={`exp-card__status ${statusClass}`}>
+            {statusLabel}
+          </span>
+          <h3 className="exp-card__title" title={title}>
+            {title}
+          </h3>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "var(--exp-text-muted)",
+              marginTop: -4,
+            }}
+          >
+            {courseTypeLabel(courseType)}
+          </div>
+          <div className="exp-card__footer" style={{ marginTop: "auto" }}>
+            <span className="exp-card__pct">
+              {enrollmentStatus
+                ? enrollmentStatus === "Complete" ||
+                  enrollmentStatus === "Completed"
+                  ? "100%"
+                  : enrollmentStatus === "InProgress"
+                  ? "50%"
+                  : "0%"
+                : courseTypeLabel(courseType)}
+            </span>
+            <button
+              type="button"
+              className="exp-card__cta"
+              disabled={isEnrolling}
+              onClick={handleActionClick}
+            >
+              {isEnrolling ? "Enrolling…" : buttonTitle}
+            </button>
+          </div>
+        </div>
+      </article>
+    );
+  }
 
   // ─── Infuse Academy variant ────────────────────────────────────────────
   if (isIA) {

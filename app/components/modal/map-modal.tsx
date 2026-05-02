@@ -1,21 +1,26 @@
 /**
  * app/components/modal/map-modal.tsx
  *
- * Embeds a Google Maps view for a free-form address query inside a
- * Dialog. Uses Google's no-key embed URL
- *   https://maps.google.com/maps?q={address}&output=embed
- * which is iframe-friendly and renders a pannable/zoomable map without
- * requiring an API key. The same address gets a "Get directions" CTA
- * that links out to the full Google Maps web app.
+ * Embeds an OpenStreetMap view for a free-form address query inside a
+ * Dialog. Geocodes via the server-side `/geocode` resource route
+ * (which proxies Nominatim with a proper User-Agent) so we get a
+ * lat/lon to centre the map and drop a marker.
  *
- * Falls back gracefully when the iframe is blocked (rare for Google
- * Maps but the watchdog covers strict CSP environments anyway).
+ * Why OSM: keys-free, terms-of-service compatible, and renders without
+ * the Google Maps API surface charges. The OSM embed
+ *   https://www.openstreetmap.org/export/embed.html?bbox=...&marker=lat,lon
+ * needs lat/lon, hence the geocoding step.
+ *
+ * Falls back to a "View on OpenStreetMap" CTA when Nominatim returns
+ * no result for the address (rare for real venues but possible for
+ * abbreviated/internal codes like "HQ Boardroom").
  */
 
 import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogTitle,
   IconButton,
@@ -27,7 +32,7 @@ import {
   LocationOn as LocationOnIcon,
   Directions as DirectionsIcon,
 } from "@mui/icons-material";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 type MapModalProps = {
   /** Free-form address query; non-null while the modal should be open. */
@@ -40,46 +45,87 @@ type MapModalProps = {
   onClose: () => void;
 };
 
-const IFRAME_LOAD_TIMEOUT_MS = 8_000;
+type GeocodeResult = {
+  lat: number;
+  lon: number;
+  displayName: string;
+};
 
-function buildEmbedUrl(query: string): string {
-  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&hl=en&z=15&output=embed`;
+type FetcherState = "idle" | "loading" | "loaded" | "error";
+
+/**
+ * Build the OSM embed URL for a marker at lat/lon. Uses a small
+ * bounding box (~1.4km wide at the equator, narrower at higher
+ * latitudes) so the venue stays visible and readable.
+ */
+function buildEmbedUrl(lat: number, lon: number): string {
+  const span = 0.006; // degrees — tweak for zoom level
+  const minLon = lon - span;
+  const minLat = lat - span / 2;
+  const maxLon = lon + span;
+  const maxLat = lat + span / 2;
+  return (
+    `https://www.openstreetmap.org/export/embed.html?bbox=` +
+    `${minLon}%2C${minLat}%2C${maxLon}%2C${maxLat}` +
+    `&layer=mapnik&marker=${lat}%2C${lon}`
+  );
 }
 
-function buildDirectionsUrl(query: string): string {
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-    query
-  )}`;
+function buildOsmDirectionsUrl(query: string): string {
+  // OSM has a routing tool but no clean direct URL. We use the search
+  // page so the user can hit the routing button from there.
+  return `https://www.openstreetmap.org/search?query=${encodeURIComponent(query)}`;
 }
 
-function buildSearchUrl(query: string): string {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+function buildOsmViewUrl(query: string): string {
+  return `https://www.openstreetmap.org/search?query=${encodeURIComponent(query)}`;
 }
 
 export function MapModal({ query, title, caption, onClose }: MapModalProps) {
-  const [iframeLoaded, setIframeLoaded] = useState(false);
-  const [iframeBlocked, setIframeBlocked] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [state, setState] = useState<FetcherState>("idle");
+  const [result, setResult] = useState<GeocodeResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const open = query !== null;
-  const embedUrl = query ? buildEmbedUrl(query) : null;
 
   useEffect(() => {
     if (!query) {
-      setIframeLoaded(false);
-      setIframeBlocked(false);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      setState("idle");
+      setResult(null);
+      setError(null);
       return;
     }
-    setIframeLoaded(false);
-    setIframeBlocked(false);
-    timeoutRef.current = setTimeout(() => {
-      setIframeBlocked((blocked) => (blocked ? blocked : !iframeLoaded));
-    }, IFRAME_LOAD_TIMEOUT_MS);
+    let cancelled = false;
+    setState("loading");
+    fetch(`/geocode?q=${encodeURIComponent(query)}`, {
+      headers: { Accept: "application/json" },
+    })
+      .then(async (res) => {
+        const json = (await res.json().catch(() => ({}))) as Partial<GeocodeResult> & {
+          error?: string;
+        };
+        if (cancelled) return;
+        if (!res.ok || typeof json.lat !== "number" || typeof json.lon !== "number") {
+          setError(json.error ?? `HTTP ${res.status}`);
+          setState("error");
+          return;
+        }
+        setResult({
+          lat: json.lat,
+          lon: json.lon,
+          displayName: json.displayName ?? query,
+        });
+        setState("loaded");
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : String(err));
+          setState("error");
+        }
+      });
     return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   return (
@@ -147,7 +193,7 @@ export function MapModal({ query, title, caption, onClose }: MapModalProps) {
                 display: "block",
               }}
             >
-              Venue
+              Venue · OpenStreetMap
             </Typography>
             <Typography
               variant="subtitle1"
@@ -186,7 +232,7 @@ export function MapModal({ query, title, caption, onClose }: MapModalProps) {
             <Button
               size="small"
               variant="outlined"
-              href={buildDirectionsUrl(query)}
+              href={buildOsmDirectionsUrl(query)}
               target="_blank"
               rel="noreferrer noopener"
               startIcon={<DirectionsIcon fontSize="small" />}
@@ -202,7 +248,7 @@ export function MapModal({ query, title, caption, onClose }: MapModalProps) {
                 },
               }}
             >
-              Directions
+              Open
             </Button>
           )}
           <IconButton
@@ -226,11 +272,27 @@ export function MapModal({ query, title, caption, onClose }: MapModalProps) {
           background: "#0a0a14",
         }}
       >
-        {embedUrl && !iframeBlocked && (
+        {state === "loading" && (
+          <Box sx={{ textAlign: "center" }}>
+            <CircularProgress sx={{ color: "#f0abfc" }} />
+            <Typography
+              variant="caption"
+              sx={{
+                display: "block",
+                mt: 1.5,
+                color: "rgba(245,243,255,0.6)",
+              }}
+            >
+              Geocoding venue…
+            </Typography>
+          </Box>
+        )}
+
+        {state === "loaded" && result && (
           <iframe
-            key={embedUrl}
-            src={embedUrl}
-            title={title || "Map"}
+            key={`${result.lat},${result.lon}`}
+            src={buildEmbedUrl(result.lat, result.lon)}
+            title={title || "Venue map"}
             referrerPolicy="no-referrer-when-downgrade"
             loading="lazy"
             style={{
@@ -239,12 +301,10 @@ export function MapModal({ query, title, caption, onClose }: MapModalProps) {
               border: "none",
               background: "#0a0a14",
             }}
-            onLoad={() => setIframeLoaded(true)}
-            onError={() => setIframeBlocked(true)}
           />
         )}
 
-        {iframeBlocked && query && (
+        {state === "error" && query && (
           <Box
             sx={{
               p: 4,
@@ -257,13 +317,14 @@ export function MapModal({ query, title, caption, onClose }: MapModalProps) {
             }}
           >
             <Alert severity="info" sx={{ borderRadius: 2 }}>
-              The embedded map didn&rsquo;t load. Open it in Google Maps
-              directly.
+              We couldn&rsquo;t pin a precise location for{" "}
+              <strong>{query}</strong>
+              {error ? ` (${error})` : "."}
             </Alert>
             <Button
               variant="contained"
               startIcon={<OpenInNewIcon />}
-              href={buildSearchUrl(query)}
+              href={buildOsmViewUrl(query)}
               target="_blank"
               rel="noreferrer noopener"
               sx={{
@@ -281,7 +342,7 @@ export function MapModal({ query, title, caption, onClose }: MapModalProps) {
                 },
               }}
             >
-              Open in Google Maps
+              Search on OpenStreetMap
             </Button>
           </Box>
         )}

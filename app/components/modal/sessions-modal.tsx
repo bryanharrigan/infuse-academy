@@ -50,7 +50,6 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { Session } from "~/.server/infuse-api";
 import type { Course } from "~/.server/course.resource";
-import { WebinarModal } from "./webinar-modal";
 import { MapModal } from "./map-modal";
 
 type SessionsModalProps = {
@@ -244,12 +243,18 @@ export function SessionsModal({
 
   /**
    * Sub-modal state — when a learner taps a session's location row we
-   * either pop a webinar embed (Zoom / Teams / Webex) or a Google Maps
-   * embed for the physical address. Captured per-session so the title
-   * bar of the sub-modal can show the right session name.
+   * pop an OSM map for physical addresses. Webinar links open directly
+   * in a new tab (Zoom / Teams etc. block iframe embedding too often
+   * to make in-app embedding worthwhile).
    */
-  const [webinarSession, setWebinarSession] = useState<Session | null>(null);
   const [mapSession, setMapSession] = useState<Session | null>(null);
+
+  /** Open the webinar URL in a new tab. */
+  const openWebinar = (s: Session) => {
+    if (!s.webinarUrl) return;
+    if (typeof window === "undefined") return;
+    window.open(s.webinarUrl, "_blank", "noopener,noreferrer");
+  };
 
   const open = courseId !== null;
 
@@ -261,7 +266,6 @@ export function SessionsModal({
       setError(null);
       setRegisteringId(null);
       setRegisteredIds(new Set());
-      setWebinarSession(null);
       setMapSession(null);
       return;
     }
@@ -495,6 +499,14 @@ export function SessionsModal({
               const venueText = webinar
                 ? location ?? "Join webinar"
                 : location;
+              // Is the learner registered for some OTHER session in this
+              // course already? If so, the CTA on this row says "Switch"
+              // instead of "Register".
+              const otherRegistered = sortedSessions.some(
+                (sess) =>
+                  sess.id !== s.id &&
+                  (isSessionRegistered(sess) || registeredIds.has(sess.id))
+              );
 
               return (
                 <Box
@@ -556,7 +568,7 @@ export function SessionsModal({
                         onClick={
                           venueClickable
                             ? () => {
-                                if (webinar) setWebinarSession(s);
+                                if (webinar) openWebinar(s);
                                 else setMapSession(s);
                               }
                             : undefined
@@ -656,9 +668,13 @@ export function SessionsModal({
                         }}
                       >
                         {isRegistering
-                          ? "Registering…"
+                          ? otherRegistered
+                            ? "Switching…"
+                            : "Registering…"
                           : isFull
                           ? "Full"
+                          : otherRegistered
+                          ? "Switch to this"
                           : "Register"}
                       </Button>
                     )}
@@ -670,35 +686,9 @@ export function SessionsModal({
         )}
       </DialogContent>
 
-      {/* Webinar embed sub-modal — opens when learner taps a session whose
-          location resolves to a webinar URL. */}
-      <WebinarModal
-        url={webinarSession?.webinarUrl ?? null}
-        title={
-          webinarSession?.name ??
-          courseTitle ??
-          course?.name ??
-          "Webinar session"
-        }
-        caption={
-          webinarSession
-            ? [
-                formatSessionDateRange(
-                  webinarSession.startDate,
-                  webinarSession.endDate
-                ),
-                webinarSession.timezone,
-                webinarSession.connectionInfo,
-              ]
-                .filter(Boolean)
-                .join(" · ")
-            : undefined
-        }
-        onClose={() => setWebinarSession(null)}
-      />
-
       {/* Map embed sub-modal — opens for physical sessions when the
-          learner taps the venue row. */}
+          learner taps the venue row. Webinars open directly in a new
+          tab (no embed) so this is the only sub-modal mounted. */}
       <MapModal
         query={mapSession ? mapAddressFor(mapSession) : null}
         title={mapSession?.venue ?? mapSession?.name ?? "Venue"}
