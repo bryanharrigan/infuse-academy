@@ -31,7 +31,12 @@ import {
 } from "@mui/material";
 import { PlayArrow, OpenInNew, Close as CloseIcon } from "@mui/icons-material";
 import { json, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useRouteLoaderData, Link } from "@remix-run/react";
+import {
+  useLoaderData,
+  useRouteLoaderData,
+  Link,
+  useRevalidator,
+} from "@remix-run/react";
 import {
   getMyCatalog,
   getMyCourses,
@@ -259,6 +264,38 @@ export default function LearningHub() {
     { course: Course; mode: "lesson" | "course" } | null
   >(null);
   const [openArticle, setOpenArticle] = useState<NewsArticle | null>(null);
+
+  /**
+   * Enrollment in flight. Same pattern as the Experimental hub: track the
+   * courseId being enrolled so the corresponding catalog card can show a
+   * loading label, then revalidate the loader on success so the course
+   * jumps into My Courses without a page reload.
+   */
+  const revalidator = useRevalidator();
+  const [enrollingId, setEnrollingId] = useState<string | null>(null);
+
+  const handleEnroll = async (courseId: string) => {
+    if (enrollingId) return;
+    setEnrollingId(courseId);
+    try {
+      const res = await fetch(`/enroll/${courseId}`, {
+        method: "POST",
+        headers: { Accept: "application/json" },
+      });
+      const payload = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+      };
+      if (!res.ok || !payload.ok) {
+        throw new Error(payload.error ?? `HTTP ${res.status}`);
+      }
+      revalidator.revalidate();
+    } catch (err) {
+      console.error("[learning-hub] enroll failed:", err);
+    } finally {
+      setEnrollingId(null);
+    }
+  };
   // Legacy alias used by existing card/featured click handlers (defaults to
   // "lesson" mode). Progress Breakdown bars pass "course" instead.
   const setPlayingCourse = (c: Course | null) =>
@@ -407,14 +444,17 @@ export default function LearningHub() {
           {inCatalog && (
             <div className="hub-card__footer">
               <Button
-                component={Link}
-                to="/catalog"
                 size="small"
-                variant="outlined"
-                endIcon={<OpenInNew fontSize="small" />}
+                variant="contained"
+                color="primary"
+                disabled={enrollingId === course.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEnroll(course.id);
+                }}
                 sx={{ ml: "auto" }}
               >
-                Catalog
+                {enrollingId === course.id ? "Enrolling…" : "Enroll"}
               </Button>
             </div>
           )}

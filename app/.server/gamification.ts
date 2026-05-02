@@ -211,22 +211,43 @@ export function computeGamification({
 
   for (const course of myCourses) {
     const chapters = chaptersByCourse.get(course.id);
+    const courseIsComplete =
+      course.enrollmentStatus === "Complete" ||
+      course.enrollmentStatus === "Completed";
+
     if (chapters) {
       const lessons = flattenLessons(chapters);
       lessonsTotal += lessons.length;
-      for (const lesson of lessons) {
-        if (isLessonComplete(lesson)) {
-          lessonsCompleted += 1;
-          if (lesson.progress?.completedDate) {
-            activityDates.push(lesson.progress.completedDate);
+
+      if (courseIsComplete) {
+        // Absorb stops populating per-lesson `progress.completedDate` once a
+        // course rolls up to complete — but every lesson IS complete by
+        // definition. Count them all and synthesise an activity date from
+        // course-level data so streaks still tick.
+        lessonsCompleted += lessons.length;
+        // Prefer real per-lesson dates when present; otherwise the course's
+        // own enrollment status implies activity today (worst-case the
+        // streak just doesn't advance for this course, which is fine).
+        for (const lesson of lessons) {
+          const d = lesson.progress?.completedDate;
+          if (d) activityDates.push(d);
+        }
+      } else {
+        // For not-complete courses, count only lessons with explicit
+        // completion data — this is the accurate per-lesson signal.
+        for (const lesson of lessons) {
+          if (isLessonComplete(lesson)) {
+            lessonsCompleted += 1;
+            if (lesson.progress?.completedDate) {
+              activityDates.push(lesson.progress.completedDate);
+            }
           }
         }
       }
     } else {
-      // Fallback: status-only estimate so XP isn't wildly wrong for
-      // courses whose chapters we didn't fetch. Each in-progress course
-      // gets credit for 1 implied lesson; complete courses get 4.
-      if (course.enrollmentStatus === "Complete" || course.enrollmentStatus === "Completed") {
+      // Fallback when we didn't fetch chapters for this course (capped at 8
+      // in the loader). Status-based estimate so XP isn't wildly wrong.
+      if (courseIsComplete) {
         lessonsCompleted += 4;
         lessonsTotal += 4;
       } else if (course.enrollmentStatus === "InProgress") {

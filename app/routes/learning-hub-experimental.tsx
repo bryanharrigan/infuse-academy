@@ -37,6 +37,7 @@ import {
   useRouteLoaderData,
   Link,
   useNavigate,
+  useRevalidator,
 } from "@remix-run/react";
 import {
   Box,
@@ -375,6 +376,43 @@ export default function LearningHubExperimental() {
   const rootData = useRouteLoaderData("root") as RootData | null;
   const { themeVariant, setThemeVariant } = useAppStateContext();
   const navigate = useNavigate();
+  const revalidator = useRevalidator();
+
+  /**
+   * Enrollment in flight — track the courseId currently being enrolled so
+   * the corresponding card can show a spinner / disabled state. Set to null
+   * when no enrollment is active.
+   */
+  const [enrollingId, setEnrollingId] = useState<string | null>(null);
+
+  const handleEnroll = async (courseId: string) => {
+    if (enrollingId) return; // already enrolling something else
+    setEnrollingId(courseId);
+    try {
+      const res = await fetch(`/enroll/${courseId}`, {
+        method: "POST",
+        headers: { Accept: "application/json" },
+      });
+      const payload = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+      };
+      if (!res.ok || !payload.ok) {
+        throw new Error(payload.error ?? `HTTP ${res.status}`);
+      }
+      // Celebrate + refetch the loader so the course appears in My Courses
+      // and the gamification numbers tick up.
+      fireConfetti();
+      revalidator.revalidate();
+    } catch (err) {
+      console.error("[learning-hub-experimental] enroll failed:", err);
+      // Fall back to navigating to the catalog page so the learner can
+      // enroll there manually.
+      navigate("/catalog");
+    } finally {
+      setEnrollingId(null);
+    }
+  };
 
   // Force the theme to "experimental" if the user lands here via direct URL
   // — the page assumes the theme-experimental body class is applied.
@@ -471,16 +509,19 @@ export default function LearningHubExperimental() {
       : inCatalog && !course.enrollmentStatus
       ? "Available"
       : "Not Started";
-    const canPlay = Boolean(course.enrollmentStatus);
+    const isEnrolled = Boolean(course.enrollmentStatus);
+    const isEnrollingThis = enrollingId === course.id;
+    const canPlay = isEnrolled;
 
     return (
       <article
         key={course.id}
         className="exp-card"
         onClick={() => {
-          if (inCatalog) {
-            navigate("/catalog");
-          } else if (canPlay) {
+          if (!isEnrolled) {
+            // Click anywhere on a non-enrolled card kicks off enrollment.
+            handleEnroll(course.id);
+          } else {
             setPlaying({ course, mode: "course" });
           }
         }}
@@ -522,12 +563,21 @@ export default function LearningHubExperimental() {
                 <button
                   type="button"
                   className="exp-card__cta"
+                  disabled={isEnrollingThis}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (canPlay) setPlaying({ course, mode: "course" });
+                    if (!isEnrolled) {
+                      handleEnroll(course.id);
+                    } else {
+                      setPlaying({ course, mode: "course" });
+                    }
                   }}
                 >
-                  {isComplete(course.enrollmentStatus)
+                  {isEnrollingThis
+                    ? "Enrolling…"
+                    : !isEnrolled
+                    ? "Enroll"
+                    : isComplete(course.enrollmentStatus)
                     ? "Review"
                     : course.enrollmentStatus === "InProgress"
                     ? "Resume"
@@ -538,9 +588,31 @@ export default function LearningHubExperimental() {
           )}
           {inCatalog && (
             <div className="exp-card__footer">
-              <span className="exp-card__pct">Catalog</span>
-              <button type="button" className="exp-card__cta">
-                Enroll →
+              <span className="exp-card__pct">
+                {isEnrolled ? "Enrolled" : "Catalog"}
+              </span>
+              <button
+                type="button"
+                className="exp-card__cta"
+                disabled={isEnrollingThis}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isEnrolled) {
+                    setPlaying({ course, mode: "course" });
+                  } else {
+                    handleEnroll(course.id);
+                  }
+                }}
+              >
+                {isEnrollingThis
+                  ? "Enrolling…"
+                  : isEnrolled
+                  ? isComplete(course.enrollmentStatus)
+                    ? "Review"
+                    : course.enrollmentStatus === "InProgress"
+                    ? "Resume"
+                    : "Start"
+                  : "Enroll"}
               </button>
             </div>
           )}

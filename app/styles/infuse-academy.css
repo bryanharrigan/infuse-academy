@@ -1096,19 +1096,88 @@ body.theme-ia .hub-news-card__author-name {
   color: var(--ia-text-muted);
 }
 
+/* ─── Tablet (≤900px) ───────────────────────────────────────────────────── */
 @media (max-width: 900px) {
   body.theme-ia .hub-stats { grid-template-columns: repeat(2, 1fr); }
   body.theme-ia .hub-featured__card { flex-direction: column; }
   body.theme-ia .hub-featured__left { min-height: 180px; }
   body.theme-ia .hub-featured__right { min-width: auto; }
+  body.theme-ia .ia-section { padding: 48px 0; }
 }
+
+/* ─── Phone (≤640px) ────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
+  /* Container + section spacing — pull everything tighter so we don't burn
+     half the viewport on whitespace at phone widths. */
+  body.theme-ia .ia-container { padding-inline: 16px; }
+  body.theme-ia .ia-section { padding: 36px 0; }
+  body.theme-ia .ia-section--tight { padding: 20px 0; }
+
+  /* Header — drop the wordmark next to the logo so the nav links + theme
+     dropdown have room. The "iA" mark stays for branding. */
+  body.theme-ia .ia-header__logo {
+    font-size: 0;       /* hide the text node */
+    gap: 0;
+  }
+  body.theme-ia .ia-header__logo .ia-text-gradient {
+    display: none;
+  }
+  body.theme-ia .ia-header__logo-mark {
+    width: 32px;
+    height: 32px;
+    font-size: 0.78rem;
+  }
+  body.theme-ia .ia-header__nav-link {
+    font-size: 0.85rem;
+    padding: 4px 0;
+  }
+
+  /* Hero band */
+  body.theme-ia .hub-hero { padding: 40px 0 28px; }
   body.theme-ia .hub-hero__inner { flex-direction: column; align-items: flex-start; gap: 12px; }
+  body.theme-ia .hub-hero__left { gap: 14px; }
+  body.theme-ia .hub-hero__avatar { width: 56px; height: 56px; }
+  body.theme-ia .hub-hero__avatar-letter { font-size: 24px; }
   body.theme-ia .hub-hero__date { text-align: left; }
-  body.theme-ia .hub-stats { grid-template-columns: repeat(2, 1fr); margin-top: -16px; }
-  body.theme-ia .hub-section__header { flex-direction: column; align-items: flex-start; }
-  body.theme-ia .hub-grid { grid-template-columns: 1fr; }
-  body.theme-ia .hub-news { grid-template-columns: 1fr; }
+
+  /* Stats — keep 2 cols but pull padding in so the row isn't so tall */
+  body.theme-ia .hub-stats {
+    grid-template-columns: repeat(2, 1fr);
+    margin-top: -16px;
+    gap: 12px;
+  }
+  body.theme-ia .hub-stat { padding: 14px; gap: 6px; }
+
+  /* Sections */
+  body.theme-ia .hub-section { margin-top: 28px; }
+  body.theme-ia .hub-section__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  body.theme-ia .hub-section__title { font-size: 20px; }
+
+  /* Grids drop to single column */
+  body.theme-ia .hub-grid { grid-template-columns: 1fr; gap: 14px; }
+  body.theme-ia .hub-news { grid-template-columns: 1fr; gap: 14px; }
+
+  /* Featured course card — stack tight + smaller body padding */
+  body.theme-ia .hub-featured__card { gap: 0; }
+  body.theme-ia .hub-featured__left { aspect-ratio: 16 / 9; min-height: 0; }
+  body.theme-ia .hub-featured__content { padding: 18px; gap: 8px; }
+  body.theme-ia .hub-featured__title { font-size: 18px; }
+  body.theme-ia .hub-featured__right { padding: 18px; }
+
+  /* Filter chips wrap rather than overflow */
+  body.theme-ia .hub-filter { flex-wrap: wrap; }
+}
+
+/* ─── Tiny phones (≤380px) ──────────────────────────────────────────────── */
+@media (max-width: 380px) {
+  body.theme-ia .ia-container { padding-inline: 12px; }
+  body.theme-ia .hub-stats { grid-template-columns: 1fr; }
+  body.theme-ia .hub-hero__name { font-size: 22px; }
+  body.theme-ia .hub-section__title { font-size: 18px; }
 }
 
 /* =========================================================================
