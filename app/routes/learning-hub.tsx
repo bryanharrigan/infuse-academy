@@ -18,7 +18,7 @@
  * Renders a full experience only when the IA theme is active. In default
  * mode it shows a prompt to flip the theme toggle.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -404,7 +404,17 @@ export default function LearningHub() {
     );
   }
 
-  const now = new Date();
+  // Server runs in UTC (e.g. 18) while the client renders in the user's
+  // local timezone (e.g. 12) → greetingForHour() and formatDate() would
+  // emit different text on each side, triggering a React hydration
+  // mismatch (#418/#425) that disrupts event handlers in the surrounding
+  // subtree (Resume / Enroll silently no-op until manual reload).
+  // Defer time-dependent rendering until after hydration.
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
+
   const firstName = rootData?.userProfile?.firstName ?? "Learner";
   const lastName = rootData?.userProfile?.lastName ?? "";
   const initial = firstName.charAt(0).toUpperCase() || "?";
@@ -517,8 +527,8 @@ export default function LearningHub() {
               <span className="hub-hero__avatar-letter">{initial}</span>
             </div>
             <div>
-              <p className="hub-hero__greeting">
-                {greetingForHour(now.getHours())}
+              <p className="hub-hero__greeting" suppressHydrationWarning>
+                {now ? greetingForHour(now.getHours()) : " "}
               </p>
               <h1 className="hub-hero__name">
                 {firstName} {lastName}
@@ -528,7 +538,9 @@ export default function LearningHub() {
               </p>
             </div>
           </div>
-          <div className="hub-hero__date">{formatDate(now)}</div>
+          <div className="hub-hero__date" suppressHydrationWarning>
+            {now ? formatDate(now) : " "}
+          </div>
         </div>
         {/* RadNet-only brand tagline centered below the personal greeting
             row. Light "Advancing Imaging Through" over bold "Innovation &

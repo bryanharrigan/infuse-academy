@@ -528,7 +528,23 @@ export default function LearningHubExperimental() {
     [myCourses]
   );
 
-  const now = new Date();
+  /**
+   * Time-dependent rendering must wait for hydration: the server runs in
+   * UTC (so getHours() gives e.g. 18 → "Good evening") while the browser
+   * is in the user's local timezone (12 → "Good afternoon"). Rendering
+   * either at SSR causes a React #418/#425 hydration mismatch that
+   * disrupts event handlers in the surrounding subtree (clicks on
+   * Resume / Enroll silently no-op until manual reload).
+   *
+   * Initialise to null and populate on hydration so SSR and first paint
+   * match exactly. The eyebrow line just renders nothing until the
+   * effect fires a tick later.
+   */
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
+
   const firstName = rootData?.userProfile?.firstName ?? "Learner";
   const lastName = rootData?.userProfile?.lastName ?? "";
   const initial = firstName.charAt(0).toUpperCase() || "?";
@@ -829,8 +845,12 @@ export default function LearningHubExperimental() {
       {/* HERO ─────────────────────────────────────────────────────────── */}
       <section className="exp-hero">
         <div className="exp-container">
-          <span className="exp-hero__eyebrow">
-            {greetingForHour(now.getHours())} · {formatDate(now)}
+          {/* Empty span on SSR; populated post-hydration so server and
+              client agree on initial markup. See `now` state above. */}
+          <span className="exp-hero__eyebrow" suppressHydrationWarning>
+            {now
+              ? `${greetingForHour(now.getHours())} · ${formatDate(now)}`
+              : " "}
           </span>
 
           <Whirlpool
