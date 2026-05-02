@@ -74,6 +74,7 @@ import { Course } from "~/.server/course.resource";
 import { LessonPlayerModal } from "~/components/modal/lesson-player-modal";
 import { CoursePlayerModal } from "~/components/modal/course-player-modal";
 import { SessionsModal } from "~/components/modal/sessions-modal";
+import { CurriculumModal } from "~/components/modal/curriculum-modal";
 import OnlineCourseSVG from "~/assets/online-course.svg";
 import { useAppStateContext } from "~/context/app-state.context";
 import {
@@ -380,36 +381,38 @@ export default function LearningHubExperimental() {
   const { myCourses, catalog, news, resources, gamification, portalBaseUrl } =
     useLoaderData<typeof loader>();
 
-  /**
-   * Open the Absorb learner portal page for a course in a new tab. Used
-   * for InstructorLedCourse (where the user picks a session to register
-   * for) and Curriculum (where they drill into the bundle's child
-   * courses) — neither of which the embedded lesson player handles.
-   */
-  const openInPortal = (courseId: string) => {
-    if (typeof window === "undefined") return;
-    const url = `${portalBaseUrl}/#/courses/${encodeURIComponent(courseId)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
-
   /** Course currently driving the SessionsModal (null = closed). */
   const [sessionsCourse, setSessionsCourse] = useState<Course | null>(null);
+  /** Curriculum currently driving the CurriculumModal (null = closed). */
+  const [curriculumCourse, setCurriculumCourse] = useState<Course | null>(null);
 
   /**
    * Wraps the lesson-player launch with a courseType branch:
    *   OnlineCourse        → embedded course player modal
    *   InstructorLedCourse → native SessionsModal listing scheduled sessions
-   *   Curriculum          → open Absorb portal in new tab (curriculum drill
-   *                         is a follow-up; the portal renders the bundle
-   *                         tree natively in the meantime)
+   *   Curriculum          → native CurriculumModal listing child courses;
+   *                         picking a child re-enters playOrOpen for that
+   *                         child (so an OnlineCourse child plays in the
+   *                         lesson player, an ILT child opens its own
+   *                         SessionsModal, etc.)
    */
   const playOrOpen = (course: Course) => {
     if (course.courseType === "OnlineCourse") {
       setPlaying({ course, mode: "course" });
     } else if (course.courseType === "InstructorLedCourse") {
       setSessionsCourse(course);
+    } else if (course.courseType === "Curriculum") {
+      setCurriculumCourse(course);
     } else {
-      openInPortal(course.id);
+      // Unknown courseType — log so we can extend the branch later, then
+      // fall back to the lesson player so the click does *something*.
+      console.warn(
+        "[learning-hub-experimental] unknown courseType",
+        course.courseType,
+        "for course",
+        course.id
+      );
+      setPlaying({ course, mode: "course" });
     }
   };
   const rootData = useRouteLoaderData("root") as RootData | null;
@@ -1436,6 +1439,22 @@ export default function LearningHubExperimental() {
           revalidator.revalidate();
         }}
         onClose={() => setSessionsCourse(null)}
+      />
+
+      {/* Curriculum modal — Curriculum cards land here, child clicks
+          re-enter playOrOpen for the picked child course. */}
+      <CurriculumModal
+        curriculumId={curriculumCourse?.id ?? null}
+        curriculumTitle={curriculumCourse?.name}
+        onClose={() => setCurriculumCourse(null)}
+        onPickCourse={(child) => {
+          // The CurriculumModal closes itself before this fires, so by the
+          // time we mount the next modal the bundle dialog is already gone.
+          // Defer one tick so React has a chance to commit the unmount
+          // before we open the next dialog (avoids a flash of two stacked
+          // dialogs and lets focus management settle).
+          window.setTimeout(() => playOrOpen(child), 0);
+        }}
       />
 
       {/* Loading fallback while courses haven't arrived (very rare) */}

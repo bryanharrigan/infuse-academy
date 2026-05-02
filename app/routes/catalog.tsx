@@ -8,6 +8,7 @@ import { EnrollmentToast } from "~/components/modal/toast-notification.component
 import { CourseDetailModal } from "~/components/modal/course-detail-modal";
 import { LessonPlayerModal } from "~/components/modal/lesson-player-modal";
 import { SessionsModal } from "~/components/modal/sessions-modal";
+import { CurriculumModal } from "~/components/modal/curriculum-modal";
 import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
 import { MyCoursesResource } from "~/.server/my-courses.resource";
 import { useCatalog } from "~/routes/use-catalog.hook";
@@ -97,12 +98,15 @@ export default function MyCatalog() {
     selectedCourse,
     playingCourse,
     sessionsCourse,
+    curriculumCourse,
     handleStartCourse,
+    handleStartCourseDirect,
     handleEnroll,
     handleCardClick,
     handleCloseDetailModal,
     handleClosePlayer,
     handleCloseSessions,
+    handleCloseCurriculum,
   } = useCatalog(data);
 
   const [query, setQuery] = useState("");
@@ -213,6 +217,17 @@ export default function MyCatalog() {
           courseTitle={sessionsCourse?.name}
           onClose={handleCloseSessions}
         />
+        <CurriculumModal
+          curriculumId={curriculumCourse?.id ?? null}
+          curriculumTitle={curriculumCourse?.name}
+          onClose={handleCloseCurriculum}
+          onPickCourse={(child) => {
+            window.setTimeout(
+              () => handleStartCourseDirect(child, data.portalBaseUrl),
+              0
+            );
+          }}
+        />
       </>
     );
   }
@@ -264,6 +279,17 @@ export default function MyCatalog() {
         courseId={sessionsCourse?.id ?? null}
         courseTitle={sessionsCourse?.name}
         onClose={handleCloseSessions}
+      />
+      <CurriculumModal
+        curriculumId={curriculumCourse?.id ?? null}
+        curriculumTitle={curriculumCourse?.name}
+        onClose={handleCloseCurriculum}
+        onPickCourse={(child) => {
+          window.setTimeout(
+            () => handleStartCourseDirect(child, data.portalBaseUrl),
+            0
+          );
+        }}
       />
     </>
   );

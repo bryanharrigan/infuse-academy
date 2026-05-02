@@ -16,6 +16,7 @@ export function useCatalog(data: { catalog: MyCoursesResource }) {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [playingCourse, setPlayingCourse] = useState<Course | null>(null);
   const [sessionsCourse, setSessionsCourse] = useState<Course | null>(null);
+  const [curriculumCourse, setCurriculumCourse] = useState<Course | null>(null);
 
   const submit = useSubmit();
   const navigation = useNavigation();
@@ -33,9 +34,17 @@ export function useCatalog(data: { catalog: MyCoursesResource }) {
   // portal share the same hostname (or a known sibling). When that's
   // not the case (multi-tenant deploys), the caller can pass an explicit
   // `portalBaseUrl` via the second argument.
-  const handleStartCourse = (id: string, portalBaseUrl?: string) => {
-    const course = catalog.find((c) => c.id === id) || null;
-    if (!course) return;
+  /**
+   * Dispatches based on courseType to the correct in-app modal.
+   *   OnlineCourse        → LessonPlayerModal
+   *   InstructorLedCourse → SessionsModal
+   *   Curriculum          → CurriculumModal
+   *   unknown             → LessonPlayerModal (so the click does something)
+   */
+  const handleStartCourseDirect = (
+    course: Course,
+    _portalBaseUrl?: string
+  ) => {
     if (course.courseType === "OnlineCourse") {
       setPlayingCourse(course);
       return;
@@ -44,13 +53,17 @@ export function useCatalog(data: { catalog: MyCoursesResource }) {
       setSessionsCourse(course);
       return;
     }
-    if (typeof window === "undefined") return;
-    const base = portalBaseUrl ?? window.location.origin;
-    window.open(
-      `${base}/#/courses/${encodeURIComponent(course.id)}`,
-      "_blank",
-      "noopener,noreferrer"
-    );
+    if (course.courseType === "Curriculum") {
+      setCurriculumCourse(course);
+      return;
+    }
+    setPlayingCourse(course);
+  };
+
+  const handleStartCourse = (id: string, portalBaseUrl?: string) => {
+    const course = catalog.find((c) => c.id === id) || null;
+    if (!course) return;
+    handleStartCourseDirect(course, portalBaseUrl);
   };
 
   const handleClosePlayer = () => setPlayingCourse(null);
@@ -95,6 +108,7 @@ export function useCatalog(data: { catalog: MyCoursesResource }) {
   }, [navigation.state, enrollmentInProgress, enrollmentStartedAt]);
 
   const handleCloseSessions = () => setSessionsCourse(null);
+  const handleCloseCurriculum = () => setCurriculumCourse(null);
 
   return {
     catalog,
@@ -104,11 +118,14 @@ export function useCatalog(data: { catalog: MyCoursesResource }) {
     selectedCourse,
     playingCourse,
     sessionsCourse,
+    curriculumCourse,
     handleStartCourse,
+    handleStartCourseDirect,
     handleEnroll,
     handleCardClick,
     handleCloseDetailModal,
     handleClosePlayer,
     handleCloseSessions,
+    handleCloseCurriculum,
   };
 }

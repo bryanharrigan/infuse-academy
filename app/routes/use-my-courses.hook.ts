@@ -5,16 +5,18 @@ type UseMyCoursesResult = {
   courses: Course[];
   selectedCourse: Course | null;
   playingCourse: Course | null;
-  /**
-   * Course currently powering the SessionsModal (InstructorLedCourse only).
-   * Null when no sessions modal should be open.
-   */
+  /** Currently driving the SessionsModal (ILT only); null = closed. */
   sessionsCourse: Course | null;
+  /** Currently driving the CurriculumModal (Curriculum only); null = closed. */
+  curriculumCourse: Course | null;
   handleCardClick: (courseId: string) => void;
   handleStartCourse: (id: string, portalBaseUrl?: string) => void;
   handleCloseDetailModal: () => void;
   handleClosePlayer: () => void;
   handleCloseSessions: () => void;
+  handleCloseCurriculum: () => void;
+  /** Used by the CurriculumModal to launch a picked child course. */
+  handleStartCourseDirect: (course: Course, portalBaseUrl?: string) => void;
 };
 
 export const useMyCourses = (data?: {
@@ -23,20 +25,23 @@ export const useMyCourses = (data?: {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [playingCourse, setPlayingCourse] = useState<Course | null>(null);
   const [sessionsCourse, setSessionsCourse] = useState<Course | null>(null);
+  const [curriculumCourse, setCurriculumCourse] = useState<Course | null>(null);
 
   const courses = data?.myCourses?._embedded.courses || [];
 
   /**
-   * "Start / Resume" on a course card.
-   *   OnlineCourse        → embedded LessonPlayerModal (current behavior).
-   *   InstructorLedCourse → native SessionsModal (lists scheduled sessions
-   *                         with Register CTAs).
-   *   Curriculum          → opens Absorb's portal in a new tab so the user
-   *                         can drill into the bundle's child courses.
+   * Dispatches based on courseType to the correct in-app modal.
+   *   OnlineCourse        → embedded LessonPlayerModal
+   *   InstructorLedCourse → SessionsModal
+   *   Curriculum          → CurriculumModal (child clicks re-enter this
+   *                         dispatcher with the picked child course)
+   *   unknown             → falls back to the LessonPlayerModal so a click
+   *                         always does something
    */
-  const handleStartCourse = (id: string, portalBaseUrl?: string) => {
-    const course = courses.find((c) => c.id === id) || null;
-    if (!course) return;
+  const handleStartCourseDirect = (
+    course: Course,
+    _portalBaseUrl?: string
+  ) => {
     if (course.courseType === "OnlineCourse") {
       setPlayingCourse(course);
       return;
@@ -45,13 +50,21 @@ export const useMyCourses = (data?: {
       setSessionsCourse(course);
       return;
     }
-    if (typeof window === "undefined") return;
-    const base = portalBaseUrl ?? window.location.origin;
-    window.open(
-      `${base}/#/courses/${encodeURIComponent(course.id)}`,
-      "_blank",
-      "noopener,noreferrer"
-    );
+    if (course.courseType === "Curriculum") {
+      setCurriculumCourse(course);
+      return;
+    }
+    setPlayingCourse(course);
+  };
+
+  /**
+   * Convenience wrapper for the existing call site that only has the
+   * course id (e.g. CourseCard's onClick which passes id back up).
+   */
+  const handleStartCourse = (id: string, portalBaseUrl?: string) => {
+    const course = courses.find((c) => c.id === id) || null;
+    if (!course) return;
+    handleStartCourseDirect(course, portalBaseUrl);
   };
 
   const handleCardClick = (courseId: string) => {
@@ -68,16 +81,20 @@ export const useMyCourses = (data?: {
   };
 
   const handleCloseSessions = () => setSessionsCourse(null);
+  const handleCloseCurriculum = () => setCurriculumCourse(null);
 
   return {
     courses,
     selectedCourse,
     playingCourse,
     sessionsCourse,
+    curriculumCourse,
     handleCardClick,
     handleStartCourse,
+    handleStartCourseDirect,
     handleCloseDetailModal,
     handleClosePlayer,
     handleCloseSessions,
+    handleCloseCurriculum,
   };
 };

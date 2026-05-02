@@ -7,6 +7,7 @@ import { useMyCourses } from "~/routes/use-my-courses.hook";
 import { CourseDetailModal } from "~/components/modal/course-detail-modal";
 import { LessonPlayerModal } from "~/components/modal/lesson-player-modal";
 import { SessionsModal } from "~/components/modal/sessions-modal";
+import { CurriculumModal } from "~/components/modal/curriculum-modal";
 import { CourseCard } from "~/components/course-card/course-card.component";
 import { useAppStateContext } from "~/context/app-state.context";
 
@@ -79,11 +80,14 @@ export default function MyCourses() {
     selectedCourse,
     playingCourse,
     sessionsCourse,
+    curriculumCourse,
     handleCardClick,
     handleStartCourse,
+    handleStartCourseDirect,
     handleCloseDetailModal,
     handleClosePlayer,
     handleCloseSessions,
+    handleCloseCurriculum,
   } = useMyCourses(data);
 
   // Derive quick progress stats for the IA dashboard hero / rings.
@@ -270,6 +274,17 @@ export default function MyCourses() {
           courseTitle={sessionsCourse?.name}
           onClose={handleCloseSessions}
         />
+        <CurriculumModal
+          curriculumId={curriculumCourse?.id ?? null}
+          curriculumTitle={curriculumCourse?.name}
+          onClose={handleCloseCurriculum}
+          onPickCourse={(child) => {
+            window.setTimeout(
+              () => handleStartCourseDirect(child, data.portalBaseUrl),
+              0
+            );
+          }}
+        />
       </div>
     );
   }
@@ -330,6 +345,17 @@ export default function MyCourses() {
         courseId={sessionsCourse?.id ?? null}
         courseTitle={sessionsCourse?.name}
         onClose={handleCloseSessions}
+      />
+      <CurriculumModal
+        curriculumId={curriculumCourse?.id ?? null}
+        curriculumTitle={curriculumCourse?.name}
+        onClose={handleCloseCurriculum}
+        onPickCourse={(child) => {
+          window.setTimeout(
+            () => handleStartCourseDirect(child, data.portalBaseUrl),
+            0
+          );
+        }}
       />
     </div>
   );

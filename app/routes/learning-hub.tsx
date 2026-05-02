@@ -49,6 +49,7 @@ import { Course } from "~/.server/course.resource";
 import { LessonPlayerModal } from "~/components/modal/lesson-player-modal";
 import { CoursePlayerModal } from "~/components/modal/course-player-modal";
 import { SessionsModal } from "~/components/modal/sessions-modal";
+import { CurriculumModal } from "~/components/modal/curriculum-modal";
 import OnlineCourseSVG from "~/assets/online-course.svg";
 import { useAppStateContext } from "~/context/app-state.context";
 
@@ -261,15 +262,15 @@ export default function LearningHub() {
 
   /** Course currently driving the SessionsModal (null = closed). */
   const [sessionsCourse, setSessionsCourse] = useState<Course | null>(null);
+  /** Curriculum currently driving the CurriculumModal (null = closed). */
+  const [curriculumCourse, setCurriculumCourse] = useState<Course | null>(null);
 
   /**
-   * For non-OnlineCourse cards, the embedded course/lesson player can't
-   * render them. We split the handling:
-   *   InstructorLedCourse → native SessionsModal (lists scheduled sessions
-   *                         with Register CTAs that POST sessionId to
-   *                         /enroll/:courseId)
-   *   Curriculum          → open Absorb learner portal in a new tab so the
-   *                         user can drill into the bundle's child courses
+   * Dispatches a course click to the right modal based on courseType.
+   *   OnlineCourse        → embedded course/lesson player
+   *   InstructorLedCourse → native SessionsModal (sessions list + Register)
+   *   Curriculum          → native CurriculumModal (child courses; picking
+   *                         a child re-enters this dispatcher)
    */
   const playOrOpen = (course: Course, mode: "lesson" | "course") => {
     if (course.courseType === "OnlineCourse") {
@@ -280,13 +281,19 @@ export default function LearningHub() {
       setSessionsCourse(course);
       return;
     }
-    if (typeof window !== "undefined") {
-      window.open(
-        `${portalBaseUrl}/#/courses/${encodeURIComponent(course.id)}`,
-        "_blank",
-        "noopener,noreferrer"
-      );
+    if (course.courseType === "Curriculum") {
+      setCurriculumCourse(course);
+      return;
     }
+    // Unknown courseType — log and fall back to the lesson player so the
+    // click does something useful.
+    console.warn(
+      "[learning-hub] unknown courseType",
+      course.courseType,
+      "for course",
+      course.id
+    );
+    setPlaying({ course, mode });
   };
   const rootData = useRouteLoaderData("root") as RootData | null;
   const { themeVariant } = useAppStateContext();
@@ -1013,6 +1020,16 @@ export default function LearningHub() {
         courseTitle={sessionsCourse?.name}
         onRegistered={() => revalidator.revalidate()}
         onClose={() => setSessionsCourse(null)}
+      />
+
+      {/* Curriculum modal — Curriculum cards land here */}
+      <CurriculumModal
+        curriculumId={curriculumCourse?.id ?? null}
+        curriculumTitle={curriculumCourse?.name}
+        onClose={() => setCurriculumCourse(null)}
+        onPickCourse={(child) => {
+          window.setTimeout(() => playOrOpen(child, "course"), 0);
+        }}
       />
 
       {/* Bottom padding */}

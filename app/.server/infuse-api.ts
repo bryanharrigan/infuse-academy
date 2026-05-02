@@ -293,6 +293,58 @@ export type Session = {
 };
 
 /**
+ * Fetch the child courses inside a Curriculum bundle. Tries the
+ * learner-scoped endpoint first (returns per-course enrollmentStatus so
+ * the modal can show progress), then falls back to the catalog-style
+ * curriculum endpoint when the learner-scoped one isn't available
+ * (some tenants gate it behind extra perms or return 404 for
+ * not-yet-enrolled curricula).
+ *
+ * Returns courses shaped like everything else the hubs render so the
+ * existing CourseCard / playOrOpen logic just works.
+ */
+export async function getCurriculumChildren(
+  token: string,
+  curriculumId: string
+): Promise<MyCoursesResource["_embedded"]["courses"]> {
+  type CatalogCourse = MyCoursesResource["_embedded"]["courses"][number];
+
+  // Endpoints to try, in priority order. The first one that returns 2xx
+  // with a non-empty embedded courses array wins.
+  const candidates = [
+    infuseUrl(`my-curricula/${curriculumId}/courses`, { params: { _limit: "30" } }),
+    infuseUrl(`my-courses/${curriculumId}/courses`, { params: { _limit: "30" } }),
+    infuseUrl(`curricula/${curriculumId}/courses`, { params: { _limit: "30" } }),
+  ];
+
+  let lastStatus = 0;
+  for (const url of candidates) {
+    try {
+      const r = await fetch(url, { method: "GET", headers: authHeaders(token) });
+      lastStatus = r.status;
+      console.log(`[infuse-api] GET curriculum children ${url} → ${r.status}`);
+      if (!r.ok) continue;
+      const data = await r.json();
+      const courses: CatalogCourse[] =
+        data?._embedded?.courses ??
+        data?.courses ??
+        data?._embedded?.["courses"] ??
+        [];
+      if (courses.length > 0) return courses;
+    } catch (err) {
+      console.warn(
+        `[infuse-api] curriculum children ${url} threw:`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+  console.warn(
+    `[infuse-api] no curriculum children for ${curriculumId} (last status ${lastStatus})`
+  );
+  return [];
+}
+
+/**
  * Fetch sessions for an Instructor-Led Course.
  *
  *   GET {INFUSE_BASE_URL}/instructor-led-courses/{courseId}/sessions
