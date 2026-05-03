@@ -46,7 +46,7 @@ import {
   Videocam as VideocamIcon,
   ArrowOutward as ArrowOutwardIcon,
 } from "@mui/icons-material";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import type { Session } from "~/.server/infuse-api";
 import type { Course } from "~/.server/course.resource";
@@ -419,8 +419,8 @@ export function SessionsModal({
         {course?.description && stripHtmlToText(course.description).length > 0 && (
           <Box
             sx={{
-              mb: 2.5,
-              p: 2,
+              mb: 2.75,
+              p: 2.75,
               borderRadius: 3,
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.1)",
@@ -486,9 +486,20 @@ export function SessionsModal({
           </Box>
         )}
 
-        {state === "loaded" && sortedSessions.length > 0 && (
-          <Stack spacing={1.5}>
-            {sortedSessions.map((s) => {
+        {state === "loaded" && sortedSessions.length > 0 && (() => {
+          // Anyone registered? If so, the first non-registered session
+          // gets a "Switch to another session" header above it so the
+          // learner sees their alternatives clearly.
+          const anyRegistered = sortedSessions.some(
+            (sess) => isSessionRegistered(sess) || registeredIds.has(sess.id)
+          );
+          const firstAlternativeIdx = sortedSessions.findIndex(
+            (sess) => !isSessionRegistered(sess) && !registeredIds.has(sess.id)
+          );
+
+          return (
+            <Stack spacing={1.75}>
+              {sortedSessions.map((s, idx) => {
               const dateStr = formatSessionDateRange(s.startDate, s.endDate);
               const location = locationStringFor(s);
               const seats = seatsBadge(s);
@@ -517,21 +528,73 @@ export function SessionsModal({
               const switchAllowed = s.canSwitch !== false; // default to true when undefined
               const isSwitch = otherRegistered && switchAllowed;
 
+              const isFirstAlternative =
+                anyRegistered && idx === firstAlternativeIdx;
+
               return (
-                <Box
-                  key={s.id}
-                  sx={{
-                    p: 2,
-                    borderRadius: 3,
-                    background: alreadyRegistered
-                      ? "linear-gradient(135deg, rgba(94,234,212,0.16), rgba(167,139,250,0.16))"
-                      : "rgba(255,255,255,0.04)",
-                    border: alreadyRegistered
-                      ? "1px solid rgba(94,234,212,0.55)"
-                      : "1px solid rgba(255,255,255,0.12)",
-                    transition: "background 0.3s, border 0.3s, box-shadow 0.3s",
-                  }}
-                >
+                <React.Fragment key={s.id}>
+                  {isFirstAlternative && (
+                    <Box
+                      sx={{
+                        mt: 1,
+                        mb: 0.5,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          flex: 1,
+                          height: 1,
+                          background:
+                            "linear-gradient(90deg, transparent, rgba(94,234,212,0.4), transparent)",
+                        }}
+                      />
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: "rgba(245,243,255,0.7)",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.16em",
+                          fontWeight: 700,
+                          fontSize: "0.68rem",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Switch to another session
+                      </Typography>
+                      <Box
+                        sx={{
+                          flex: 1,
+                          height: 1,
+                          background:
+                            "linear-gradient(90deg, transparent, rgba(94,234,212,0.4), transparent)",
+                        }}
+                      />
+                    </Box>
+                  )}
+                  <Box
+                    sx={{
+                      p: 2.75,
+                      borderRadius: 3,
+                      // Same dark surface for every card; the registered
+                      // one is distinguished by a green left border + glow,
+                      // not a tinted background. Better contrast against
+                      // the modal's translucent dark glass.
+                      background: "rgba(255,255,255,0.04)",
+                      border: alreadyRegistered
+                        ? "1px solid rgba(94,234,212,0.55)"
+                        : "1px solid rgba(255,255,255,0.12)",
+                      borderLeft: alreadyRegistered
+                        ? "4px solid #5eead4"
+                        : "1px solid rgba(255,255,255,0.12)",
+                      boxShadow: alreadyRegistered
+                        ? "0 0 0 1px rgba(94,234,212,0.2), 0 8px 28px rgba(94,234,212,0.12)"
+                        : "none",
+                      transition: "background 0.3s, border 0.3s, box-shadow 0.3s",
+                    }}
+                  >
                   {s.name && (
                     <Typography
                       variant="subtitle1"
@@ -688,11 +751,13 @@ export function SessionsModal({
                       </Button>
                     )}
                   </Box>
-                </Box>
+                  </Box>
+                </React.Fragment>
               );
             })}
-          </Stack>
-        )}
+            </Stack>
+          );
+        })()}
       </DialogContent>
 
       {/* Map embed sub-modal — opens for physical sessions when the

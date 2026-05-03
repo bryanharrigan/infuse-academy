@@ -265,18 +265,23 @@ const Whirlpool: React.FC<{
   return (
     <div className="exp-whirlpool" aria-hidden>
       {rings.map((ring, i) => {
-        // Cross-browser-safe approach: repeat the joined word string
-        // enough times that it OVERFILLS the path. SVG natively
-        // truncates excess at the end of the path, so the visible
-        // result is a continuous ring of repeating text. No
-        // `textLength`/`lengthAdjust` — those work in Chrome/Safari but
-        // produce visible gaps in Firefox where lengthAdjust=
-        // spacingAndGlyphs has rendering bugs.
-        //
-        // Because every repetition is identical, the wrap point lands
-        // on the same word as if the path continued — no fragmented
-        // letters or "EXPLORELEARN"-style smash artefacts.
+        // 350° arc with a 10° gap at the top (12 o'clock). The gap is
+        // intentional — when text overflows a closed-circle path, the
+        // truncation point overlaps the start, so you see "BUILDLEARN"
+        // or "PR KNOWLEDGE" smashed together at the seam. With a path
+        // that doesn't quite close, the truncation lands inside the
+        // gap and we never see overlap. Cross-browser-safe (no
+        // textLength stretching needed → no Firefox gaps).
+        const gapDeg = 10;
+        const halfGapRad = ((gapDeg / 2) * Math.PI) / 180;
+        const sx = ring.r * Math.sin(halfGapRad);
+        const sy = -ring.r * Math.cos(halfGapRad);
+        // Start slightly clockwise of top, sweep clockwise the long way,
+        // end slightly counterclockwise of top.
+        const pathD = `M ${sx} ${sy} A ${ring.r} ${ring.r} 0 1 1 ${-sx} ${sy}`;
         const baseText = ring.words.join(" • ") + " • ";
+        // Overfill the path so we never run out of text mid-path. The
+        // excess gets truncated at the path end (inside the 10° gap).
         const repeated = baseText.repeat(4);
         return (
           <div
@@ -291,7 +296,7 @@ const Whirlpool: React.FC<{
               <defs>
                 <path
                   id={`exp-whirlpool-path-${i}`}
-                  d={`M 0 ${-ring.r} A ${ring.r} ${ring.r} 0 1 1 -0.01 ${-ring.r}`}
+                  d={pathD}
                   fill="none"
                 />
               </defs>

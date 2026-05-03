@@ -216,8 +216,8 @@ const ChildCourseRow: React.FC<{
         cursor: "pointer",
         display: "flex",
         alignItems: "stretch",
-        gap: 1.5,
-        p: 1.5,
+        gap: 1.75,
+        p: 2,
         borderRadius: 3,
         background: complete
           ? "rgba(253,230,138,0.06)"
@@ -336,8 +336,8 @@ const CurriculumProgressCard: React.FC<{
   return (
     <Box
       sx={{
-        mb: 2.5,
-        p: 2.25,
+        mb: 2.75,
+        p: 3,
         borderRadius: 4,
         background: isDone
           ? "linear-gradient(135deg, rgba(253,230,138,0.15) 0%, rgba(240,171,252,0.15) 100%)"

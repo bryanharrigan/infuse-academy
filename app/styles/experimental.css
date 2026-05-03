@@ -365,23 +365,42 @@ body.theme-experimental .exp-whirlpool__core {
   height: 30%;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: var(--exp-grad-iridescent);
-  background-size: 300% 300%;
+  /* Deep ink interior so the animated rainbow letter pops against it. */
+  background:
+    radial-gradient(circle at 30% 30%, rgba(94, 234, 212, 0.35), transparent 60%),
+    radial-gradient(circle at 70% 70%, rgba(240, 171, 252, 0.35), transparent 60%),
+    rgba(6, 6, 26, 0.92);
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(2rem, 5vw, 3.5rem);
-  font-weight: 800;
-  color: #06061a;
+  font-size: clamp(2.4rem, 6vw, 4rem);
+  font-weight: 900;
   font-family: "Space Grotesk", sans-serif;
   box-shadow:
     0 0 60px rgba(94, 234, 212, 0.6),
     0 0 120px rgba(240, 171, 252, 0.4),
-    inset 0 0 40px rgba(255, 255, 255, 0.3);
-  animation: exp-gradient-shift 8s ease-in-out infinite,
-    exp-core-float 6s ease-in-out infinite;
+    inset 0 0 40px rgba(255, 255, 255, 0.18);
+  animation: exp-core-float 6s ease-in-out infinite,
+    exp-core-letter-rainbow 6s linear infinite;
   cursor: pointer;
   transition: transform 0.4s var(--exp-ease);
+  text-shadow:
+    0 0 18px currentColor,
+    0 2px 4px rgba(0, 0, 0, 0.6);
+  letter-spacing: -0.02em;
+}
+
+/* Cycle the letter through the iridescent palette so it reads as the
+   single most lively element of the whirlpool. Uses `currentColor` for
+   the text-shadow above so the glow follows along. */
+@keyframes exp-core-letter-rainbow {
+  0%   { color: #5eead4; }
+  20%  { color: #22d3ee; }
+  40%  { color: #a78bfa; }
+  60%  { color: #f0abfc; }
+  80%  { color: #fde68a; }
+  100% { color: #5eead4; }
 }
 
 body.theme-experimental .exp-whirlpool__core:hover {
