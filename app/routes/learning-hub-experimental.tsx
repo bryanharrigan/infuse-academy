@@ -31,6 +31,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+// (useRef is used for both the level-up tracking refs below and the
+// theme-bootstrap ref above.)
 import { json, LoaderFunctionArgs } from "@remix-run/node";
 import {
   useLoaderData,
@@ -47,9 +49,16 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
   Tooltip,
   Typography,
 } from "@mui/material";
+import {
+  Check as CheckIcon,
+} from "@mui/icons-material";
 import {
   PlayArrow,
   OpenInNew,
@@ -265,24 +274,16 @@ const Whirlpool: React.FC<{
   return (
     <div className="exp-whirlpool" aria-hidden>
       {rings.map((ring, i) => {
-        // 350° arc with a 10° gap at the top (12 o'clock). The gap is
-        // intentional — when text overflows a closed-circle path, the
-        // truncation point overlaps the start, so you see "BUILDLEARN"
-        // or "PR KNOWLEDGE" smashed together at the seam. With a path
-        // that doesn't quite close, the truncation lands inside the
-        // gap and we never see overlap. Cross-browser-safe (no
-        // textLength stretching needed → no Firefox gaps).
-        const gapDeg = 10;
-        const halfGapRad = ((gapDeg / 2) * Math.PI) / 180;
-        const sx = ring.r * Math.sin(halfGapRad);
-        const sy = -ring.r * Math.cos(halfGapRad);
-        // Start slightly clockwise of top, sweep clockwise the long way,
-        // end slightly counterclockwise of top.
-        const pathD = `M ${sx} ${sy} A ${ring.r} ${ring.r} 0 1 1 ${-sx} ${sy}`;
-        const baseText = ring.words.join(" • ") + " • ";
-        // Overfill the path so we never run out of text mid-path. The
-        // excess gets truncated at the path end (inside the 10° gap).
-        const repeated = baseText.repeat(4);
+        // Full circle path — we use one <textPath> element per WORD
+        // and position each via startOffset (a percentage of the
+        // path). Because each word is a self-contained text node,
+        // SVG can't truncate or smash mid-word at the seam. No
+        // EXPLORELEARN, no PR KNOWLEDGE, no missing separators.
+        const pathD = `M 0 ${-ring.r} A ${ring.r} ${ring.r} 0 1 1 -0.01 ${-ring.r}`;
+        const fontSize = i === 0 ? 22 : i === 1 ? 19 : i === 2 ? 17 : 15;
+        // Build {word, dot} pairs evenly spaced around the full circle.
+        // The dot sits halfway between this word and the next.
+        const slots = ring.words.length;
         return (
           <div
             key={i}
@@ -300,14 +301,32 @@ const Whirlpool: React.FC<{
                   fill="none"
                 />
               </defs>
-              <text
-                className={ring.color}
-                fontSize={i === 0 ? 22 : i === 1 ? 19 : i === 2 ? 17 : 15}
-              >
-                <textPath href={`#exp-whirlpool-path-${i}`}>
-                  {repeated}
-                </textPath>
-              </text>
+              {ring.words.map((word, j) => {
+                const wordOffset = (j / slots) * 100;
+                const dotOffset = ((j + 0.5) / slots) * 100;
+                return (
+                  <g key={`${word}-${j}`}>
+                    <text className={ring.color} fontSize={fontSize}>
+                      <textPath
+                        href={`#exp-whirlpool-path-${i}`}
+                        startOffset={`${wordOffset}%`}
+                        textAnchor="middle"
+                      >
+                        {word}
+                      </textPath>
+                    </text>
+                    <text className={ring.color} fontSize={fontSize}>
+                      <textPath
+                        href={`#exp-whirlpool-path-${i}`}
+                        startOffset={`${dotOffset}%`}
+                        textAnchor="middle"
+                      >
+                        •
+                      </textPath>
+                    </text>
+                  </g>
+                );
+              })}
             </svg>
           </div>
         );
@@ -470,13 +489,39 @@ export default function LearningHubExperimental() {
     }
   };
 
-  // Force the theme to "experimental" if the user lands here via direct URL
-  // — the page assumes the theme-experimental body class is applied.
+  /**
+   * On first mount, force the theme to "experimental" if the user
+   * landed here via direct URL — the page assumes the theme-
+   * experimental body class is applied. We DON'T want this effect to
+   * fight the picker below: if the learner deliberately chooses a
+   * different theme, we navigate them away (see handleSwitchTheme)
+   * so the auto-revert doesn't fire on subsequent renders.
+   */
+  const themeBootstrapped = useRef(false);
   useEffect(() => {
+    if (themeBootstrapped.current) return;
+    themeBootstrapped.current = true;
     if (themeVariant !== "experimental") {
       setThemeVariant("experimental");
     }
   }, [themeVariant, setThemeVariant]);
+
+  /**
+   * Theme picker — opens a Menu so the learner can hop between themes.
+   * Picking anything other than Experimental navigates them away from
+   * /learning-hub-experimental (the IA/RadNet/Default themes have
+   * their own surfaces) so the chosen theme actually takes effect.
+   */
+  const [themeAnchor, setThemeAnchor] = useState<HTMLElement | null>(null);
+  const handleSwitchTheme = (variant: typeof themeVariant) => {
+    setThemeAnchor(null);
+    setThemeVariant(variant);
+    if (variant !== "experimental") {
+      // The IA / RadNet / Default themes share /learning-hub (the
+      // legacy hub) — go there so the switch is immediately visible.
+      navigate("/learning-hub");
+    }
+  };
 
   const [playing, setPlaying] = useState<
     { course: Course; mode: "lesson" | "course" } | null
@@ -797,12 +842,14 @@ export default function LearningHubExperimental() {
             <Button
               size="small"
               variant="outlined"
-              onClick={() => setThemeVariant("infuse-academy")}
+              onClick={(e) => setThemeAnchor(e.currentTarget)}
               startIcon={<AutoAwesomeIcon fontSize="small" />}
               sx={{
                 fontSize: "0.78rem",
                 display: { xs: "none", sm: "inline-flex" },
               }}
+              aria-haspopup="true"
+              aria-expanded={themeAnchor !== null}
             >
               Switch theme
             </Button>
@@ -810,8 +857,10 @@ export default function LearningHubExperimental() {
           <Tooltip title="Switch theme">
             <IconButton
               size="small"
-              onClick={() => setThemeVariant("infuse-academy")}
+              onClick={(e) => setThemeAnchor(e.currentTarget)}
               aria-label="Switch theme"
+              aria-haspopup="true"
+              aria-expanded={themeAnchor !== null}
               sx={{
                 color: "var(--exp-text-muted)",
                 display: { xs: "inline-flex", sm: "none" },
@@ -820,6 +869,62 @@ export default function LearningHubExperimental() {
               <AutoAwesomeIcon fontSize="small" />
             </IconButton>
           </Tooltip>
+
+          {/* Theme picker menu — anchored to either button above. */}
+          <Menu
+            anchorEl={themeAnchor}
+            open={themeAnchor !== null}
+            onClose={() => setThemeAnchor(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            transformOrigin={{ vertical: "top", horizontal: "right" }}
+            slotProps={{
+              paper: {
+                sx: {
+                  mt: 0.5,
+                  minWidth: 220,
+                  background: "rgba(20, 20, 36, 0.95)",
+                  backdropFilter: "blur(20px) saturate(160%)",
+                  WebkitBackdropFilter: "blur(20px) saturate(160%)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  color: "#f5f3ff",
+                  borderRadius: 3,
+                },
+              },
+            }}
+          >
+            {[
+              { v: "experimental" as const, label: "Experimental" },
+              { v: "infuse-academy" as const, label: "Infuse Academy" },
+              { v: "radnet" as const, label: "RadNet" },
+              { v: "default" as const, label: "Default" },
+            ].map(({ v, label }) => (
+              <MenuItem
+                key={v}
+                onClick={() => handleSwitchTheme(v)}
+                selected={themeVariant === v}
+                sx={{
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontSize: "0.9rem",
+                  "&.Mui-selected": {
+                    background: "rgba(94,234,212,0.12)",
+                  },
+                  "&:hover": {
+                    background: "rgba(255,255,255,0.06)",
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: 28,
+                    color: themeVariant === v ? "#5eead4" : "transparent",
+                  }}
+                >
+                  <CheckIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary={label} />
+              </MenuItem>
+            ))}
+          </Menu>
 
           {/* My Courses + Catalog — labelled on ≥sm, hidden on phone (the
               hub already surfaces both as in-page nav). */}
