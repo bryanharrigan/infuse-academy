@@ -665,7 +665,21 @@ export async function getSessionsForCourse(
     const cc =
       (s.currentClass as Record<string, unknown> | null | undefined) ??
       undefined;
-    const both: Array<Record<string, unknown> | undefined> = [s, cc];
+    /**
+     * Venue is a sub-object on `currentClass`:
+     *   { id, type ("Virtual"|"Classroom"), name, address, city,
+     *     country, province, postalCode, phoneNumber, url }
+     *
+     * `type` drives webinar-vs-physical detection.
+     * `url` carries the meeting join link for virtual venues.
+     * `name` is the human-readable venue label (e.g. "Training Room A"
+     *   or "Bryan's GoToMeeting Webinar").
+     */
+    const venue =
+      (cc?.venue as Record<string, unknown> | null | undefined) ??
+      undefined;
+    const both: Array<Record<string, unknown> | undefined> = [s, cc, venue];
+    const venueOnly: Array<Record<string, unknown> | undefined> = [venue];
 
     return {
       id: String(s.id ?? s.sessionId ?? ""),
@@ -705,14 +719,33 @@ export async function getSessionsForCourse(
           "localEndDate",
         ])
       ),
-      timezone: pick(both, ["timezone", "timeZone", "tz", "timeZoneId"]),
-      location: pick(both, ["location", "locationName"]),
-      venue: pick(both, ["venue", "venueName"]),
+      timezone: pick(both, [
+        "timeZoneIana",
+        "timezone",
+        "timeZone",
+        "tz",
+        "timeZoneId",
+      ]),
+      // Free-form location label — we prefer the venue's `name` ("Training
+      // Room A" / "Bryan's GoToMeeting Webinar") since it reads better
+      // than a bare address. Falls through to other tenants' shapes.
+      location:
+        pick(venueOnly, ["name"]) ??
+        pick(both, ["location", "locationName"]),
+      venue:
+        pick(venueOnly, ["name"]) ??
+        pick(both, ["venue", "venueName"]),
       address: pick(both, ["address", "streetAddress", "addressLine1"]),
       building: pick(both, ["building"]),
       room: pick(both, ["room", "roomName"]),
       city: pick(both, ["city"]),
-      state: pick(both, ["state", "stateProvince", "region"]),
+      // Absorb's venue uses `province` for state/region.
+      state: pick(both, [
+        "province",
+        "state",
+        "stateProvince",
+        "region",
+      ]),
       postalCode: pick(both, ["postalCode", "zip", "zipCode"]),
       country: pick(both, ["country", "countryCode"]),
       instructor: (() => {
@@ -756,27 +789,39 @@ export async function getSessionsForCourse(
         "canSwitchSession",
         "allowSessionSwitch",
       ]),
-      meetingType: pick(both, [
-        "meetingType",
-        "deliveryType",
-        "format",
-        "sessionType",
-      ]),
-      webinarUrl: pick(both, [
-        "meetingUrl",
-        "webinarUrl",
-        "connectionUrl",
-        "joinUrl",
-        "joinLink",
-        "url",
-      ]),
-      connectionInfo: pick(both, [
-        "meetingDescription",
-        "connectionInfo",
-        "connectionDetails",
-        "joinDetails",
-        "additionalDetails",
-      ]),
+      // Absorb's `currentClass.venue.type` is the canonical signal:
+      //   "Virtual"   → webinar (venue.url is the join link)
+      //   "Classroom" → physical
+      // Other tenants may use `meetingType`/`deliveryType`/`format` etc.
+      meetingType:
+        pick(venueOnly, ["type"]) ??
+        pick(both, [
+          "meetingType",
+          "deliveryType",
+          "format",
+          "sessionType",
+        ]),
+      // Webinar URL: venue.url first (Absorb's canonical place for the
+      // join link on virtual venues), then the session's top-level
+      // meetingUrl which sometimes carries it for older tenants.
+      webinarUrl:
+        pick(venueOnly, ["url"]) ??
+        pick(both, [
+          "meetingUrl",
+          "webinarUrl",
+          "connectionUrl",
+          "joinUrl",
+          "joinLink",
+        ]),
+      connectionInfo:
+        pick(venueOnly, ["phoneNumber"]) ??
+        pick(both, [
+          "meetingDescription",
+          "connectionInfo",
+          "connectionDetails",
+          "joinDetails",
+          "additionalDetails",
+        ]),
       totalClassCount: pickNum(both, ["totalClassCount", "classCount"]),
     };
   });

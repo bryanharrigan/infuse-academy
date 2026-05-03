@@ -158,14 +158,16 @@ function seatsBadge(s: Session): { text: string; color: "success" | "warning" | 
 /* ─── webinar detection + map query helpers ──────────────────────────── */
 
 /**
- * True when the session is a webinar / virtual classroom — we either have
- * an explicit join URL OR the meetingType / location strings strongly
- * suggest "online".
+ * True when the session is a webinar / virtual classroom. We treat any
+ * of these as "yes":
+ *   - Absorb's `venue.type === "Virtual"` (parsed into meetingType)
+ *   - An explicit join URL (webinarUrl) is present
+ *   - meetingType / location strings smell online
  */
 function isWebinarSession(s: Session): boolean {
-  if (s.webinarUrl && s.webinarUrl.length > 0) return true;
   const mt = (s.meetingType ?? "").toLowerCase();
   if (
+    mt === "virtual" ||
     mt.includes("webinar") ||
     mt.includes("virtual") ||
     mt.includes("online") ||
@@ -173,6 +175,7 @@ function isWebinarSession(s: Session): boolean {
   ) {
     return true;
   }
+  if (s.webinarUrl && s.webinarUrl.length > 0) return true;
   const loc = (s.location ?? "").toLowerCase();
   if (loc === "online" || loc === "virtual" || loc === "webinar") return true;
   return false;
