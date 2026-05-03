@@ -274,15 +274,23 @@ const Whirlpool: React.FC<{
   return (
     <div className="exp-whirlpool" aria-hidden>
       {rings.map((ring, i) => {
-        // Full circle path — we use one <textPath> element per WORD
-        // and position each via startOffset (a percentage of the
-        // path). Because each word is a self-contained text node,
-        // SVG can't truncate or smash mid-word at the seam. No
-        // EXPLORELEARN, no PR KNOWLEDGE, no missing separators.
+        // Full circle path — we use one <textPath> per WORD positioned
+        // via startOffset. Because each word is a self-contained text
+        // node, SVG can't truncate or smash mid-word at the seam.
+        //
+        // Offset math: with N words evenly spaced, each occupies a
+        // 100/N% "slot" of the path. We center the word in its slot
+        // (offset = (j + 0.5) / N) so that:
+        //   - No word's center sits AT 0% / the seam (which would
+        //     clip half the word with textAnchor="middle")
+        //   - Adjacent words can't overlap (their centers are a full
+        //     slot-width apart, more than any single word renders)
+        //
+        // Dots sit at slot BORDERS (offset = (j+1) / N) and we skip
+        // the dot at 100% (= 0% = seam) — the natural arc gap there
+        // serves as the visual divider between the last and first word.
         const pathD = `M 0 ${-ring.r} A ${ring.r} ${ring.r} 0 1 1 -0.01 ${-ring.r}`;
         const fontSize = i === 0 ? 22 : i === 1 ? 19 : i === 2 ? 17 : 15;
-        // Build {word, dot} pairs evenly spaced around the full circle.
-        // The dot sits halfway between this word and the next.
         const slots = ring.words.length;
         return (
           <div
@@ -302,29 +310,39 @@ const Whirlpool: React.FC<{
                 />
               </defs>
               {ring.words.map((word, j) => {
-                const wordOffset = (j / slots) * 100;
-                const dotOffset = ((j + 0.5) / slots) * 100;
+                const wordOffset = ((j + 0.5) / slots) * 100;
                 return (
-                  <g key={`${word}-${j}`}>
-                    <text className={ring.color} fontSize={fontSize}>
-                      <textPath
-                        href={`#exp-whirlpool-path-${i}`}
-                        startOffset={`${wordOffset}%`}
-                        textAnchor="middle"
-                      >
-                        {word}
-                      </textPath>
-                    </text>
-                    <text className={ring.color} fontSize={fontSize}>
-                      <textPath
-                        href={`#exp-whirlpool-path-${i}`}
-                        startOffset={`${dotOffset}%`}
-                        textAnchor="middle"
-                      >
-                        •
-                      </textPath>
-                    </text>
-                  </g>
+                  <text
+                    key={`${word}-${j}`}
+                    className={ring.color}
+                    fontSize={fontSize}
+                  >
+                    <textPath
+                      href={`#exp-whirlpool-path-${i}`}
+                      startOffset={`${wordOffset}%`}
+                      textAnchor="middle"
+                    >
+                      {word}
+                    </textPath>
+                  </text>
+                );
+              })}
+              {ring.words.slice(0, -1).map((_, j) => {
+                const dotOffset = ((j + 1) / slots) * 100;
+                return (
+                  <text
+                    key={`dot-${j}`}
+                    className={ring.color}
+                    fontSize={fontSize}
+                  >
+                    <textPath
+                      href={`#exp-whirlpool-path-${i}`}
+                      startOffset={`${dotOffset}%`}
+                      textAnchor="middle"
+                    >
+                      •
+                    </textPath>
+                  </text>
                 );
               })}
             </svg>
