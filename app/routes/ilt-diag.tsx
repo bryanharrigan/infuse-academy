@@ -132,15 +132,22 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const legacyBase = InfuseBaseUrl.replace(/\/$/, "");
   const infuseBase = InfuseApiUrl.replace(/\/$/, "");
 
-  // ILT registrations — try every plausible endpoint
+  // ILT registrations — try every plausible endpoint, including
+  // showFutureCourses (Absorb sometimes hides upcoming-only enrollments)
+  // and the absorb portal's internal /Catalog/MySessions pattern.
   const iltUrls = [
     `${legacyBase}/my-session-enrollments?_limit=20`,
-    `${legacyBase}/my-courses?courseTypes=InstructorLedCourse&_limit=20`,
-    `${legacyBase}/my-courses?courseTypes=InstructorLedCourse&showCompleted=true&_limit=20`,
-    `${legacyBase}/my-course-enrollments?_limit=20`,
-    `${legacyBase}/my-course-enrollments?courseTypes=InstructorLedCourse&_limit=20`,
-    `${legacyBase}/my-instructor-led-enrollments?_limit=20`,
-    `${legacyBase}/my-classroom-enrollments?_limit=20`,
+    `${legacyBase}/my-courses?courseTypes=InstructorLedCourse&_limit=20&showCompleted=true&showFutureCourses=true`,
+    `${legacyBase}/my-courses?_limit=20&showCompleted=true&showFutureCourses=true`,
+    `${legacyBase}/my-courses?_limit=20&showCompleted=true&includeWaitlisted=true`,
+    `${legacyBase}/my-bookings?_limit=20`,
+    `${legacyBase}/my-classes?_limit=20`,
+    `${legacyBase}/instructor-led-courses?_limit=20&showFutureCourses=true`,
+    `${legacyBase}/sessions?_limit=20`,
+    // Probe a known ILT we've seen — maybe session-enrollments collection
+    // on a known course id works.
+    `${legacyBase}/my-course-enrollments/ee90b723-c655-4481-9d7d-02b5df07f8c9/session-enrollments?_limit=20`,
+    `${legacyBase}/my-course-enrollments/ee90b723-c655-4481-9d7d-02b5df07f8c9?_limit=20`,
   ];
 
   // Per-lesson progress — try alternatives for lesson completion data
@@ -168,12 +175,69 @@ export async function loader({ request }: LoaderFunctionArgs) {
     ),
   ]);
 
+  // Deep dive into a single online course's chapters → fully unpack
+  // each chapter to find where the per-lesson progress fields live.
+  let chapterDeepDive: unknown = null;
+  try {
+    const r = await fetch(
+      `${infuseBase}/online-courses/${sampleCourseId}/chapters`,
+      { headers: infuseHeaders(token) }
+    );
+    if (r.ok) {
+      const data = (await r.json()) as Record<string, unknown>;
+      const embedded = data._embedded as
+        | Record<string, unknown>
+        | undefined;
+      const chapters = (embedded?.chapters ?? []) as Array<
+        Record<string, unknown>
+      >;
+      chapterDeepDive = chapters.map((ch) => {
+        const chEmbedded = ch._embedded as Record<string, unknown> | undefined;
+        const lessons = (chEmbedded?.lessons ?? []) as Array<
+          Record<string, unknown>
+        >;
+        return {
+          chapterId: ch.id,
+          chapterName: ch.name,
+          chapterTopKeys: Object.keys(ch),
+          chapterEnrollment: ch.enrollment,
+          lessonCount: lessons.length,
+          lessons: lessons.map((l) => ({
+            id: l.id,
+            name: l.name,
+            keys: Object.keys(l),
+            progress: l.progress,
+            enrollment: l.enrollment,
+            // Capture a small preview of every field so we can see what's
+            // populated (status, completedDate, etc.).
+            preview: Object.fromEntries(
+              Object.entries(l)
+                .filter(([k]) => k !== "_links" && k !== "_embedded")
+                .map(([k, v]) => [
+                  k,
+                  typeof v === "object" && v !== null
+                    ? JSON.stringify(v).slice(0, 200)
+                    : v,
+                ])
+            ),
+          })),
+        };
+      });
+    }
+  } catch (err) {
+    chapterDeepDive = {
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+
   return json({
     iltProbes: ilt,
     lessonProbes: lessons,
+    chapterDeepDive,
     notes: [
-      "Look for status: 200 with itemCount > 0 in iltProbes — that's the right ILT endpoint.",
-      "In lessonProbes, look for fields like progress, completedDate, status on the firstItemKeys.",
+      "iltProbes: status 200 + itemCount > 0 = working ILT endpoint",
+      "lessonProbes: status 200 + 'progress' or 'completedDate' in firstItemKeys",
+      "chapterDeepDive: shows per-lesson fields including any progress data",
     ],
   });
 }
