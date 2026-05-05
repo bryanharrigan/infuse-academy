@@ -1,8 +1,15 @@
 import { Box, CircularProgress, Typography, Button } from "@mui/material";
 import { json, LoaderFunctionArgs } from "@remix-run/node";
 import { Link, useLoaderData, useRouteLoaderData } from "@remix-run/react";
-import { getMyCourses, InfusePortalUrl } from "~/.server/infuse-api";
+import {
+  getMyCourses,
+  getMyCourseEnrollment,
+  getChaptersForCourse,
+  InfusePortalUrl,
+  type Chapter,
+} from "~/.server/infuse-api";
 import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
+import { computeGamification } from "~/.server/gamification";
 import { useMyCourses } from "~/routes/use-my-courses.hook";
 import { CourseDetailModal } from "~/components/modal/course-detail-modal";
 import { LessonPlayerModal } from "~/components/modal/lesson-player-modal";
@@ -20,14 +27,98 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const cookieHeader = request.headers.get("Cookie");
   const tokenValue = await infuseJwtCookie.parse(cookieHeader);
 
-  const myCourses = await getMyCourses(tokenValue, {
-    limit: 30,
+  const myCoursesRes = await getMyCourses(tokenValue, {
+    limit: 20,
     showCompleted: true,
   });
+  const myCourses = myCoursesRes._embedded.courses;
+
+  /* ─── Lesson tracking for gamification ─────────────────────────────── */
+  // Fetch chapters for any course we want lesson-level tracking on. Cap
+  // to 6 to keep this loader fast — beyond that the gamification falls
+  // back to status-based estimation per course.
+  const trackable = myCourses
+    .filter(
+      (c) =>
+        c.courseType === "OnlineCourse" &&
+        (c.enrollmentStatus === "InProgress" ||
+          c.enrollmentStatus === "Complete" ||
+          c.enrollmentStatus === "Completed")
+    )
+    .slice(0, 6);
+  const chapterEntries = await Promise.all(
+    trackable.map(async (c) => {
+      try {
+        const chapters = await getChaptersForCourse(tokenValue, c.id);
+        return [c.id, chapters] as [string, Chapter[]];
+      } catch {
+        return [c.id, [] as Chapter[]] as [string, Chapter[]];
+      }
+    })
+  );
+  const chaptersByCourse = new Map<string, Chapter[]>(chapterEntries);
+  const gamification = computeGamification({ myCourses, chaptersByCourse });
+
+  /* ─── Most-recent curriculum + its progress ────────────────────────── */
+  // Pull enrollment records for every curriculum (capped at 5) and pick
+  // the one with the most recent `enrollmentDate`. The progress field
+  // on the enrollment record IS Absorb's authoritative percentage, so we
+  // can render it directly in the second progress ring.
+  const curricula = myCourses
+    .filter((c) => c.courseType === "Curriculum")
+    .slice(0, 5);
+  const curriculumEntries = await Promise.all(
+    curricula.map(async (c) => {
+      try {
+        const e = await getMyCourseEnrollment(tokenValue, c.id);
+        return { course: c, enrollment: e };
+      } catch {
+        return null;
+      }
+    })
+  );
+  const curriculumWithEnrollment = curriculumEntries.filter(
+    (e): e is { course: typeof curricula[number]; enrollment: Awaited<ReturnType<typeof getMyCourseEnrollment>> } =>
+      e !== null
+  );
+  const recentCurriculum =
+    curriculumWithEnrollment.length === 0
+      ? null
+      : [...curriculumWithEnrollment].sort((a, b) => {
+          const aT = a.enrollment.enrollmentDate
+            ? new Date(a.enrollment.enrollmentDate).getTime()
+            : 0;
+          const bT = b.enrollment.enrollmentDate
+            ? new Date(b.enrollment.enrollmentDate).getTime()
+            : 0;
+          return bT - aT;
+        })[0];
+
+  /* ─── ILT progress ─────────────────────────────────────────────────── */
+  const iltCourses = myCourses.filter(
+    (c) => c.courseType === "InstructorLedCourse"
+  );
+  const iltCompleted = iltCourses.filter(
+    (c) =>
+      c.enrollmentStatus === "Complete" || c.enrollmentStatus === "Completed"
+  ).length;
+  const iltInProgress = iltCourses.filter(
+    (c) => c.enrollmentStatus === "InProgress"
+  ).length;
+  const iltStats = {
+    total: iltCourses.length,
+    completed: iltCompleted,
+    inProgress: iltInProgress,
+    progress:
+      iltCourses.length > 0 ? iltCompleted / iltCourses.length : 0,
+  };
 
   return json({
-    myCourses,
+    myCourses: myCoursesRes,
     portalBaseUrl: InfusePortalUrl.replace(/\/$/, ""),
+    gamification,
+    recentCurriculum,
+    iltStats,
   });
 };
 
@@ -91,18 +182,42 @@ export default function MyCourses() {
     handleCloseCurriculum,
   } = useMyCourses(data);
 
-  // Derive quick progress stats for the IA dashboard hero / rings.
-  // `courses` here comes from /my-courses which includes enrollmentStatus
-  // but not percentage-progress, so we approximate with completed count.
-  const completedCount = courses.filter(
-    (c) => c.enrollmentStatus === "Complete" || c.enrollmentStatus === "Completed"
-  ).length;
+  // Real gamification computed server-side from completion data.
+  const { gamification, recentCurriculum, iltStats } = data;
+
+  const totalCount = courses.length;
+  const completedCount = gamification.counts.coursesCompleted;
   const inProgressCount = courses.filter(
     (c) => c.enrollmentStatus === "InProgress"
   ).length;
-  const totalCount = courses.length;
+
+  // Overall progress — weighted: complete = 1, in-progress = 0.5,
+  // not-started = 0. Mirrors the "average progress" stat on the
+  // experimental hub.
   const overallProgress =
-    totalCount > 0 ? completedCount / totalCount : 0;
+    totalCount > 0
+      ? courses.reduce((sum, c) => {
+          if (
+            c.enrollmentStatus === "Complete" ||
+            c.enrollmentStatus === "Completed"
+          )
+            return sum + 1;
+          if (c.enrollmentStatus === "InProgress") return sum + 0.5;
+          return sum;
+        }, 0) / totalCount
+      : 0;
+
+  // Tier letter — matches the experimental hub's rank badge.
+  const rankBadgeChar = (rank: typeof gamification.rank): string =>
+    rank === "diamond"
+      ? "◆"
+      : rank === "platinum"
+      ? "P"
+      : rank === "gold"
+      ? "G"
+      : rank === "silver"
+      ? "S"
+      : "B";
 
   if (!courses || courses.length === 0) {
     return (
@@ -144,8 +259,13 @@ export default function MyCourses() {
           </div>
         </section>
 
-        {/* Gamification bar */}
-        <section className="ia-gamification-bar ia-animate">
+        {/* Gamification bar — same data source as the Experimental
+            Learning Hub (computeGamification). XP / level / streak /
+            rank are all real numbers, not approximations. */}
+        <section
+          className="ia-gamification-bar ia-animate"
+          data-rank={gamification.rank}
+        >
           <div className="ia-gamification-bar__grid">
             <div className="ia-gamification-bar__item">
               <div className="ia-gamification-bar__label">
@@ -155,9 +275,8 @@ export default function MyCourses() {
                 className="ia-xp-bar"
                 style={
                   {
-                    ["--xp" as string]: `${Math.min(
-                      100,
-                      completedCount * 10 + inProgressCount * 3
+                    ["--xp" as string]: `${Math.round(
+                      gamification.levelProgress * 100
                     )}%`,
                   } as React.CSSProperties
                 }
@@ -166,27 +285,60 @@ export default function MyCourses() {
               </div>
               <div className="ia-gamification-bar__meta">
                 <span>
-                  {completedCount * 100 + inProgressCount * 30} / 1000 XP
+                  {gamification.totalXp.toLocaleString()} XP
+                  {!gamification.isMaxLevel && (
+                    <>
+                      {" "}
+                      ·{" "}
+                      <span style={{ opacity: 0.7 }}>
+                        {gamification.xpInLevel} /{" "}
+                        {gamification.xpForNextLevel} to L
+                        {gamification.level + 1}
+                      </span>
+                    </>
+                  )}
                 </span>
                 <span className="ia-badge ia-badge--sm">
-                  Level {Math.max(1, Math.floor(completedCount / 2) + 1)}
+                  Level {gamification.level}
                 </span>
               </div>
             </div>
             <div className="ia-gamification-bar__item">
-              <div className="ia-gamification-bar__label">Weekly Streak</div>
-              <div className="ia-streak">
-                {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+              <div className="ia-gamification-bar__label">Streak</div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  marginTop: 6,
+                }}
+              >
+                <span style={{ fontSize: "1.8rem", lineHeight: 1 }}>
+                  🔥
+                </span>
+                <div>
                   <div
-                    key={i}
-                    className={`ia-streak__day ${
-                      i < 3 ? "ia-streak__day--active" : ""
-                    }`}
+                    style={{
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      fontWeight: 800,
+                      fontSize: "1.6rem",
+                      lineHeight: 1,
+                    }}
                   >
-                    <span className="ia-streak__dot" />
-                    <span className="ia-streak__label">{d}</span>
+                    {gamification.streakDays}
                   </div>
-                ))}
+                  <div
+                    style={{
+                      fontSize: "0.7rem",
+                      color: "var(--ia-text-muted)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.12em",
+                      marginTop: 2,
+                    }}
+                  >
+                    {gamification.streakDays === 1 ? "day" : "days"}
+                  </div>
+                </div>
               </div>
             </div>
             <div
@@ -194,35 +346,71 @@ export default function MyCourses() {
               style={{ textAlign: "center" }}
             >
               <div className="ia-gamification-bar__label">Rank</div>
-              <div className="ia-rank-badge">
-                <span className="ia-rank-badge__icon">🎖</span>
-                <span className="ia-rank-badge__title">
-                  {completedCount >= 5
-                    ? "Veteran"
-                    : completedCount >= 2
-                    ? "Explorer"
-                    : "Novice"}
-                </span>
+              {/* Tier badge — same gradient palette as the experimental
+                  hub's rank card. Letter inside follows the tier:
+                  B/S/G/P/◆ for Bronze/Silver/Gold/Platinum/Diamond. */}
+              <div
+                className="exp-xp-card__rank-badge"
+                style={{
+                  margin: "8px auto 6px",
+                  width: 64,
+                  height: 64,
+                  borderRadius: 18,
+                  fontSize: "1.4rem",
+                }}
+              >
+                <span>{rankBadgeChar(gamification.rank)}</span>
+              </div>
+              <div
+                style={{
+                  fontWeight: 700,
+                  fontSize: "0.95rem",
+                  fontFamily: "'Space Grotesk', sans-serif",
+                }}
+              >
+                {gamification.rankLabel}
               </div>
             </div>
           </div>
         </section>
 
-        {/* Progress rings */}
+        {/* Progress rings — three real signals:
+              1. Overall progress across every enrolled course
+              2. Most recently enrolled curriculum's progress (Absorb's
+                 own enrollment.progress field — authoritative)
+              3. ILT enrollment progression: % of registered ILT courses
+                 the learner has completed                              */}
         <section className="ia-section--tight">
           <div className="ia-container">
             <div className="ia-stats-row ia-animate">
               <ProgressRing
                 progress={overallProgress}
-                label="Overall Progress"
+                label={`Overall · ${totalCount} ${
+                  totalCount === 1 ? "course" : "courses"
+                }`}
               />
               <ProgressRing
-                progress={totalCount > 0 ? completedCount / totalCount : 0}
-                label={`${completedCount} of ${totalCount} Completed`}
+                progress={
+                  recentCurriculum
+                    ? Math.max(
+                        0,
+                        Math.min(1, recentCurriculum.enrollment.progress / 100)
+                      )
+                    : 0
+                }
+                label={
+                  recentCurriculum
+                    ? `Curriculum · ${recentCurriculum.course.name}`
+                    : "No curriculum enrolled"
+                }
               />
               <ProgressRing
-                progress={totalCount > 0 ? inProgressCount / totalCount : 0}
-                label={`${inProgressCount} In Progress`}
+                progress={iltStats.progress}
+                label={
+                  iltStats.total === 0
+                    ? "No ILT enrollments"
+                    : `Instructor-Led · ${iltStats.completed} of ${iltStats.total}`
+                }
               />
             </div>
           </div>
