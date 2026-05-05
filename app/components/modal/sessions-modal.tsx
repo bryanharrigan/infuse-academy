@@ -305,11 +305,18 @@ export function SessionsModal({
 
   const sortedSessions = useMemo(() => {
     return [...sessions].sort((a, b) => {
+      // Registered sessions float to the top — easier to spot when
+      // accessing the modal from inside a curriculum where the learner
+      // already booked a slot.
+      const aReg = isSessionRegistered(a) || registeredIds.has(a.id);
+      const bReg = isSessionRegistered(b) || registeredIds.has(b.id);
+      if (aReg !== bReg) return aReg ? -1 : 1;
+      // Within each group, oldest start date first.
       const aT = a.startDate ? new Date(a.startDate).getTime() : Infinity;
       const bT = b.startDate ? new Date(b.startDate).getTime() : Infinity;
       return aT - bT;
     });
-  }, [sessions]);
+  }, [sessions, registeredIds]);
 
   const handleRegister = async (session: Session) => {
     if (!courseId || registeringId) return;
@@ -440,15 +447,14 @@ export function SessionsModal({
             >
               About this course
             </Typography>
+            {/* Full description — DialogContent itself scrolls if the
+                course writeup is long, so we don't truncate. */}
             <Typography
               variant="body2"
               sx={{
                 color: "rgba(245,243,255,0.85)",
-                lineHeight: 1.55,
-                display: "-webkit-box",
-                WebkitLineClamp: 4,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
+                lineHeight: 1.6,
+                whiteSpace: "pre-wrap",
               }}
             >
               {stripHtmlToText(course.description)}

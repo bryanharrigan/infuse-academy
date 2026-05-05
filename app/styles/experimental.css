@@ -1420,6 +1420,165 @@ body.theme-experimental .exp-levelup__big {
   }
 }
 
+/* ═════════════════════════════════════════════════════════════════════════
+ * Experimental theme — re-skin the IA chrome on /catalog, /my-courses,
+ * and /learning-hub when the experimental theme is active.
+ *
+ * The pages themselves still render IA-class markup (ia-hero / ia-section /
+ * ia-container / ia-section-heading / ia-course-card etc). Rather than
+ * rewrite each route, we layer experimental tokens over the IA shell here
+ * so the same markup reads as "Infuse · Experimental" — iridescent
+ * gradient titles, Space Grotesk display type, exp surface fills, and
+ * tighter container chrome to match the experimental hub.
+ *
+ * Cards specifically don't need overrides — CourseCard already has a
+ * dedicated `body.theme-experimental` branch that renders exp-card markup
+ * directly, so the grid is already on-brand.
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+body.theme-experimental .ia-container {
+  max-width: 1320px;
+  padding-inline: 28px;
+}
+
+body.theme-experimental .ia-section {
+  padding: 56px 0;
+}
+
+/* Hero: swap the IA gradient backdrop for the aurora that bleeds through
+   from body::before, and re-skin the hero title with the iridescent
+   Space Grotesk treatment. */
+body.theme-experimental .ia-hero {
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 88px 0 36px;
+}
+body.theme-experimental .ia-hero::before {
+  display: none;
+}
+body.theme-experimental .ia-hero__title {
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: #f5f3ff;
+}
+body.theme-experimental .ia-hero__sub {
+  color: rgba(245, 243, 255, 0.72);
+  max-width: 680px;
+  font-size: clamp(1rem, 1.4vw, 1.15rem);
+}
+body.theme-experimental .ia-text-gradient {
+  background: linear-gradient(
+    135deg,
+    #5eead4 0%,
+    #22d3ee 25%,
+    #818cf8 55%,
+    #f0abfc 80%,
+    #fde68a 100%
+  );
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: exp-gradient-shift 8s ease-in-out infinite;
+}
+
+/* Section headings — borrow exp-section__title styling so they read in
+   the same family/weight as the hub. */
+body.theme-experimental .ia-section-heading h2,
+body.theme-experimental .ia-section__title {
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #f5f3ff;
+  font-size: clamp(1.6rem, 2.4vw, 2.2rem);
+}
+body.theme-experimental .ia-section-heading p,
+body.theme-experimental .ia-section__sub {
+  color: rgba(245, 243, 255, 0.72);
+}
+
+/* Catalog toolbar — frosted glass to match the hub. */
+body.theme-experimental .ia-catalog-toolbar {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-radius: 18px;
+}
+body.theme-experimental .ia-catalog-search {
+  background: transparent;
+  border: none;
+}
+body.theme-experimental .ia-catalog-search input {
+  background: transparent;
+  color: #f5f3ff;
+  caret-color: #5eead4;
+}
+body.theme-experimental .ia-catalog-search input::placeholder {
+  color: rgba(245, 243, 255, 0.45);
+}
+body.theme-experimental .ia-badge {
+  color: rgba(245, 243, 255, 0.78);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+/* Course grid — make sure spacing matches the experimental hub. */
+body.theme-experimental .ia-course-grid {
+  gap: 22px;
+}
+
+/* IA stat cards (the my-courses progress rings) — frost them so they sit
+   harmoniously over the aurora. */
+body.theme-experimental .ia-stat-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-radius: 20px;
+}
+
+/* Landing cards on the homepage. */
+body.theme-experimental .ia-landing-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-radius: 22px;
+}
+
+/* Hub-specific surfaces (used on /learning-hub, the IA hub). */
+body.theme-experimental .hub-hero {
+  background: transparent;
+}
+body.theme-experimental .hub-hero__name {
+  background: linear-gradient(
+    135deg,
+    #5eead4 0%,
+    #818cf8 50%,
+    #f0abfc 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+body.theme-experimental .hub-section__title {
+  font-family: "Space Grotesk", "Inter", sans-serif;
+}
+body.theme-experimental .hub-stat,
+body.theme-experimental .hub-news-card,
+body.theme-experimental .hub-featured__card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-radius: 20px;
+}
+
 /* ─── Reduced motion ────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   body.theme-experimental *,

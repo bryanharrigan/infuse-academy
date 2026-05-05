@@ -11,13 +11,44 @@ import {
 import FallbackImage from "~/assets/banner.jpg";
 import { useAppStateContext } from "~/context/app-state.context";
 
+type CourseType = "OnlineCourse" | "InstructorLedCourse" | "Curriculum";
+
 type CourseDetailModalProps = {
   open: boolean;
   onClose: () => void;
   title: string;
   description: string;
   imageUrl: string;
+  /** Course type — drives the launch CTA label + behaviour. */
+  courseType?: CourseType;
+  /** Current learner enrollment status. Drives the CTA label
+   *  (Resume / Review / Start / Pick a session / Enroll). */
+  enrollmentStatus?: string | null;
+  /** Fired when the launch CTA is clicked. The caller is responsible
+   *  for closing this modal and opening the right downstream modal
+   *  (LessonPlayerModal / SessionsModal / CurriculumModal). */
+  onLaunch?: () => void;
 };
+
+function ctaLabelFor(
+  courseType: CourseType | undefined,
+  enrollmentStatus: string | null | undefined
+): string {
+  if (courseType === "InstructorLedCourse") {
+    const s = (enrollmentStatus ?? "").toLowerCase();
+    if (s === "complete" || s === "completed") return "Review session";
+    return enrollmentStatus ? "View / switch session" : "Pick a session";
+  }
+  if (courseType === "Curriculum") {
+    return enrollmentStatus ? "Continue curriculum" : "View curriculum";
+  }
+  // OnlineCourse / unknown
+  if (enrollmentStatus === "Complete" || enrollmentStatus === "Completed")
+    return "Review course";
+  if (enrollmentStatus === "InProgress") return "Resume";
+  if (enrollmentStatus) return "Start";
+  return "Enroll";
+}
 
 export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
   open,
@@ -25,6 +56,9 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
   title,
   description,
   imageUrl,
+  courseType,
+  enrollmentStatus,
+  onLaunch,
 }) => {
   const { setModalOpen } = useAppStateContext();
 
@@ -32,6 +66,8 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
     setModalOpen(open);
     return () => setModalOpen(false);
   }, [open, setModalOpen]);
+
+  const ctaLabel = ctaLabelFor(courseType, enrollmentStatus);
 
   return (
     <Dialog
@@ -68,10 +104,25 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
           )}
         </Box>
       </DialogContent>
-      <DialogActions className="flex justify-end pr-4">
-        <Button onClick={onClose} color="primary">
+      <DialogActions className="flex justify-end gap-2 pr-4">
+        <Button onClick={onClose} color="inherit">
           Close
         </Button>
+        {onLaunch && (
+          <Button
+            onClick={() => {
+              // Close this modal first, then defer one tick so React
+              // commits the unmount before the parent mounts the next
+              // modal (LessonPlayerModal / SessionsModal / etc.).
+              onClose();
+              window.setTimeout(() => onLaunch(), 0);
+            }}
+            color="primary"
+            variant="contained"
+          >
+            {ctaLabel}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

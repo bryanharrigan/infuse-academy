@@ -83,6 +83,7 @@ export default function MyCourses() {
     curriculumCourse,
     handleCardClick,
     handleStartCourse,
+    handleStartCourseDirect,
     handlePickChildCourse,
     handleCloseDetailModal,
     handleClosePlayer,
@@ -262,6 +263,9 @@ export default function MyCourses() {
             title={selectedCourse.name}
             description={selectedCourse.description}
             imageUrl={selectedCourse.imageUrl}
+            courseType={selectedCourse.courseType}
+            enrollmentStatus={selectedCourse.enrollmentStatus}
+            onLaunch={() => handleStartCourseDirect(selectedCourse, data.portalBaseUrl)}
           />
         )}
         <LessonPlayerModal

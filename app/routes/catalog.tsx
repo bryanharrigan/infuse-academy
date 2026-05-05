@@ -100,6 +100,7 @@ export default function MyCatalog() {
     sessionsCourse,
     curriculumCourse,
     handleStartCourse,
+    handleStartCourseDirect,
     handlePickChildCourse,
     handleEnroll,
     handleCardClick,
@@ -205,6 +206,15 @@ export default function MyCatalog() {
             title={selectedCourse.name}
             description={selectedCourse.description}
             imageUrl={selectedCourse.imageUrl}
+            courseType={selectedCourse.courseType}
+            enrollmentStatus={selectedCourse.enrollmentStatus}
+            onLaunch={() => {
+              if (!selectedCourse.enrollmentStatus) {
+                handleEnroll(selectedCourse.id);
+              } else {
+                handleStartCourseDirect(selectedCourse, data.portalBaseUrl);
+              }
+            }}
           />
         )}
         <LessonPlayerModal
