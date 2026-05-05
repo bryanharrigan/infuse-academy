@@ -559,6 +559,71 @@ export async function getCurriculumOverview(
 }
 
 /**
+ * Discover the learner's ILT enrollments by walking the catalog.
+ *
+ * Absorb's `/my-courses?courseTypes=InstructorLedCourse` returns []
+ * for this tenant — the user's session registrations don't bubble up
+ * to the course-level my-courses view. The only way to discover them
+ * is to:
+ *   1. Fetch all ILT courses from the (non-`my`) catalog.
+ *   2. For each, fetch its sessions.
+ *   3. Return the sessions where `enrolled === true` (the learner has
+ *      registered for that specific session).
+ *
+ * Bounded by the ILT-only catalog page size (Absorb caps at 20). The
+ * sessions calls are parallel so total time ≈ one round-trip + the
+ * slowest sessions response.
+ */
+export type ILTEnrollment = {
+  course: MyCoursesResource["_embedded"]["courses"][number];
+  session: Session;
+};
+
+export async function getMyILTEnrollments(
+  token: string
+): Promise<ILTEnrollment[]> {
+  // Step 1 — fetch ILT courses from the catalog.
+  const catalogUrl = infuseUrl("my-catalog", {
+    params: {
+      _limit: "20",
+      showCompleted: "true",
+      courseTypes: "InstructorLedCourse",
+    },
+  });
+  const catRes = await fetch(catalogUrl, {
+    method: "GET",
+    headers: authHeaders(token),
+  });
+  if (!catRes.ok) return [];
+  const catData = (await catRes.json()) as MyCoursesResource;
+  const iltCourses = catData?._embedded?.courses ?? [];
+  if (iltCourses.length === 0) return [];
+
+  // Step 2 — fetch sessions for each in parallel.
+  const sessionLists = await Promise.all(
+    iltCourses.map(async (c) => {
+      try {
+        const sessions = await getSessionsForCourse(token, c.id);
+        return { course: c, sessions };
+      } catch {
+        return { course: c, sessions: [] };
+      }
+    })
+  );
+
+  // Step 3 — collect sessions the learner is enrolled in.
+  const out: ILTEnrollment[] = [];
+  for (const { course, sessions } of sessionLists) {
+    for (const session of sessions) {
+      if (session.isLearnerEnrolled === true) {
+        out.push({ course, session });
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * Fetch sessions for an Instructor-Led Course.
  *
  *   GET {INFUSE_BASE_URL}/instructor-led-courses/{courseId}/sessions
@@ -952,12 +1017,41 @@ export async function getMyCourseEnrollment(token: string, courseId: string): Pr
   throw new Error("Enrollment check failed: " + r.status);
 }
 
+/**
+ * Per-lesson enrollment record on Absorb V2. Each lesson under a
+ * chapter carries one of these on its `enrollment` field — this is
+ * where completion data actually lives, NOT under `progress`. Verified
+ * against the live API:
+ *   {
+ *     "id": "...",
+ *     "lessonId": null,
+ *     "status": "Complete",
+ *     "progress": 100,
+ *     "score": null,
+ *     "completionDate": "2026-05-02T18:20:35.13",
+ *     "attempts": 1,
+ *     ...
+ *   }
+ */
+export type LessonEnrollment = {
+  id?: string;
+  status?: string;
+  progress?: number;
+  completionDate?: string | null;
+  score?: number | null;
+  attempts?: number;
+  hasInProgressAttempt?: boolean;
+};
+
 export type Lesson = {
   id: string;
   name?: string;
   title?: string;
   type?: string;
+  /** @deprecated Some old responses used this. Real data lives on `enrollment`. */
   progress?: { completedDate?: string | null; status?: string };
+  /** Per-learner completion record (the canonical place). */
+  enrollment?: LessonEnrollment;
 };
 
 export type Chapter = {

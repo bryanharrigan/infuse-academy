@@ -173,9 +173,33 @@ export function computeStreak(activityDates: ReadonlyArray<string | null | undef
 
 /* ─── Lesson helpers ────────────────────────────────────────────────────── */
 
+/**
+ * Pull the canonical completion signal off a lesson.
+ *
+ * Absorb V2 stores per-lesson completion data on `lesson.enrollment`,
+ * NOT `lesson.progress` (the latter is essentially never populated on
+ * this tenant). The enrollment object looks like:
+ *   { status: "Complete", progress: 100, completionDate: "2026-..." }
+ *
+ * We accept either shape so older response formats don't break, but
+ * `enrollment` wins when both are present.
+ */
+function lessonStatus(l: Lesson): string {
+  return (
+    l.enrollment?.status ??
+    l.progress?.status ??
+    ""
+  ).toLowerCase();
+}
+
+function lessonCompletionDate(l: Lesson): string | null | undefined {
+  return l.enrollment?.completionDate ?? l.progress?.completedDate;
+}
+
 function isLessonComplete(l: Lesson): boolean {
-  const s = l.progress?.status?.toLowerCase() ?? "";
-  return s === "complete" || s === "completed" || Boolean(l.progress?.completedDate);
+  const s = lessonStatus(l);
+  if (s === "complete" || s === "completed") return true;
+  return Boolean(lessonCompletionDate(l));
 }
 
 function flattenLessons(chapters: Chapter[]): Lesson[] {
@@ -220,27 +244,21 @@ export function computeGamification({
       lessonsTotal += lessons.length;
 
       if (courseIsComplete) {
-        // Absorb stops populating per-lesson `progress.completedDate` once a
-        // course rolls up to complete — but every lesson IS complete by
-        // definition. Count them all and synthesise an activity date from
-        // course-level data so streaks still tick.
+        // Course rolled up to complete → every lesson is complete. Count
+        // them all + harvest any per-lesson completion dates we can.
         lessonsCompleted += lessons.length;
-        // Prefer real per-lesson dates when present; otherwise the course's
-        // own enrollment status implies activity today (worst-case the
-        // streak just doesn't advance for this course, which is fine).
         for (const lesson of lessons) {
-          const d = lesson.progress?.completedDate;
+          const d = lessonCompletionDate(lesson);
           if (d) activityDates.push(d);
         }
       } else {
-        // For not-complete courses, count only lessons with explicit
-        // completion data — this is the accurate per-lesson signal.
+        // For not-complete courses, count only lessons that report
+        // completion explicitly via `lesson.enrollment.completionDate`.
         for (const lesson of lessons) {
           if (isLessonComplete(lesson)) {
             lessonsCompleted += 1;
-            if (lesson.progress?.completedDate) {
-              activityDates.push(lesson.progress.completedDate);
-            }
+            const d = lessonCompletionDate(lesson);
+            if (d) activityDates.push(d);
           }
         }
       }

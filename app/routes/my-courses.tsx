@@ -5,6 +5,7 @@ import {
   getMyCourses,
   getMyCourseEnrollment,
   getChaptersForCourse,
+  getMyILTEnrollments,
   InfusePortalUrl,
   type Chapter,
 } from "~/.server/infuse-api";
@@ -95,71 +96,41 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         })[0];
 
   /* ─── ILT progress ─────────────────────────────────────────────────── */
-  // Fetch each enrolled ILT's enrollment record so we can use Absorb's
-  // authoritative `progress` field (0–100) — the same signal that
-  // populates progress on the curriculum ring. Capped at 8 to keep the
-  // loader fast; beyond that we fall back to status-based weighting.
-  const iltCourses = myCourses.filter(
-    (c) => c.courseType === "InstructorLedCourse"
-  );
-  const iltEnrolled = iltCourses.filter((c) => c.enrollmentStatus !== null);
-  const iltTrackable = iltEnrolled.slice(0, 8);
-  const iltEnrollmentEntries = await Promise.all(
-    iltTrackable.map(async (c) => {
-      try {
-        const e = await getMyCourseEnrollment(tokenValue, c.id);
-        return { course: c, enrollment: e };
-      } catch {
-        return null;
-      }
-    })
-  );
-  const iltEnrollments = iltEnrollmentEntries.filter(
-    (e): e is NonNullable<typeof e> => e !== null
+  // Absorb's /my-courses doesn't surface ILT registrations on this
+  // tenant — they live at session level. Discover them via the catalog
+  // walk (getMyILTEnrollments). Each entry is one session the learner
+  // is registered for.
+  const iltEnrollments = await getMyILTEnrollments(tokenValue).catch(
+    () => [] as Awaited<ReturnType<typeof getMyILTEnrollments>>
   );
 
-  const iltCompleted = iltCourses.filter(
-    (c) =>
-      c.enrollmentStatus === "Complete" || c.enrollmentStatus === "Completed"
+  // Per-session progress: prefer Absorb's enrollmentStatus on the
+  // session itself; fall back to weighted scoring so a registered-but-
+  // not-yet-attended session still pulls the ring forward.
+  const iltCompleted = iltEnrollments.filter((r) => {
+    const s = (r.session.enrollmentStatus ?? "").toLowerCase();
+    return s === "complete" || s === "completed";
+  }).length;
+  const iltInProgress = iltEnrollments.filter(
+    (r) => r.session.enrollmentStatus === "InProgress"
   ).length;
-  const iltInProgress = iltCourses.filter(
-    (c) => c.enrollmentStatus === "InProgress"
-  ).length;
-
-  /**
-   * Per-course progress signal:
-   *   - Prefer Absorb's `enrollment.progress` percentage (0–100) when we
-   *     successfully fetched it.
-   *   - Otherwise fall back to status-based weighting:
-   *       Complete = 1.0, InProgress = 0.5, registered (any other
-   *       non-null status) = 0.25 — so being registered for a session
-   *       still reads as "some progress" instead of a flat 0%.
-   *   - Not-enrolled = 0.
-   */
-  const iltProgressTotal = iltEnrolled.reduce((sum, c) => {
-    const fetched = iltEnrollments.find((e) => e.course.id === c.id);
-    if (fetched && typeof fetched.enrollment.progress === "number") {
-      return sum + Math.max(0, Math.min(1, fetched.enrollment.progress / 100));
-    }
-    const s = c.enrollmentStatus;
-    if (s === "Complete" || s === "Completed") return sum + 1;
-    if (s === "InProgress") return sum + 0.5;
-    if (s) return sum + 0.25;
-    return sum;
+  const iltProgressTotal = iltEnrollments.reduce((sum, r) => {
+    const s = (r.session.enrollmentStatus ?? "").toLowerCase();
+    if (s === "complete" || s === "completed") return sum + 1;
+    if (s === "inprogress") return sum + 0.5;
+    // Registered but not yet attended — the session is in the future
+    // or hasn't been graded yet. Half-credit so the ring isn't 0%.
+    return sum + 0.25;
   }, 0);
 
   const iltStats = {
-    total: iltCourses.length,
-    enrolled: iltEnrolled.length,
+    total: iltEnrollments.length,
+    enrolled: iltEnrollments.length,
     completed: iltCompleted,
     inProgress: iltInProgress,
-    // Average across enrolled ILTs (we don't penalise the average with
-    // courses the learner hasn't enrolled in yet — those aren't part of
-    // their ILT journey). Falls back to total-based when nothing is
-    // enrolled so the ring isn't undefined.
     progress:
-      iltEnrolled.length > 0
-        ? iltProgressTotal / iltEnrolled.length
+      iltEnrollments.length > 0
+        ? iltProgressTotal / iltEnrollments.length
         : 0,
   };
 
