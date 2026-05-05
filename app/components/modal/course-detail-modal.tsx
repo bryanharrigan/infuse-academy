@@ -11,6 +11,35 @@ import {
 import FallbackImage from "~/assets/banner.jpg";
 import { useAppStateContext } from "~/context/app-state.context";
 
+/**
+ * Strip every tag, inline style, and HTML entity from a description so
+ * Absorb's rich-text formatting (inline `<p style="color: …">`, bullet
+ * lists, custom fonts) doesn't bleed into the UI. Drops <style>/<script>
+ * blocks entirely, then strips remaining tags, then decodes the most
+ * common entities. Whitespace is normalised to single spaces.
+ */
+function stripHtml(html: string | null | undefined): string {
+  if (!html) return "";
+  return html
+    .replace(/<(style|script)[^>]*>[\s\S]*?<\/\1>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&hellip;/g, "…")
+    .replace(/&mdash;/g, "—")
+    .replace(/&ndash;/g, "–")
+    .replace(/&rsquo;/g, "’")
+    .replace(/&lsquo;/g, "‘")
+    .replace(/&rdquo;/g, "”")
+    .replace(/&ldquo;/g, "“")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 type CourseType = "OnlineCourse" | "InstructorLedCourse" | "Curriculum";
 
 type CourseDetailModalProps = {
@@ -97,10 +126,12 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
             className="max-h-[400px] object-cover mb-4"
           />
           {description && (
-            <Box
-              className="mt-4 text-base leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: description }}
-            />
+            <Typography
+              variant="body1"
+              className="mt-4 leading-relaxed whitespace-pre-wrap"
+            >
+              {stripHtml(description)}
+            </Typography>
           )}
         </Box>
       </DialogContent>

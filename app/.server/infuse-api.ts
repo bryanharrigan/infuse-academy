@@ -582,21 +582,15 @@ export type ILTEnrollment = {
 export async function getMyILTEnrollments(
   token: string
 ): Promise<ILTEnrollment[]> {
-  // Step 1 — fetch ILT courses from the catalog.
-  const catalogUrl = infuseUrl("my-catalog", {
-    params: {
-      _limit: "20",
-      showCompleted: "true",
-      courseTypes: "InstructorLedCourse",
-    },
-  });
-  const catRes = await fetch(catalogUrl, {
-    method: "GET",
-    headers: authHeaders(token),
-  });
-  if (!catRes.ok) return [];
-  const catData = (await catRes.json()) as MyCoursesResource;
-  const iltCourses = catData?._embedded?.courses ?? [];
+  // Step 1 — fetch ALL ILT courses, paginating through every page of
+  // /my-catalog. We can't filter by courseTypes server-side because the
+  // tenant excludes already-fully-registered courses from /my-catalog
+  // when a type filter is applied; using the full paginated walk and
+  // filtering client-side catches everything.
+  const all = await getAllAvailableCatalog(token);
+  const iltCourses = (all?._embedded?.courses ?? []).filter(
+    (c) => c.courseType === "InstructorLedCourse"
+  );
   if (iltCourses.length === 0) return [];
 
   // Step 2 — fetch sessions for each in parallel.
@@ -611,11 +605,19 @@ export async function getMyILTEnrollments(
     })
   );
 
-  // Step 3 — collect sessions the learner is enrolled in.
+  // Step 3 — collect sessions the learner is enrolled in. Absorb's
+  // session response uses `enrolled: true` (boolean) — our parser
+  // surfaces it as `isLearnerEnrolled`. Some tenants only populate
+  // `enrollmentStatus` so we treat any non-null status as enrolled too.
   const out: ILTEnrollment[] = [];
   for (const { course, sessions } of sessionLists) {
     for (const session of sessions) {
-      if (session.isLearnerEnrolled === true) {
+      const enrolled =
+        session.isLearnerEnrolled === true ||
+        (session.enrollmentStatus !== null &&
+          session.enrollmentStatus !== undefined &&
+          session.enrollmentStatus !== "");
+      if (enrolled) {
         out.push({ course, session });
       }
     }

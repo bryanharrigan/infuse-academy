@@ -182,15 +182,17 @@ function isWebinarSession(s: Session): boolean {
 }
 
 /**
- * Build the address string we feed to Google Maps. Prefers the most
- * specific fields available and falls back to whatever is present.
+ * Build the address string we feed to OpenStreetMap / Nominatim. We
+ * ONLY include physical-address fields here — venue names like
+ * "Training Room A" or "HQ Boardroom" confuse the geocoder and pin
+ * the wrong location. The venue name still shows in the modal title
+ * for context.
  */
 function mapAddressFor(s: Session): string | null {
   const parts: string[] = [];
-  if (s.venue) parts.push(s.venue);
   if (s.address) parts.push(s.address);
-  // Keep building / room out of the map query — they're noise to the
-  // geocoder. They still display in the venue text alongside the map link.
+  // Keep building / room out of the geocode query — they're noise to
+  // Nominatim. They still display in the venue text in the modal.
   if (s.city) parts.push(s.city);
   if (s.state) parts.push(s.state);
   if (s.postalCode) parts.push(s.postalCode);
