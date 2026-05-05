@@ -131,16 +131,14 @@ const ThemedShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 export default function App() {
   const location = useLocation();
   const isNotLoginPage = location.pathname !== "/signin";
-  // The experimental Learning Hub renders its own in-page topbar — skip the
-  // global header on that route so we don't get two stacked navs.
-  const isExperimentalHub =
-    location.pathname === "/learning-hub-experimental";
-  const showHeader = isNotLoginPage && !isExperimentalHub;
   return (
     <Document>
       <AppStateProvider>
         <ThemedShell>
-          {showHeader && <Header />}
+          {/* Single source of truth for chrome — the global Header now
+              renders on the experimental hub too so the header looks
+              identical across every authenticated page. */}
+          {isNotLoginPage && <Header />}
           <Outlet />
           {isNotLoginPage && <RadnetFooter />}
         </ThemedShell>

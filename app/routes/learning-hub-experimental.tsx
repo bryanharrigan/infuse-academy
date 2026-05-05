@@ -794,13 +794,11 @@ export default function LearningHubExperimental() {
         </div>
       )}
 
-      {/* Top bar — minimal in-page nav (the global IA-style header is hidden
-          via CSS while theme-experimental is active). Keeps the theme
-          switcher accessible without polluting the visual.
-
-          Responsive: on screens ≤640px the action buttons collapse to icon
-          buttons and the wordmark hides so the brand mark + iridescent
-          glyph stay visible without overflowing. */}
+      {/* Custom in-page topbar removed — the global Header (root.tsx)
+          now renders on this route too with its own experimental
+          treatment, so chrome is identical across every page. The
+          original block lived here. */}
+      {false && (
       <header
         style={{
           position: "fixed",
@@ -994,6 +992,7 @@ export default function LearningHubExperimental() {
           </IconButton>
         </Box>
       </header>
+      )}
 
       {/* HERO ─────────────────────────────────────────────────────────── */}
       <section className="exp-hero">
