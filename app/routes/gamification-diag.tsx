@@ -17,6 +17,9 @@ import {
   getMyCourses,
   getMyCourseEnrollment,
   getChaptersForCourse,
+  getMyILTEnrollments,
+  getAllAvailableCatalog,
+  getSessionsForCourse,
   type Chapter,
   type Lesson,
 } from "~/.server/infuse-api";
@@ -57,12 +60,80 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const chaptersByCourse = new Map<string, Chapter[]>(chapterEntries);
   const gamification = computeGamification({ myCourses, chaptersByCourse });
 
-  // Per-ILT enrollment data
-  const iltCourses = myCourses.filter(
+  // ILT discovery — show what each step of getMyILTEnrollments returns
+  // so we can pinpoint where the data is (or isn't) flowing.
+  const iltDiscovery: Record<string, unknown> = {};
+
+  // Step A — paginated catalog walk
+  let catalogIltCourses: Array<{ id: string; name: string; type: string }> = [];
+  try {
+    const all = await getAllAvailableCatalog(token);
+    catalogIltCourses = (all?._embedded?.courses ?? [])
+      .filter((c) => c.courseType === "InstructorLedCourse")
+      .map((c) => ({ id: c.id, name: c.name, type: c.courseType }));
+  } catch (err) {
+    iltDiscovery.catalogError =
+      err instanceof Error ? err.message : String(err);
+  }
+  iltDiscovery.step1_catalogIltCourses = catalogIltCourses;
+
+  // Step B — for each ILT in the catalog, fetch its sessions and report
+  // each session's enrollment fields so we can see what's actually
+  // populated.
+  const sessionDetails = await Promise.all(
+    catalogIltCourses.map(async (c) => {
+      try {
+        const sessions = await getSessionsForCourse(token, c.id);
+        return {
+          courseId: c.id,
+          courseName: c.name,
+          sessionCount: sessions.length,
+          sessions: sessions.map((s) => ({
+            sessionId: s.id,
+            sessionName: s.name,
+            isLearnerEnrolled: s.isLearnerEnrolled,
+            enrollmentStatus: s.enrollmentStatus,
+            startDate: s.startDate,
+            seatsAvailable: s.seatsAvailable,
+          })),
+        };
+      } catch (err) {
+        return {
+          courseId: c.id,
+          courseName: c.name,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    })
+  );
+  iltDiscovery.step2_sessionDetails = sessionDetails;
+
+  // Step C — what does getMyILTEnrollments actually return?
+  let resolvedILTEnrollments: unknown = null;
+  try {
+    const r = await getMyILTEnrollments(token);
+    resolvedILTEnrollments = r.map((e) => ({
+      courseName: e.course.name,
+      courseStatus: e.course.enrollmentStatus,
+      sessionId: e.session.id,
+      sessionName: e.session.name,
+      isLearnerEnrolled: e.session.isLearnerEnrolled,
+      enrollmentStatus: e.session.enrollmentStatus,
+      startDate: e.session.startDate,
+    }));
+  } catch (err) {
+    resolvedILTEnrollments = {
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+  iltDiscovery.step3_resolvedEnrollments = resolvedILTEnrollments;
+
+  // Old-style: enrollments per ILT in /my-courses (still expected to be []).
+  const iltCoursesInMyCourses = myCourses.filter(
     (c) => c.courseType === "InstructorLedCourse"
   );
   const iltEnrollments = await Promise.all(
-    iltCourses.map(async (c) => {
+    iltCoursesInMyCourses.map(async (c) => {
       try {
         const e = await getMyCourseEnrollment(token, c.id);
         return {
@@ -133,6 +204,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
     chapterFetched: trackable.length,
     iltEnrollments,
+    iltDiscovery,
     lessonSummary,
   });
 }
