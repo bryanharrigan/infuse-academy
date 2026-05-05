@@ -334,6 +334,19 @@ export default function LearningHub() {
 
   const handleEnroll = async (courseId: string) => {
     if (enrollingId) return;
+
+    // ILT enrollment is session-specific. Open the SessionsModal
+    // instead of a blind enroll so the learner can pick a session;
+    // the modal POSTs the session-specific enrollment via /enroll
+    // /:courseId once they click Register on a card.
+    const course =
+      myCourses.find((c) => c.id === courseId) ??
+      catalog.find((c) => c.id === courseId);
+    if (course?.courseType === "InstructorLedCourse") {
+      setSessionsCourse(course);
+      return;
+    }
+
     setEnrollingId(courseId);
     try {
       const res = await fetch(`/enroll/${courseId}`, {

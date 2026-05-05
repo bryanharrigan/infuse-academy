@@ -81,6 +81,18 @@ export function useCatalog(data: { catalog: MyCoursesResource }) {
   const handleClosePlayer = () => setPlayingCourse(null);
 
   const handleEnroll = (courseId: string) => {
+    const course = catalog.find((c) => c.id === courseId);
+
+    // ILT enrollment is session-specific — opening the SessionsModal
+    // lets the learner pick a date/venue/webinar before registering.
+    // The modal POSTs to /enroll/:courseId with the sessionId after
+    // the learner clicks Register on a specific session card.
+    if (course?.courseType === "InstructorLedCourse") {
+      setSessionsCourse(course);
+      return;
+    }
+
+    // Non-ILT path: legacy form-submit enrollment via the route's action.
     const formData = new FormData();
     formData.append("courseId", courseId);
 

@@ -480,6 +480,19 @@ export default function LearningHubExperimental() {
 
   const handleEnroll = async (courseId: string) => {
     if (enrollingId) return; // already enrolling something else
+
+    // ILT enrollment requires picking a specific session — open the
+    // SessionsModal instead of a blind enroll. The modal POSTs the
+    // session-specific enrollment when the learner clicks Register on
+    // a session card.
+    const course =
+      myCourses.find((c) => c.id === courseId) ??
+      catalog.find((c) => c.id === courseId);
+    if (course?.courseType === "InstructorLedCourse") {
+      setSessionsCourse(course);
+      return;
+    }
+
     setEnrollingId(courseId);
     try {
       const res = await fetch(`/enroll/${courseId}`, {
