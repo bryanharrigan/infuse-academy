@@ -330,6 +330,23 @@ export const Header = () => {
             </div>
           </div>
         </>
+      ) : isExperimental ? (
+        /* Experimental — left: iX brand mark + wordmark only. Right:
+           nav links + theme select + avatar grouped together so the
+           layout matches the experimental hub's in-page topbar. */
+        <div className="max-w-[1280px] mx-auto px-6">
+          <div className="flex justify-between items-center h-[72px]">
+            <NavLink to="/" className="ia-header__logo ia-header__logo--exp">
+              <span className="ia-header__logo-mark">iX</span>
+              <span className="ia-text-gradient">Infuse · Experimental</span>
+            </NavLink>
+            <div className="flex items-center gap-4">
+              {appNavLinks}
+              {themeSelect}
+              {accountAvatar}
+            </div>
+          </div>
+        </div>
       ) : (
         /* Default + Infuse Academy keep the original single-row layout. */
         <div className={isIA ? "max-w-[1280px] mx-auto px-6" : ""}>
