@@ -34,9 +34,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const myCourses = myCoursesRes._embedded.courses;
 
   /* ─── Lesson tracking for gamification ─────────────────────────────── */
-  // Fetch chapters for any course we want lesson-level tracking on. Cap
-  // to 6 to keep this loader fast — beyond that the gamification falls
-  // back to status-based estimation per course.
+  // Fetch chapters for every Online course the learner is engaged with
+  // so a lesson completed today gets picked up in the XP / streak math.
+  // Cap to 20 (Absorb's per-page max) to keep the loader responsive.
   const trackable = myCourses
     .filter(
       (c) =>
@@ -45,7 +45,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           c.enrollmentStatus === "Complete" ||
           c.enrollmentStatus === "Completed")
     )
-    .slice(0, 6);
+    .slice(0, 20);
   const chapterEntries = await Promise.all(
     trackable.map(async (c) => {
       try {
