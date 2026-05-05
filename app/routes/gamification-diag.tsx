@@ -128,6 +128,71 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
   iltDiscovery.step3_resolvedEnrollments = resolvedILTEnrollments;
 
+  // Step D — for the one ILT in the catalog, dump the FULL raw session
+  // response so we can see every field Absorb returns and probe a few
+  // candidate "is the learner registered" endpoints.
+  if (catalogIltCourses.length > 0) {
+    const cid = catalogIltCourses[0].id;
+    const probes: Record<string, unknown> = {};
+
+    // (1) Raw sessions response with no field filtering
+    try {
+      const url = `${process.env.INFUSE_BASE_URL}/instructor-led-courses/${cid}/sessions?_limit=20`.replace(
+        /\/+/g,
+        "/"
+      );
+      const r = await fetch(url, {
+        headers: {
+          "X-Absorb-API-Key": process.env.INFUSE_API_KEY ?? "",
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await r.json();
+      const sessions =
+        data?.sessions ?? data?._embedded?.sessions ?? [];
+      probes.rawSessionsFirst =
+        sessions[0]
+          ? {
+              keys: Object.keys(sessions[0]),
+              full: sessions[0],
+            }
+          : null;
+    } catch (err) {
+      probes.rawSessionsError =
+        err instanceof Error ? err.message : String(err);
+    }
+
+    // (2) GET on the enroll URL pattern
+    if (sessionDetails[0]?.sessions && sessionDetails[0].sessions.length > 0) {
+      const firstSessionId = sessionDetails[0].sessions[0].sessionId;
+      const enrollGet = `${process.env.INFUSE_BASE_URL}/my-course-enrollments/${cid}/session-enrollments/${firstSessionId}`.replace(
+        /([^:])\/+/g,
+        "$1/"
+      );
+      try {
+        const r = await fetch(enrollGet, {
+          headers: {
+            "X-Absorb-API-Key": process.env.INFUSE_API_KEY ?? "",
+            Authorization: "Bearer " + token,
+            "Content-Type": "application/json",
+          },
+        });
+        const text = await r.text();
+        probes.enrollGet = {
+          url: enrollGet,
+          status: r.status,
+          bodyHead: text.slice(0, 500),
+        };
+      } catch (err) {
+        probes.enrollGetError =
+          err instanceof Error ? err.message : String(err);
+      }
+    }
+
+    iltDiscovery.step4_rawProbes = probes;
+  }
+
   // Old-style: enrollments per ILT in /my-courses (still expected to be []).
   const iltCoursesInMyCourses = myCourses.filter(
     (c) => c.courseType === "InstructorLedCourse"
