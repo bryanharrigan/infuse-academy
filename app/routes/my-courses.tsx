@@ -95,9 +95,29 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         })[0];
 
   /* ─── ILT progress ─────────────────────────────────────────────────── */
+  // Fetch each enrolled ILT's enrollment record so we can use Absorb's
+  // authoritative `progress` field (0–100) — the same signal that
+  // populates progress on the curriculum ring. Capped at 8 to keep the
+  // loader fast; beyond that we fall back to status-based weighting.
   const iltCourses = myCourses.filter(
     (c) => c.courseType === "InstructorLedCourse"
   );
+  const iltEnrolled = iltCourses.filter((c) => c.enrollmentStatus !== null);
+  const iltTrackable = iltEnrolled.slice(0, 8);
+  const iltEnrollmentEntries = await Promise.all(
+    iltTrackable.map(async (c) => {
+      try {
+        const e = await getMyCourseEnrollment(tokenValue, c.id);
+        return { course: c, enrollment: e };
+      } catch {
+        return null;
+      }
+    })
+  );
+  const iltEnrollments = iltEnrollmentEntries.filter(
+    (e): e is NonNullable<typeof e> => e !== null
+  );
+
   const iltCompleted = iltCourses.filter(
     (c) =>
       c.enrollmentStatus === "Complete" || c.enrollmentStatus === "Completed"
@@ -105,12 +125,42 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const iltInProgress = iltCourses.filter(
     (c) => c.enrollmentStatus === "InProgress"
   ).length;
+
+  /**
+   * Per-course progress signal:
+   *   - Prefer Absorb's `enrollment.progress` percentage (0–100) when we
+   *     successfully fetched it.
+   *   - Otherwise fall back to status-based weighting:
+   *       Complete = 1.0, InProgress = 0.5, registered (any other
+   *       non-null status) = 0.25 — so being registered for a session
+   *       still reads as "some progress" instead of a flat 0%.
+   *   - Not-enrolled = 0.
+   */
+  const iltProgressTotal = iltEnrolled.reduce((sum, c) => {
+    const fetched = iltEnrollments.find((e) => e.course.id === c.id);
+    if (fetched && typeof fetched.enrollment.progress === "number") {
+      return sum + Math.max(0, Math.min(1, fetched.enrollment.progress / 100));
+    }
+    const s = c.enrollmentStatus;
+    if (s === "Complete" || s === "Completed") return sum + 1;
+    if (s === "InProgress") return sum + 0.5;
+    if (s) return sum + 0.25;
+    return sum;
+  }, 0);
+
   const iltStats = {
     total: iltCourses.length,
+    enrolled: iltEnrolled.length,
     completed: iltCompleted,
     inProgress: iltInProgress,
+    // Average across enrolled ILTs (we don't penalise the average with
+    // courses the learner hasn't enrolled in yet — those aren't part of
+    // their ILT journey). Falls back to total-based when nothing is
+    // enrolled so the ring isn't undefined.
     progress:
-      iltCourses.length > 0 ? iltCompleted / iltCourses.length : 0,
+      iltEnrolled.length > 0
+        ? iltProgressTotal / iltEnrolled.length
+        : 0,
   };
 
   return json({
@@ -407,9 +457,11 @@ export default function MyCourses() {
               <ProgressRing
                 progress={iltStats.progress}
                 label={
-                  iltStats.total === 0
+                  iltStats.enrolled === 0
                     ? "No ILT enrollments"
-                    : `Instructor-Led · ${iltStats.completed} of ${iltStats.total}`
+                    : iltStats.completed === iltStats.enrolled
+                    ? `Instructor-Led · all ${iltStats.enrolled} complete`
+                    : `Instructor-Led · ${iltStats.completed} of ${iltStats.enrolled} complete`
                 }
               />
             </div>
