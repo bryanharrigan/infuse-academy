@@ -3,6 +3,7 @@ import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLocation } from "@r
 import "./tailwind.css";
 import "./styles/infuse-academy.css";
 import "./styles/experimental.css";
+import "./styles/crossfit.css";
 import { withEmotionCache } from "@emotion/react";
 import {
   ThemeProvider,
@@ -15,6 +16,7 @@ import defaultTheme from "./mui/theme";
 import infuseAcademyTheme from "./mui/theme-infuse-academy";
 import radnetTheme from "./mui/theme-radnet";
 import experimentalTheme from "./mui/theme-experimental";
+import crossfitTheme from "./mui/theme-crossfit";
 import { Header } from "./components/header/header.component";
 import { RadnetFooter } from "./components/footer/radnet-footer.component";
 import {
@@ -55,7 +57,7 @@ const Document = withEmotionCache(({ children, title }: DocumentProps, emotionCa
         */}
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Bebas+Neue&family=Roboto+Condensed:wght@400;500;700;900&family=Barlow+Condensed:wght@700;900&display=swap"
         />
         <meta name="emotion-insertion-point" content="emotion-insertion-point" />
       </head>
@@ -124,6 +126,8 @@ const ThemedShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       ? infuseAcademyTheme
       : themeVariant === "experimental"
       ? experimentalTheme
+      : themeVariant === "crossfit"
+      ? crossfitTheme
       : defaultTheme;
   return <ThemeProvider theme={activeTheme}>{children}</ThemeProvider>;
 };

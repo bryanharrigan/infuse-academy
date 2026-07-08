@@ -547,11 +547,13 @@ export default function LearningHubExperimental() {
   const handleSwitchTheme = (variant: typeof themeVariant) => {
     setThemeAnchor(null);
     setThemeVariant(variant);
-    if (variant !== "experimental") {
-      // The IA / RadNet / Default themes share /learning-hub (the
-      // legacy hub) — go there so the switch is immediately visible.
-      navigate("/learning-hub");
+    if (variant === "experimental") return;
+    if (variant === "crossfit") {
+      navigate("/learning-hub-crossfit");
+      return;
     }
+    // IA / RadNet / Default share /learning-hub (the legacy hub).
+    navigate("/learning-hub");
   };
 
   const [playing, setPlaying] = useState<
@@ -922,6 +924,7 @@ export default function LearningHubExperimental() {
             }}
           >
             {[
+              { v: "crossfit" as const, label: "CrossFit" },
               { v: "experimental" as const, label: "Experimental" },
               { v: "infuse-academy" as const, label: "Infuse Academy" },
               { v: "radnet" as const, label: "RadNet" },

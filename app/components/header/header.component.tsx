@@ -127,6 +127,7 @@ export const Header = () => {
         <MenuItem value="default">Default</MenuItem>
         <MenuItem value="infuse-academy">Infuse Academy</MenuItem>
         <MenuItem value="radnet">RadNet</MenuItem>
+        <MenuItem value="crossfit">CrossFit</MenuItem>
         <MenuItem value="experimental">Experimental</MenuItem>
       </Select>
     </FormControl>

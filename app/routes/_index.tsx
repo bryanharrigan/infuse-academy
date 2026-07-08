@@ -38,7 +38,9 @@ export default function Index() {
   // (Most users land at /learning-hub-experimental via the loader redirect
   // and never see this component.)
   useEffect(() => {
-    if (
+    if (themeVariant === "crossfit") {
+      navigate("/learning-hub-crossfit", { replace: true });
+    } else if (
       themeVariant === "infuse-academy" ||
       themeVariant === "radnet" ||
       themeVariant === "default"

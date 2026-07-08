@@ -12,6 +12,7 @@ export type ThemeVariant =
   | "default"
   | "infuse-academy"
   | "radnet"
+  | "crossfit"
   | "experimental";
 const THEME_STORAGE_KEY = "ia:theme-variant";
 
@@ -30,7 +31,12 @@ const THEME_STORAGE_KEY = "ia:theme-variant";
  * needed.
  */
 export function isBrandedVariant(v: ThemeVariant): boolean {
-  return v === "infuse-academy" || v === "radnet" || v === "experimental";
+  return (
+    v === "infuse-academy" ||
+    v === "radnet" ||
+    v === "experimental" ||
+    v === "crossfit"
+  );
 }
 
 type AppStateContextType = {
@@ -63,6 +69,7 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({
         stored === "infuse-academy" ||
         stored === "radnet" ||
         stored === "experimental" ||
+        stored === "crossfit" ||
         stored === "default"
       ) {
         setThemeVariantState(stored);
@@ -86,6 +93,10 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({
     document.body.classList.toggle(
       "theme-experimental",
       themeVariant === "experimental"
+    );
+    document.body.classList.toggle(
+      "theme-crossfit",
+      themeVariant === "crossfit"
     );
   }, [themeVariant]);
 
