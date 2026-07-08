@@ -42,30 +42,49 @@ export const Header = () => {
     handleClose,
     handleLogout,
     setThemeVariant,
+    navigate,
   } = useHeader();
 
   // "Branded" covers any variant that should use the IA layout (IA, RadNet,
-  // or Experimental). Experimental is included so /catalog and /my-courses
-  // inherit the IA chrome when the experimental theme is active — the
-  // experimental hub itself ships its own layout via the dedicated route.
+  // Experimental, or CrossFit). Included so /catalog and /my-courses
+  // inherit the IA chrome — the experimental + crossfit hubs themselves
+  // ship their own layouts via dedicated routes.
   const isBranded =
     themeVariant === "infuse-academy" ||
     themeVariant === "radnet" ||
-    themeVariant === "experimental";
+    themeVariant === "experimental" ||
+    themeVariant === "crossfit";
   // Alias kept so existing conditionals keep working.
   const isIA = isBranded;
   const isRadNet = themeVariant === "radnet";
   const isExperimental = themeVariant === "experimental";
+  const isCrossFit = themeVariant === "crossfit";
 
-  // The Learning Hub link routes to the dedicated experimental page when
-  // the Experimental theme is active. Other variants keep the standard
-  // /learning-hub route.
+  // The Learning Hub link routes to each theme's dedicated hub page.
   const learningHubPath = isExperimental
     ? "/learning-hub-experimental"
+    : isCrossFit
+    ? "/learning-hub-crossfit"
     : "/learning-hub";
 
+  /**
+   * When the theme changes, navigate to that theme's Learning Hub so
+   * the styling switch is instantly visible. Without this, picking
+   * CrossFit while on /learning-hub keeps you on the IA hub markup
+   * but with `body.theme-crossfit` — the IA hero/gamification-bar
+   * classes have no CrossFit CSS matches so you get a mostly-empty
+   * black page. Same fix pattern used in the experimental picker.
+   */
   const handleThemeChange = (e: SelectChangeEvent<ThemeVariant>) => {
-    setThemeVariant(e.target.value as ThemeVariant);
+    const next = e.target.value as ThemeVariant;
+    setThemeVariant(next);
+    if (next === "crossfit") {
+      navigate("/learning-hub-crossfit");
+    } else if (next === "experimental") {
+      navigate("/learning-hub-experimental");
+    } else {
+      navigate("/learning-hub");
+    }
   };
 
   // RadNet logo: prefer a real PNG dropped at /public/radnet-logo.png, fall

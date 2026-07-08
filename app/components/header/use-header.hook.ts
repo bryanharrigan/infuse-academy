@@ -35,5 +35,6 @@ export const useHeader = () => {
     handleClose,
     handleLogout,
     setThemeVariant,
+    navigate,
   };
 };
