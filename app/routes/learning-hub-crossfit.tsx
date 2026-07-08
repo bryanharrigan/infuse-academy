@@ -31,7 +31,7 @@ import { Box, CircularProgress } from "@mui/material";
 
 import {
   getMyCourses,
-  getAllAvailableCatalog,
+  getMyCatalog,
   InfusePortalUrl,
 } from "~/.server/infuse-api";
 import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
@@ -46,15 +46,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const token = await infuseJwtCookie.parse(cookieHeader);
   if (!token) throw new Response("Not authenticated", { status: 401 });
 
+  // getAllAvailableCatalog paginates up to 20 sequential requests — that
+  // times out on Amplify's serverless runtime and leaves the grid empty.
+  // getMyCatalog is a single fast request (up to 30 courses) which is
+  // plenty for the CrossFit hub grid.
   const [myCoursesRes, catalogRes] = await Promise.all([
-    getMyCourses(token, { limit: 20, showCompleted: true }),
-    getAllAvailableCatalog(token).catch(() => ({
-      _embedded: { courses: [] as Course[] },
-    })),
+    getMyCourses(token, { limit: 30, showCompleted: true }).catch((err) => {
+      console.error("[cf-hub] getMyCourses failed:", err);
+      return { _embedded: { courses: [] as Course[] } };
+    }),
+    getMyCatalog(token, { limit: 30, showCompleted: true }).catch((err) => {
+      console.error("[cf-hub] getMyCatalog failed:", err);
+      return { _embedded: { courses: [] as Course[] } };
+    }),
   ]);
 
-  const myCourses = myCoursesRes._embedded.courses;
-  const catalog = catalogRes._embedded.courses;
+  const myCourses = myCoursesRes._embedded.courses ?? [];
+  const catalog = catalogRes._embedded.courses ?? [];
 
   // Merge my-courses + catalog (my-courses first so enrollment status
   // wins), dedupe by id.
@@ -91,6 +99,62 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     portalBaseUrl: InfusePortalUrl.replace(/\/$/, ""),
   });
 };
+
+/* ─── Brand wordmark ────────────────────────────────────────────────────── */
+
+/**
+ * Inline SVG recreation of the CrossFit wordmark — a heavy, italic slab
+ * "CrossFit" set at a slight forward lean, with the signature red bar
+ * pinned to the leading `C`.  Kept as an SVG so it stays crisp at any
+ * size and never has to make a network round-trip to render.
+ *
+ * The forward-italic italic angle is 8°, and the letterforms use font
+ * `Barlow Condensed Black` which is the closest free equivalent to the
+ * proprietary CrossFit brand font.  We don't ship the trademark
+ * ® symbol.
+ */
+function CrossFitWordmark({
+  height = 60,
+  color = "#ffffff",
+}: {
+  height?: number;
+  color?: string;
+}) {
+  return (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 520 120"
+    height={height}
+    role="img"
+    aria-label="CrossFit"
+    style={{ display: "block" }}
+  >
+    <defs>
+      <linearGradient id="cf-red" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#e01515" />
+        <stop offset="100%" stopColor="#a80c0c" />
+      </linearGradient>
+    </defs>
+    {/* Red signature bar — the small rectangle above the wordmark */}
+    <rect x="8" y="10" width="72" height="12" fill="url(#cf-red)" />
+    <text
+      x="0"
+      y="98"
+      fill={color}
+      style={{
+        fontFamily:
+          "'Barlow Condensed', 'Bebas Neue', 'Roboto Condensed', 'Impact', sans-serif",
+        fontWeight: 900,
+        fontStyle: "italic",
+        fontSize: "96px",
+        letterSpacing: "-2px",
+      }}
+    >
+      CrossFit
+    </text>
+  </svg>
+  );
+}
 
 /* ─── Static credential cards ──────────────────────────────────────────── */
 
@@ -218,6 +282,10 @@ export default function LearningHubCrossFit() {
       {/* Certificate credentials band */}
       <section className="cf-credentials">
         <div className="cf-container">
+          <div className="cf-brand-lockup">
+            <CrossFitWordmark height={78} color="#ffffff" />
+            <span className="cf-brand-lockup__sub">Education</span>
+          </div>
           <h2 className="cf-credentials__title">
             Certificate Courses & Credentials
           </h2>
