@@ -20,7 +20,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { Form, Link, useActionData, useNavigation } from "@remix-run/react";
+import { Link, useActionData } from "@remix-run/react";
 import { authenticate } from "~/.server/infuse-api";
 import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
 import {
@@ -76,15 +76,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function SignIn() {
   const actionData = useActionData<typeof action>();
-  const navigation = useNavigation();
-  const submitting = navigation.state === "submitting";
   const formRef = useRef<HTMLFormElement>(null);
   const usernameRef = useRef<HTMLInputElement>(null);
   const [showError, setShowError] = useState(false);
+  // Local submitting state (not useNavigation) — we're using a native
+  // <form> POST that triggers a full page navigation, so React state
+  // is thrown away as soon as submit happens. This is just to grey
+  // out the button between click and navigation for user feedback.
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (actionData?.error) {
       setShowError(true);
+      setSubmitting(false);
       usernameRef.current?.focus();
     }
   }, [actionData]);
@@ -177,9 +181,11 @@ export default function SignIn() {
           </div>
         )}
 
-        <Form
+        <form
           method="post"
+          action="/signin"
           ref={formRef}
+          onSubmit={() => setSubmitting(true)}
           style={{ display: "flex", flexDirection: "column", gap: 14 }}
         >
           <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -231,7 +237,7 @@ export default function SignIn() {
           >
             {submitting ? "Signing in…" : "Sign in"}
           </button>
-        </Form>
+        </form>
 
         <div
           style={{
