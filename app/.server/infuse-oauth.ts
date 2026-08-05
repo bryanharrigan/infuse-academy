@@ -101,14 +101,32 @@ export async function exchangeCodeForTokens(
     redirect_uri: RedirectUri,
   });
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "x-api-key": ClientId,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: body.toString(),
-  });
+  // Hard 8s timeout so a hung Absorb response doesn't hold the
+  // Lambda open long enough for Cloudflare to time out the whole
+  // request (which would return a bare CF 502 with no diagnostics).
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "x-api-key": ClientId,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(
+        `OAuth token exchange timed out after 8s (Absorb at ${url} didn't respond)`
+      );
+    }
+    throw err;
+  }
+  clearTimeout(timeout);
 
   const bodyPreview = await response
     .clone()
