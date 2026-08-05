@@ -45,13 +45,59 @@ function authHeaders(token: string): HeadersInit {
 
 export type UserProfileResponse = { firstName: string; lastName: string };
 
-// NOTE: The basic-auth `authenticate(username, password)` flow that used to
-// live here has been replaced by the OAuth 2.0 Authorization Code flow in
-// app/.server/infuse-oauth.ts (driven by app/routes/signin.tsx and
-// app/routes/auth.callback.tsx). The OAuth flow is required because Absorb's
-// WAF returns 403 to the basic-auth endpoint when called from AWS datacenter
-// IP ranges. Keep this comment as a breadcrumb if anyone needs to reintroduce
-// a server-to-server password flow later.
+/**
+ * Direct username/password authentication against the Infuse API.
+ *
+ * This is a fallback for when the OAuth flow can't be used — e.g. when
+ * Absorb's /ExternalLogin/Consent page silently rejects a learner
+ * account whose OAuth-client policy has restrictions the account can't
+ * satisfy. The Absorb regular learner UI accepts the same creds
+ * because it goes through Absorb's normal login flow, not the OAuth
+ * consent flow.
+ *
+ * Historically this had a WAF issue where Absorb rejected requests
+ * from AWS Lambda IP ranges with 403. The spoofed User-Agent + Origin
+ * headers were added to work around it and are kept in case the WAF
+ * still cares. If it does return 403, the caller will surface the
+ * status in the error message.
+ */
+export async function authenticate(
+  username: string,
+  password: string
+): Promise<{ token: string }> {
+  const url = infuseApiUrl("authentication");
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "x-api-key": InfuseApiKey,
+      "Content-Type": "application/json",
+      "User-Agent": "curl/8.7.1",
+      Origin: "https://infuse.bryanharrigan.dev",
+      Referer: "https://infuse.bryanharrigan.dev/signin",
+    },
+    body: JSON.stringify({ username, password, scope: ["learner"] }),
+  });
+  const bodyPreview = await response
+    .clone()
+    .text()
+    .then((t) => t.slice(0, 200))
+    .catch(() => "<unreadable>");
+  console.log(
+    `[infuse-api] authenticate → ${response.status} (url=${url} usernameLen=${username?.length ?? 0}) body=${bodyPreview}`
+  );
+  if (!response.ok) {
+    throw new Error(
+      `Could not authenticate (status=${response.status}) body=${bodyPreview}`
+    );
+  }
+  const data = await response.json();
+  if (!data.token) {
+    throw new Error(
+      `authenticate returned 200 but no token in body: ${bodyPreview}`
+    );
+  }
+  return { token: data.token };
+}
 
 export async function getUserProfile(token: string): Promise<UserProfileResponse> {
   const r = await fetch(infuseUrl("my-profile"), { method: "GET", headers: authHeaders(token) });
