@@ -1,7 +1,12 @@
 import { useMemo, useState } from "react";
 import { CircularProgress, Typography, Box } from "@mui/material";
 import { Search as SearchIcon } from "@mui/icons-material";
-import { json, LoaderFunctionArgs, ActionFunction } from "@remix-run/node";
+import {
+  json,
+  redirect,
+  LoaderFunctionArgs,
+  ActionFunction,
+} from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { CourseCard } from "~/components/course-card/course-card.component";
 import { EnrollmentToast } from "~/components/modal/toast-notification.component";
@@ -31,6 +36,7 @@ import { useAppStateContext } from "~/context/app-state.context";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const cookieHeader = request.headers.get("Cookie");
   const tokenValue = await infuseJwtCookie.parse(cookieHeader);
+  if (!tokenValue) throw redirect("/signin");
 
   const catalog: MyCoursesResource = await getAllAvailableCatalog(tokenValue);
 
@@ -50,6 +56,7 @@ export const action: ActionFunction = async ({ request }) => {
 
   const cookieHeader = request.headers.get("Cookie");
   const tokenValue = await infuseJwtCookie.parse(cookieHeader);
+  if (!tokenValue) throw redirect("/signin");
 
   await startEnrollment(tokenValue, courseId as string);
 

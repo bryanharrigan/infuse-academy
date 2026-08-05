@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Typography, Button } from "@mui/material";
-import { json, LoaderFunctionArgs } from "@remix-run/node";
+import { json, redirect, LoaderFunctionArgs } from "@remix-run/node";
 import { Link, useLoaderData, useRouteLoaderData } from "@remix-run/react";
 import {
   getMyCourses,
@@ -27,6 +27,7 @@ type RootData = {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const cookieHeader = request.headers.get("Cookie");
   const tokenValue = await infuseJwtCookie.parse(cookieHeader);
+  if (!tokenValue) throw redirect("/signin");
 
   const myCoursesRes = await getMyCourses(tokenValue, {
     limit: 20,

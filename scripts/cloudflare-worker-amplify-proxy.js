@@ -62,6 +62,39 @@ export default {
       redirect: "manual", // pass redirects through to the visitor (OAuth)
     });
 
-    return fetch(proxied);
+    const response = await fetch(proxied);
+
+    // Rebuild the response explicitly. `return fetch(...)` directly
+    // can lose Set-Cookie headers when Cloudflare's response pipeline
+    // serializes the immutable Response, especially when the origin
+    // sends multiple Set-Cookie headers (each must be preserved as its
+    // own header, not comma-joined).
+    const outHeaders = new Headers();
+    for (const [key, value] of response.headers.entries()) {
+      if (key.toLowerCase() !== "set-cookie") {
+        outHeaders.set(key, value);
+      }
+    }
+
+    // Preserve every Set-Cookie header individually via getSetCookie()
+    // (which returns an array of each cookie, unjoined).
+    const setCookies =
+      typeof response.headers.getSetCookie === "function"
+        ? response.headers.getSetCookie()
+        : [];
+    for (const cookie of setCookies) {
+      outHeaders.append("set-cookie", cookie);
+    }
+
+    // Diagnostic header so we can see from a browser whether the
+    // origin actually sent any Set-Cookie headers. Remove once the
+    // cookie issue is confirmed fixed.
+    outHeaders.set("x-debug-origin-set-cookie-count", String(setCookies.length));
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: outHeaders,
+    });
   },
 };
