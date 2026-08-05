@@ -18,22 +18,37 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import type { ActionFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useActionData } from "@remix-run/react";
 import { authenticate } from "~/.server/infuse-api";
 import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
+import {
+  buildAuthorizeUrl,
+  newState,
+  rememberState,
+} from "~/.server/infuse-oauth";
 
-// ─── Loader: just render the form ──────────────────────────────────
+/**
+ * Default path is Absorb SSO: redirect to Absorb's hosted OAuth login.
+ *
+ * `?password=1` renders a direct username/password form instead. Kept as
+ * an escape hatch for when Absorb's hosted login is unavailable — it
+ * authenticates against the same Absorb API and yields the same tenant
+ * JWT, so the rest of the app behaves identically either way.
+ */
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const url = new URL(request.url);
+  if (url.searchParams.get("password") === "1") {
+    return json({ mode: "password" as const });
+  }
 
-export const loader = async () => {
-  // Previously supported ?oauth=1 → OAuth flow. Removed because
-  // (a) Absorb's SSO 5.128 changes broke /ExternalLogin/Consent for
-  //     our tenant's learner OAuth path, and
-  // (b) The redirect + Set-Cookie combination was crashing the Amplify
-  //     Lambda with 503. Direct username/password auth is what we use
-  //     now.
-  return json({});
+  const state = newState();
+  return redirect(buildAuthorizeUrl(state), {
+    headers: {
+      "Set-Cookie": await rememberState(request.headers.get("Cookie"), state),
+    },
+  });
 };
 
 // ─── Action: direct credential auth against Absorb API ─────────────
@@ -172,9 +187,12 @@ export default function SignIn() {
           </div>
         )}
 
+        {/* Posts back to ?password=1 so the loader revalidation that
+            follows the action keeps rendering this form instead of
+            redirecting into OAuth and losing the error message. */}
         <form
           method="post"
-          action="/signin"
+          action="/signin?password=1"
           ref={formRef}
           onSubmit={() => setSubmitting(true)}
           style={{ display: "flex", flexDirection: "column", gap: 14 }}

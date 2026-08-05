@@ -37,9 +37,18 @@ const PublicUrl = process.env.PUBLIC_URL ?? "https://infuse.bryanharrigan.dev";
 export const RedirectUri = `${PublicUrl}/auth/callback`;
 
 /**
- * Short-lived cookie that carries the OAuth `state` value across the
- * authorize → callback round-trip. Used to defeat CSRF: the callback
- * verifies the `state` query param matches what we set on signin.
+ * Short-lived cookie carrying OAuth `state` values across the
+ * authorize → callback round-trip, to defeat CSRF.
+ *
+ * It holds a LIST of recent states rather than a single value. With one
+ * value, any second visit to /signin overwrites the first, so a user with
+ * two tabs open — or who hits back and retries — completes login carrying
+ * a state we no longer recognise and gets "OAuth state mismatch". That
+ * failure mode is easy to hit and looks identical to a real problem.
+ *
+ * Accepting any of the last few states keeps this CSRF-safe: an attacker
+ * still cannot guess a 128-bit random value, and entries expire with the
+ * cookie's 10-minute Max-Age.
  */
 export const oauthStateCookie = createCookie("infuse_oauth_state", {
   httpOnly: true,
@@ -50,8 +59,45 @@ export const oauthStateCookie = createCookie("infuse_oauth_state", {
   secrets: [process.env.COOKIE_SECRET ?? "dev-only-fallback-secret"],
 });
 
+/** How many concurrent in-flight sign-in attempts we tolerate. */
+const MAX_TRACKED_STATES = 5;
+
 export function newState(): string {
   return crypto.randomBytes(16).toString("hex");
+}
+
+/** Read the recent-state list, tolerating older single-string cookies. */
+async function readStates(cookieHeader: string | null): Promise<string[]> {
+  const parsed = await oauthStateCookie.parse(cookieHeader);
+  if (!parsed) return [];
+  if (Array.isArray(parsed)) return parsed.filter((s) => typeof s === "string");
+  if (typeof parsed === "string") return [parsed]; // pre-list cookie
+  return [];
+}
+
+/**
+ * Build the Set-Cookie header that records `state` as in-flight,
+ * preserving other recent attempts.
+ */
+export async function rememberState(
+  cookieHeader: string | null,
+  state: string
+): Promise<string> {
+  const existing = await readStates(cookieHeader);
+  const next = [state, ...existing.filter((s) => s !== state)].slice(
+    0,
+    MAX_TRACKED_STATES
+  );
+  return oauthStateCookie.serialize(next);
+}
+
+/** True when `state` matches one of the recent in-flight attempts. */
+export async function stateIsKnown(
+  cookieHeader: string | null,
+  state: string | null
+): Promise<boolean> {
+  if (!state) return false;
+  return (await readStates(cookieHeader)).includes(state);
 }
 
 export function buildAuthorizeUrl(state: string): string {

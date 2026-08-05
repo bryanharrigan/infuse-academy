@@ -20,6 +20,7 @@ import { useLoaderData, Link } from "@remix-run/react";
 import {
   exchangeCodeForTokens,
   oauthStateCookie,
+  stateIsKnown,
 } from "~/.server/infuse-oauth";
 import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
 
@@ -41,12 +42,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   const cookieHeader = request.headers.get("Cookie");
-  const expectedState = await oauthStateCookie.parse(cookieHeader);
-  if (!state || state !== expectedState) {
+  // Matches against any of the recent in-flight states, so a second tab
+  // or a retry doesn't invalidate an otherwise good sign-in.
+  if (!(await stateIsKnown(cookieHeader, state))) {
     return json(
       {
         error:
-          "OAuth state mismatch — possible CSRF, or your sign-in session expired. Please try again.",
+          "Your sign-in session expired before you finished logging in. Please try again.",
       },
       { status: 400 }
     );
@@ -126,9 +128,14 @@ export default function AuthCallback() {
         Try again
       </Link>
       <p style={{ margin: "24px 0 0", fontSize: 12, opacity: 0.55 }}>
-        If this keeps happening, clear cookies for infuse.bryanharrigan.dev
-        and try once more — a stale <code>infuse_oauth_state</code> from a
-        prior attempt is the usual cause.
+        If Absorb sign-in keeps failing, you can{" "}
+        <Link
+          to="/signin?password=1"
+          style={{ color: "#a5a1ff", textDecoration: "underline" }}
+        >
+          sign in with your username and password
+        </Link>{" "}
+        instead.
       </p>
     </div>
   );
