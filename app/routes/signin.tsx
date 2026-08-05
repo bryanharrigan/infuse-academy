@@ -18,30 +18,21 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { Link, useActionData } from "@remix-run/react";
+import { useActionData } from "@remix-run/react";
 import { authenticate } from "~/.server/infuse-api";
 import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
-import {
-  buildAuthorizeUrl,
-  newState,
-  oauthStateCookie,
-} from "~/.server/infuse-oauth";
 
-// ─── Loader: pick direct form OR fall through to OAuth ─────────────
+// ─── Loader: just render the form ──────────────────────────────────
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const url = new URL(request.url);
-  // ?oauth=1 → run the original OAuth flow (set state cookie, redirect
-  // to Absorb's /oauth/authorize). Otherwise render the direct form.
-  if (url.searchParams.get("oauth") === "1") {
-    const state = newState();
-    const authorizeUrl = buildAuthorizeUrl(state);
-    return redirect(authorizeUrl, {
-      headers: { "Set-Cookie": await oauthStateCookie.serialize(state) },
-    });
-  }
+export const loader = async () => {
+  // Previously supported ?oauth=1 → OAuth flow. Removed because
+  // (a) Absorb's SSO 5.128 changes broke /ExternalLogin/Consent for
+  //     our tenant's learner OAuth path, and
+  // (b) The redirect + Set-Cookie combination was crashing the Amplify
+  //     Lambda with 503. Direct username/password auth is what we use
+  //     now.
   return json({});
 };
 
@@ -239,23 +230,8 @@ export default function SignIn() {
           </button>
         </form>
 
-        <div
-          style={{
-            marginTop: 24,
-            paddingTop: 20,
-            borderTop: "1px solid rgba(255,255,255,0.08)",
-            textAlign: "center",
-            fontSize: 12,
-            opacity: 0.6,
-          }}
-        >
-          <Link
-            to="/signin?oauth=1"
-            style={{ color: "#a5a1ff", textDecoration: "none" }}
-          >
-            Try Absorb SSO instead →
-          </Link>
-        </div>
+        {/* SSO fallback link removed — Absorb's SSO 5.128 update
+            broke the OAuth learner login path for this tenant. */}
       </div>
     </div>
   );
