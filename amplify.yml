@@ -64,6 +64,9 @@ frontend:
           INFUSE_OAUTH_CLIENT_ID=${INFUSE_OAUTH_CLIENT_ID}
           INFUSE_OAUTH_CLIENT_SECRET=${INFUSE_OAUTH_CLIENT_SECRET}
           PUBLIC_URL=${PUBLIC_URL:-https://infuse.bryanharrigan.dev}
+          BHARRIGAN_PORTAL_URL=${BHARRIGAN_PORTAL_URL:-https://bharrigan.myabsorb.ca}
+          BHARRIGAN_OAUTH_CLIENT_ID=${BHARRIGAN_OAUTH_CLIENT_ID}
+          BHARRIGAN_OAUTH_CLIENT_SECRET=${BHARRIGAN_OAUTH_CLIENT_SECRET}
           EOF
   artifacts:
     baseDirectory: .amplify-hosting
