@@ -10,7 +10,8 @@ import React, {
 
 export type ThemeVariant =
   | "infuse-academy"
-  | "experimental";
+  | "experimental"
+  | "psbi";
 const THEME_STORAGE_KEY = "ia:theme-variant";
 
 /**
@@ -57,7 +58,7 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-      if (stored === "infuse-academy" || stored === "experimental") {
+      if (stored === "infuse-academy" || stored === "experimental" || stored === "psbi") {
         setThemeVariantState(stored);
       }
     } catch {

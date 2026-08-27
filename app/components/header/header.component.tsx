@@ -46,6 +46,10 @@ export const Header = () => {
 
   const handleThemeChange = (e: SelectChangeEvent<ThemeVariant>) => {
     const next = e.target.value as ThemeVariant;
+    if (next === "psbi") {
+      window.location.href = "/psbi-dashboard-demo.html";
+      return;
+    }
     setThemeVariant(next);
     if (next === "experimental") {
       navigate("/learning-hub-experimental");
@@ -108,6 +112,7 @@ export const Header = () => {
       >
         <MenuItem value="infuse-academy">Infuse Academy</MenuItem>
         <MenuItem value="experimental">Experimental</MenuItem>
+        <MenuItem value="psbi">PSBI</MenuItem>
       </Select>
     </FormControl>
   );
