@@ -222,38 +222,40 @@
   .inline-player-wrap {
     display: none; border-bottom: 1px solid var(--border);
     border-left: 3px solid var(--badge-curriculum);
-    background: #0f0f1a;
-    overflow: hidden;
+    background: #0d0d1e;
+    overflow: hidden; align-items: stretch;
   }
   .inline-player-wrap.open { display: flex; }
 
   .inline-lesson-list {
-    width: 260px; flex-shrink: 0; background: #12122a;
+    width: 260px; flex-shrink: 0; background: #111126;
     border-right: 1px solid rgba(255,255,255,0.07);
-    overflow-y: auto; max-height: 420px;
+    overflow-y: auto;
   }
   .inline-lesson-list::-webkit-scrollbar { width: 3px; }
-  .inline-lesson-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius:2px; }
+  .inline-lesson-list::-webkit-scrollbar-thumb { background: rgba(85,71,163,0.4); border-radius:2px; }
 
   .il-header {
-    padding: 10px 14px 6px; display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px 8px; display: flex; align-items: center; justify-content: space-between;
     border-bottom: 1px solid rgba(255,255,255,0.07);
+    background: #1a1a3a;
   }
-  .il-header-title { color: #fff; font-size: 12px; font-weight: 700; }
+  .il-header-title { color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 0.2px; }
   .il-close {
     background: none; border: none; color: rgba(255,255,255,0.4); cursor: pointer;
     font-size: 16px; line-height: 1; padding: 0; display: flex;
   }
   .il-close:hover { color: #fff; }
 
-  .il-chapter { padding: 8px 14px 3px; font-size: 9px; font-weight: 700; letter-spacing: 1px; color: rgba(255,255,255,0.3); text-transform: uppercase; }
+  .il-chapter { padding: 10px 14px 3px; font-size: 9px; font-weight: 700; letter-spacing: 1px; color: rgba(255,255,255,0.25); text-transform: uppercase; }
 
   .il-lesson {
     display: flex; align-items: center; gap: 10px; padding: 8px 14px;
     cursor: pointer; transition: background 0.12s; border-bottom: 1px solid rgba(255,255,255,0.04);
   }
-  .il-lesson:hover { background: rgba(255,255,255,0.05); }
-  .il-lesson.il-active { background: rgba(85,71,163,0.3); border-left: 3px solid #5547a3; padding-left: 11px; }
+  .il-lesson:hover { background: rgba(255,255,255,0.04); }
+  .il-lesson.il-active { background: rgba(85,71,163,0.25); border-left: 3px solid #5547a3; padding-left: 11px; }
+  .il-lesson.il-locked { cursor: default; opacity: 0.5; }
 
   .il-arrow {
     width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
@@ -261,48 +263,62 @@
   }
   .il-arrow.done { background: #059669; }
   .il-arrow.playing { background: #5547a3; }
-  .il-arrow.next { background: rgba(255,255,255,0.12); }
-  .il-arrow.locked { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.3); }
+  .il-arrow.next { background: rgba(255,255,255,0.1); }
+  .il-arrow.locked { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.25); font-size: 9px; }
 
   .il-meta { min-width: 0; }
-  .il-title { font-size: 11px; color: rgba(255,255,255,0.8); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .il-title { font-size: 11px; color: rgba(255,255,255,0.75); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .il-lesson.il-active .il-title { color: #fff; font-weight: 600; }
-  .il-dur { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 1px; }
+  .il-dur { font-size: 10px; color: rgba(255,255,255,0.28); margin-top: 2px; }
 
   /* Right: player */
   .inline-player-stage {
     flex: 1; display: flex; flex-direction: column; min-width: 0;
   }
-  .il-video {
-    flex: 1; background: radial-gradient(ellipse at center, #1a1a3a 0%, #0a0a18 70%);
-    display: flex; align-items: center; justify-content: center; position: relative;
-    min-height: 280px;
+
+  /* 16:9 video container */
+  .il-video-wrap {
+    position: relative; width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #0a0a18; flex-shrink: 0; overflow: hidden;
   }
-  .il-glow { position: absolute; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(85,71,163,0.2) 0%, transparent 70%); }
-  .il-play-center { display: flex; flex-direction: column; align-items: center; gap: 12px; z-index: 1; }
-  .il-lesson-name { color: #fff; font-size: 13px; font-weight: 700; text-align: center; padding: 0 20px; }
+  .il-video-el {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: contain; background: #0a0a18;
+  }
+  /* Overlay shown before first play / when paused on start */
+  .il-overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    background: radial-gradient(ellipse at center, #1e1e42 0%, #0a0a18 70%);
+    z-index: 2; cursor: pointer; transition: opacity 0.25s;
+  }
+  .il-overlay.hidden { opacity: 0; pointer-events: none; }
+  .il-glow { position: absolute; width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, rgba(85,71,163,0.18) 0%, transparent 70%); pointer-events: none; }
+  .il-lesson-name { color: #fff; font-size: 13px; font-weight: 700; text-align: center; padding: 0 24px; z-index: 1; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
   .il-big-play {
-    width: 60px; height: 60px; border-radius: 50%; background: #5547a3; border: none; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 0 0 10px rgba(85,71,163,0.15), 0 0 0 20px rgba(85,71,163,0.07);
-    transition: transform 0.15s;
+    width: 64px; height: 64px; border-radius: 50%; background: #5547a3; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; z-index: 1;
+    box-shadow: 0 0 0 10px rgba(85,71,163,0.15), 0 0 0 22px rgba(85,71,163,0.07);
+    transition: transform 0.15s, background 0.15s;
   }
-  .il-big-play:hover { transform: scale(1.08); }
-  .il-big-play svg { width: 24px; height: 24px; color: #fff; margin-left: 2px; }
-  .il-play-hint { color: rgba(255,255,255,0.45); font-size: 12px; }
+  .il-big-play:hover { transform: scale(1.08); background: #4a3e9a; }
+  .il-big-play svg { width: 26px; height: 26px; color: #fff; margin-left: 3px; }
+  .il-play-hint { color: rgba(255,255,255,0.4); font-size: 11px; z-index: 1; }
 
   .il-controls {
-    background: #12122a; padding: 10px 16px; display: flex; align-items: center; gap: 12px;
-    border-top: 1px solid rgba(255,255,255,0.07);
+    background: #1a1a3a; padding: 9px 14px; display: flex; align-items: center; gap: 10px;
+    border-top: 1px solid rgba(85,71,163,0.25); flex-shrink: 0;
   }
-  .il-ctrl { background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; padding: 3px; border-radius: 3px; display: flex; }
-  .il-ctrl:hover { color: #fff; background: rgba(255,255,255,0.08); }
-  .il-ctrl svg { width: 16px; height: 16px; }
-  .il-bar-wrap { flex: 1; height: 3px; background: rgba(255,255,255,0.12); border-radius: 2px; cursor: pointer; position: relative; }
-  .il-bar-fill { height: 100%; background: #5547a3; border-radius: 2px; width: 0%; transition: width 0.2s; }
-  .il-bar-thumb { position: absolute; top: 50%; right: -5px; transform: translateY(-50%); width: 10px; height: 10px; background: #5547a3; border-radius: 50%; }
-  .il-time { color: rgba(255,255,255,0.35); font-size: 10px; white-space: nowrap; }
-  .il-open-link { color: rgba(255,255,255,0.35); font-size: 10px; text-decoration: none; display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+  .il-ctrl { background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; padding: 4px; border-radius: 4px; display: flex; transition: color 0.12s, background 0.12s; }
+  .il-ctrl:hover { color: #fff; background: rgba(85,71,163,0.3); }
+  .il-ctrl svg { width: 15px; height: 15px; }
+  .il-bar-wrap { flex: 1; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; cursor: pointer; position: relative; }
+  .il-bar-wrap:hover .il-bar-thumb { opacity: 1; }
+  .il-bar-fill { height: 100%; background: #5547a3; border-radius: 2px; width: 0%; pointer-events: none; }
+  .il-bar-thumb { position: absolute; top: 50%; transform: translateY(-50%); width: 11px; height: 11px; background: #fff; border-radius: 50%; margin-left: -5px; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+  .il-time { color: rgba(255,255,255,0.35); font-size: 10px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .il-open-link { color: rgba(255,255,255,0.3); font-size: 10px; text-decoration: none; display: flex; align-items: center; gap: 3px; white-space: nowrap; }
   .il-open-link:hover { color: rgba(255,255,255,0.7); }
   .il-open-link svg { width: 10px; height: 10px; }
 
@@ -570,27 +586,27 @@
               </div>
 
               <div class="il-chapter">Module 1 — Platform Overview</div>
-              <div class="il-lesson" onclick="ilSelectLesson(this,'Getting Started with Absorb','12m',false)">
+              <div class="il-lesson" onclick="ilSelectLesson(this,'Getting Started with Absorb',false)">
                 <div class="il-arrow done">✓</div>
                 <div class="il-meta"><div class="il-title">Getting Started with Absorb</div><div class="il-dur">12 min · Complete</div></div>
               </div>
-              <div class="il-lesson" onclick="ilSelectLesson(this,'Navigating the Admin Portal','18m',false)">
+              <div class="il-lesson" onclick="ilSelectLesson(this,'Navigating the Admin Portal',false)">
                 <div class="il-arrow done">✓</div>
                 <div class="il-meta"><div class="il-title">Navigating the Admin Portal</div><div class="il-dur">18 min · Complete</div></div>
               </div>
 
               <div class="il-chapter">Module 2 — Course Management</div>
-              <div class="il-lesson il-active" id="ilActiveLesson" onclick="ilSelectLesson(this,'Building &amp; Publishing Courses','24m',false)">
+              <div class="il-lesson il-active" id="ilActiveLesson" onclick="ilSelectLesson(this,'Building & Publishing Courses',false)">
                 <div class="il-arrow playing">▶</div>
                 <div class="il-meta"><div class="il-title">Building &amp; Publishing Courses</div><div class="il-dur">24 min · In progress</div></div>
               </div>
-              <div class="il-lesson" onclick="ilSelectLesson(this,'Enrollment Rules &amp; Automation','21m',false)">
+              <div class="il-lesson" onclick="ilSelectLesson(this,'Enrollment Rules & Automation',false)">
                 <div class="il-arrow next">▶</div>
                 <div class="il-meta"><div class="il-title">Enrollment Rules &amp; Automation</div><div class="il-dur">21 min</div></div>
               </div>
 
               <div class="il-chapter">Module 3 — Reporting</div>
-              <div class="il-lesson" onclick="ilSelectLesson(this,'Completion Reports &amp; Analytics','20m',true)">
+              <div class="il-lesson il-locked" onclick="ilSelectLesson(this,'Completion Reports & Analytics',true)">
                 <div class="il-arrow locked">🔒</div>
                 <div class="il-meta"><div class="il-title">Completion Reports &amp; Analytics</div><div class="il-dur">20 min · Locked</div></div>
               </div>
@@ -598,32 +614,36 @@
 
             <!-- Player -->
             <div class="inline-player-stage">
-              <div class="il-video">
-                <div class="il-glow"></div>
-                <div class="il-play-center">
+              <!-- 16:9 video wrapper -->
+              <div class="il-video-wrap">
+                <video id="ilVideo" class="il-video-el" preload="metadata"></video>
+                <!-- Overlay: shown before play starts -->
+                <div class="il-overlay" id="ilOverlay" onclick="ilPlay()">
+                  <div class="il-glow"></div>
                   <div class="il-lesson-name" id="ilLessonName">Building &amp; Publishing Courses</div>
-                  <button class="il-big-play" onclick="ilPlay()">
+                  <button class="il-big-play" onclick="ilPlay();event.stopPropagation()">
                     <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                   </button>
                   <div class="il-play-hint">Click to play</div>
                 </div>
               </div>
+              <!-- Controls bar -->
               <div class="il-controls">
-                <button class="il-ctrl" onclick="ilPlay()">
+                <button class="il-ctrl" id="ilPlayBtn" onclick="ilPlay()">
                   <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 </button>
-                <button class="il-ctrl">
+                <button class="il-ctrl" onclick="ilSkip(-10)" title="Rewind 10s">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
                 </button>
-                <button class="il-ctrl">
+                <button class="il-ctrl" onclick="ilSkip(10)" title="Forward 10s">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
                 </button>
-                <div class="il-bar-wrap" onclick="ilScrub(event)">
+                <div class="il-bar-wrap" id="ilBarWrap" onclick="ilScrub(event)">
                   <div class="il-bar-fill" id="ilBarFill"></div>
-                  <div class="il-bar-thumb"></div>
+                  <div class="il-bar-thumb" id="ilBarThumb"></div>
                 </div>
-                <span class="il-time" id="ilTime">0:00 / 24:00</span>
-                <button class="il-ctrl">
+                <span class="il-time" id="ilTime">0:00 / 0:00</span>
+                <button class="il-ctrl" onclick="ilToggleMute()" id="ilVolBtn" title="Mute/Unmute">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
                 </button>
                 <a class="il-open-link" href="#" onclick="return false;">
@@ -998,6 +1018,87 @@
     btn.disabled = true;
   }
 
+  /* ── Real video player ── */
+
+  // Sample videos mapped per lesson (replace with real Absorb URLs)
+  const IL_SRCS = {
+    'Getting Started with Absorb':       'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    'Navigating the Admin Portal':       'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    'Building & Publishing Courses':     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    'Enrollment Rules & Automation':     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    'Completion Reports & Analytics':    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
+  };
+  const DEFAULT_SRC = IL_SRCS['Building & Publishing Courses'];
+
+  function ilVideo()   { return document.getElementById('ilVideo'); }
+  function ilOverlay() { return document.getElementById('ilOverlay'); }
+
+  function ilFmt(s) {
+    s = isNaN(s) ? 0 : Math.floor(s);
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  }
+
+  function ilSetPlayIcon(paused) {
+    document.getElementById('ilPlayBtn').innerHTML = paused
+      ? '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+  }
+
+  function ilUpdateBar() {
+    const v = ilVideo();
+    const pct = v.duration ? (v.currentTime / v.duration) * 100 : 0;
+    document.getElementById('ilBarFill').style.width = pct + '%';
+    document.getElementById('ilBarThumb').style.left = pct + '%';
+    document.getElementById('ilTime').textContent = ilFmt(v.currentTime) + ' / ' + ilFmt(v.duration);
+  }
+
+  function ilPlay() {
+    const v = ilVideo();
+    if (!v.src) { v.src = DEFAULT_SRC; }
+    if (v.paused) {
+      v.play().catch(() => {});
+    } else {
+      v.pause();
+    }
+  }
+
+  function ilSkip(sec) {
+    const v = ilVideo();
+    if (v.src) v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + sec));
+  }
+
+  function ilScrub(e) {
+    const v = ilVideo();
+    if (!v.src || !v.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    v.currentTime = pct * v.duration;
+    ilUpdateBar();
+  }
+
+  function ilToggleMute() {
+    const v = ilVideo();
+    v.muted = !v.muted;
+    const btn = document.getElementById('ilVolBtn');
+    btn.style.color = v.muted ? 'rgba(255,255,255,0.25)' : '';
+  }
+
+  function ilSelectLesson(el, name, locked) {
+    if (locked) return;
+    document.querySelectorAll('.il-lesson').forEach(i => i.classList.remove('il-active'));
+    el.classList.add('il-active');
+    document.getElementById('ilLessonName').textContent = name;
+    const v = ilVideo();
+    v.pause();
+    v.src = IL_SRCS[name] || DEFAULT_SRC;
+    v.load();
+    document.getElementById('ilBarFill').style.width = '0%';
+    document.getElementById('ilBarThumb').style.left = '0%';
+    document.getElementById('ilTime').textContent = '0:00 / 0:00';
+    ilSetPlayIcon(true);
+    ilOverlay().classList.remove('hidden');
+  }
+
   function toggleInlinePlayer() {
     const player = document.getElementById('inlinePlayer');
     const btn = document.getElementById('launchBtn');
@@ -1005,57 +1106,30 @@
     if (open) {
       btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause / Hide';
       player.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      const v = ilVideo();
+      if (!v.src) { v.src = DEFAULT_SRC; }
     } else {
       btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><polygon points="5 3 19 12 5 21 5 3"/></svg> Launch Course';
-      clearInterval(window._ilInterval);
-      window._ilPlaying = false;
+      ilVideo().pause();
     }
   }
 
-  function ilSelectLesson(el, name, dur, locked) {
-    if (locked) return;
-    document.querySelectorAll('.il-lesson').forEach(i => i.classList.remove('il-active'));
-    el.classList.add('il-active');
-    document.getElementById('ilLessonName').textContent = name;
-    const totalMin = parseInt(dur);
-    window._ilTotal = totalMin * 60;
-    window._ilElapsed = 0;
-    document.getElementById('ilBarFill').style.width = '0%';
-    document.getElementById('ilTime').textContent = '0:00 / ' + totalMin + ':00';
-    clearInterval(window._ilInterval);
-    window._ilPlaying = false;
-  }
+  // Wire up video events
+  document.addEventListener('DOMContentLoaded', () => {
+    const v = ilVideo();
+    v.addEventListener('play',       () => { ilSetPlayIcon(false); ilOverlay().classList.add('hidden'); });
+    v.addEventListener('pause',      () => { ilSetPlayIcon(true); });
+    v.addEventListener('ended',      () => { ilSetPlayIcon(true); ilOverlay().classList.remove('hidden'); });
+    v.addEventListener('timeupdate', ilUpdateBar);
+    v.addEventListener('loadedmetadata', ilUpdateBar);
 
-  window._ilPlaying = false;
-  window._ilElapsed = 0;
-  window._ilTotal = 24 * 60;
-
-  function ilPlay() {
-    if (window._ilPlaying) return;
-    window._ilPlaying = true;
-    window._ilInterval = setInterval(() => {
-      window._ilElapsed++;
-      const pct = Math.min((window._ilElapsed / window._ilTotal) * 100, 100);
-      document.getElementById('ilBarFill').style.width = pct + '%';
-      const m = Math.floor(window._ilElapsed / 60);
-      const s = window._ilElapsed % 60;
-      const tm = Math.floor(window._ilTotal / 60);
-      document.getElementById('ilTime').textContent = m + ':' + String(s).padStart(2,'0') + ' / ' + tm + ':00';
-      if (window._ilElapsed >= window._ilTotal) { clearInterval(window._ilInterval); window._ilPlaying = false; }
-    }, 100);
-  }
-
-  function ilScrub(e) {
-    const bar = e.currentTarget;
-    const rect = bar.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    document.getElementById('ilBarFill').style.width = (pct * 100) + '%';
-    window._ilElapsed = Math.round(pct * window._ilTotal);
-    const m = Math.floor(window._ilElapsed / 60);
-    const s = window._ilElapsed % 60;
-    const tm = Math.floor(window._ilTotal / 60);
-    document.getElementById('ilTime').textContent = m + ':' + String(s).padStart(2,'0') + ' / ' + tm + ':00';
-  }
+    // Scrub drag
+    const bar = document.getElementById('ilBarWrap');
+    let dragging = false;
+    bar.addEventListener('mousedown', (e) => { dragging = true; ilScrub(e); });
+    document.addEventListener('mousemove', (e) => { if (dragging) ilScrub({ currentTarget: bar, clientX: e.clientX }); });
+    document.addEventListener('mouseup',   ()  => { dragging = false; });
+  });
 </script>
 </body>
 </html>
