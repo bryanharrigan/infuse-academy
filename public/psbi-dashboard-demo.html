@@ -392,6 +392,13 @@
   }
   .enroll-btn:hover { background: #4d3e9e; }
   .enroll-btn.enrolled { background: #059669; cursor: default; }
+  .launch-course-btn {
+    background: #fff; color: #5547a3; border: 1.5px solid #5547a3;
+    border-radius: 5px; padding: 6px 12px; font-size: 12px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 5px;
+  }
+  .launch-course-btn:hover { background: #5547a3; color: #fff; }
+  .course-footer-btns { display: flex; gap: 6px; align-items: center; }
   .course-duration { font-size: 11px; color: var(--text-muted); font-weight: 500; }
 </style>
 </head>
@@ -817,7 +824,12 @@
         </div>
         <div class="course-footer">
           <span class="course-duration">5 modules</span>
-          <button class="enroll-btn enrolled">✓ Enrolled</button>
+          <div class="course-footer-btns">
+            <button class="launch-course-btn" onclick="launchFromCatalog('Absorb LMS Training Curriculum')">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11"><polygon points="5 3 19 12 5 21 5 3"/></svg> Launch
+            </button>
+            <button class="enroll-btn enrolled" disabled>✓ Enrolled</button>
+          </div>
         </div>
       </div>
 
@@ -988,7 +1000,9 @@
   </main>
 </div><!-- /layout -->
 <script>
-
+  /* ════════════════════════════════════
+     View switching
+  ════════════════════════════════════ */
   function showView(name, linkEl) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-' + name).classList.add('active');
@@ -996,6 +1010,9 @@
     if (linkEl) linkEl.classList.add('active');
   }
 
+  /* ════════════════════════════════════
+     Catalog filters
+  ════════════════════════════════════ */
   function filterCat(chip, cat) {
     document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
     chip.classList.add('active');
@@ -1012,21 +1029,64 @@
     });
   }
 
+  /* ════════════════════════════════════
+     Catalog enroll + launch
+  ════════════════════════════════════ */
+  // Map catalog course titles to a video src for demo playback
+  const CATALOG_SRCS = {
+    default: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+  };
+
   function enrollCourse(btn) {
     btn.textContent = '✓ Enrolled';
     btn.classList.add('enrolled');
     btn.disabled = true;
+
+    // Add a Launch button next to the enrolled badge
+    const footer = btn.closest('.course-footer');
+    if (footer && !footer.querySelector('.launch-course-btn')) {
+      const launch = document.createElement('button');
+      launch.className = 'launch-course-btn';
+      launch.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11"><polygon points="5 3 19 12 5 21 5 3"/></svg> Launch';
+      const title = btn.closest('.course-card').querySelector('.course-title').textContent;
+      launch.onclick = () => launchFromCatalog(title);
+      footer.insertBefore(launch, btn);
+    }
   }
 
-  /* ── Real video player ── */
+  function launchFromCatalog(courseTitle) {
+    // Switch to dashboard, open inline player with the course title shown
+    const dashLink = document.querySelector('.sidebar-item[onclick*="dashboard"]');
+    showView('dashboard', dashLink);
 
-  // Sample videos mapped per lesson (replace with real Absorb URLs)
+    const v = ilVideo();
+    const src = CATALOG_SRCS[courseTitle] || CATALOG_SRCS.default;
+    v.pause();
+    v.src = src;
+    v.load();
+    document.getElementById('ilLessonName').textContent = courseTitle;
+    document.getElementById('ilBarFill').style.width = '0%';
+    document.getElementById('ilBarThumb').style.left = '0%';
+    document.getElementById('ilTime').textContent = '0:00 / 0:00';
+    ilSetPlayIcon(true);
+    ilOverlay().classList.remove('hidden');
+
+    // Open the inline player if not already open
+    const player = document.getElementById('inlinePlayer');
+    if (!player.classList.contains('open')) toggleInlinePlayer();
+    else player.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  /* ════════════════════════════════════
+     Video player helpers
+  ════════════════════════════════════ */
+  // Demo video per lesson (swap for real Absorb lessonplayer URLs)
   const IL_SRCS = {
-    'Getting Started with Absorb':       'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    'Navigating the Admin Portal':       'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    'Building & Publishing Courses':     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-    'Enrollment Rules & Automation':     'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    'Completion Reports & Analytics':    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
+    'Getting Started with Absorb':    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    'Navigating the Admin Portal':    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    'Building & Publishing Courses':  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    'Enrollment Rules & Automation':  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    'Completion Reports & Analytics': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
   };
   const DEFAULT_SRC = IL_SRCS['Building & Publishing Courses'];
 
@@ -1034,19 +1094,21 @@
   function ilOverlay() { return document.getElementById('ilOverlay'); }
 
   function ilFmt(s) {
-    s = isNaN(s) ? 0 : Math.floor(s);
+    s = (isNaN(s) || !isFinite(s)) ? 0 : Math.floor(s);
     return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
   }
 
   function ilSetPlayIcon(paused) {
-    document.getElementById('ilPlayBtn').innerHTML = paused
+    const btn = document.getElementById('ilPlayBtn');
+    if (!btn) return;
+    btn.innerHTML = paused
       ? '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
       : '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
   }
 
   function ilUpdateBar() {
     const v = ilVideo();
-    const pct = v.duration ? (v.currentTime / v.duration) * 100 : 0;
+    const pct = (v.duration && isFinite(v.duration)) ? (v.currentTime / v.duration) * 100 : 0;
     document.getElementById('ilBarFill').style.width = pct + '%';
     document.getElementById('ilBarThumb').style.left = pct + '%';
     document.getElementById('ilTime').textContent = ilFmt(v.currentTime) + ' / ' + ilFmt(v.duration);
@@ -1054,9 +1116,12 @@
 
   function ilPlay() {
     const v = ilVideo();
-    if (!v.src) { v.src = DEFAULT_SRC; }
+    // Ensure a src is set — empty string means no src attribute was present
+    if (!v.src || v.src === window.location.href) { v.src = DEFAULT_SRC; }
     if (v.paused) {
-      v.play().catch(() => {});
+      v.play().then(() => {
+        ilOverlay().classList.add('hidden');
+      }).catch(err => console.warn('Play error:', err));
     } else {
       v.pause();
     }
@@ -1064,12 +1129,12 @@
 
   function ilSkip(sec) {
     const v = ilVideo();
-    if (v.src) v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + sec));
+    if (v.readyState >= 1) v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + sec));
   }
 
   function ilScrub(e) {
     const v = ilVideo();
-    if (!v.src || !v.duration) return;
+    if (!v.duration || !isFinite(v.duration)) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     v.currentTime = pct * v.duration;
@@ -1079,8 +1144,7 @@
   function ilToggleMute() {
     const v = ilVideo();
     v.muted = !v.muted;
-    const btn = document.getElementById('ilVolBtn');
-    btn.style.color = v.muted ? 'rgba(255,255,255,0.25)' : '';
+    document.getElementById('ilVolBtn').style.color = v.muted ? 'rgba(255,255,255,0.25)' : '';
   }
 
   function ilSelectLesson(el, name, locked) {
@@ -1105,31 +1169,40 @@
     const open = player.classList.toggle('open');
     if (open) {
       btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause / Hide';
-      player.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Pre-load the default src so metadata is ready before user clicks play
       const v = ilVideo();
-      if (!v.src) { v.src = DEFAULT_SRC; }
+      if (!v.src || v.src === window.location.href) { v.src = DEFAULT_SRC; }
+      setTimeout(() => player.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
     } else {
       btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><polygon points="5 3 19 12 5 21 5 3"/></svg> Launch Course';
       ilVideo().pause();
     }
   }
 
-  // Wire up video events
-  document.addEventListener('DOMContentLoaded', () => {
+  /* ════════════════════════════════════
+     Wire up video element events
+     NOTE: Script runs at end of <body>,
+     so DOM is already ready — no need
+     for DOMContentLoaded wrapper.
+  ════════════════════════════════════ */
+  (function initPlayer() {
     const v = ilVideo();
-    v.addEventListener('play',       () => { ilSetPlayIcon(false); ilOverlay().classList.add('hidden'); });
-    v.addEventListener('pause',      () => { ilSetPlayIcon(true); });
-    v.addEventListener('ended',      () => { ilSetPlayIcon(true); ilOverlay().classList.remove('hidden'); });
-    v.addEventListener('timeupdate', ilUpdateBar);
-    v.addEventListener('loadedmetadata', ilUpdateBar);
+    if (!v) return;
 
-    // Scrub drag
+    v.addEventListener('play',            () => { ilSetPlayIcon(false); ilOverlay().classList.add('hidden'); });
+    v.addEventListener('pause',           () => { ilSetPlayIcon(true); });
+    v.addEventListener('ended',           () => { ilSetPlayIcon(true); ilOverlay().classList.remove('hidden'); });
+    v.addEventListener('timeupdate',      ilUpdateBar);
+    v.addEventListener('loadedmetadata',  ilUpdateBar);
+    v.addEventListener('error',           () => console.warn('Video load error — check src URL'));
+
+    // Scrub bar drag
     const bar = document.getElementById('ilBarWrap');
     let dragging = false;
     bar.addEventListener('mousedown', (e) => { dragging = true; ilScrub(e); });
     document.addEventListener('mousemove', (e) => { if (dragging) ilScrub({ currentTarget: bar, clientX: e.clientX }); });
     document.addEventListener('mouseup',   ()  => { dragging = false; });
-  });
+  })();
 </script>
 </body>
 </html>
