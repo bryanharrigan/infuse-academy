@@ -1146,9 +1146,22 @@
   /* ════════════════════════════════════
      Catalog enroll + launch
   ════════════════════════════════════ */
+  // ── Video sources ──────────────────────────────────────────────
+  // Single local demo file for all lessons.
+  // In production: replace with real Absorb lessonplayer URLs per lesson.
+  const DEMO_VIDEO = '/demo-lesson.mp4';
+  const IL_SRCS = {
+    'Getting Started with Absorb':    DEMO_VIDEO,
+    'Navigating the Admin Portal':    DEMO_VIDEO,
+    'Building & Publishing Courses':  DEMO_VIDEO,
+    'Enrollment Rules & Automation':  DEMO_VIDEO,
+    'Completion Reports & Analytics': DEMO_VIDEO,
+  };
+  const DEFAULT_SRC = DEMO_VIDEO;
+
   // Map catalog course titles to a video src for demo playback
   const CATALOG_SRCS = {
-    default: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    default: DEMO_VIDEO,
   };
 
   function enrollCourse(btn) {
@@ -1364,15 +1377,7 @@
   /* ════════════════════════════════════
      Video player helpers
   ════════════════════════════════════ */
-  // Demo video per lesson (swap for real Absorb lessonplayer URLs)
-  const IL_SRCS = {
-    'Getting Started with Absorb':    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    'Navigating the Admin Portal':    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    'Building & Publishing Courses':  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-    'Enrollment Rules & Automation':  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    'Completion Reports & Analytics': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
-  };
-  const DEFAULT_SRC = IL_SRCS['Building & Publishing Courses'];
+  // (IL_SRCS / DEFAULT_SRC / DEMO_VIDEO declared above with CATALOG_SRCS)
 
   function ilVideo()   { return document.getElementById('ilVideo'); }
   function ilOverlay() { return document.getElementById('ilOverlay'); }
