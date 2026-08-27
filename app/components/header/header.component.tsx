@@ -15,20 +15,10 @@ import {
   SelectChangeEvent,
 } from "@mui/material";
 import { NavLink } from "@remix-run/react";
-import { useState } from "react";
 import { AbsorbLogo } from "../logo/logo.component";
 import { LoadingModal } from "../modal/loading-spinner-modal";
 import { useHeader } from "./use-header.hook";
 import type { ThemeVariant } from "~/context/app-state.context";
-
-const RADNET_CORPORATE_NAV: ReadonlyArray<readonly [string, string]> = [
-  ["Solutions", "https://www.radnet.com/solutions"],
-  ["Artificial Intelligence", "https://www.radnet.com/artificial-intelligence"],
-  ["Imaging Centers", "https://www.radnet.com/imaging-centers"],
-  ["Our Services", "https://www.radnet.com/our-services"],
-  ["Who We Serve", "https://www.radnet.com/who-we-serve"],
-  ["About RadNet", "https://www.radnet.com/about"],
-];
 
 export const Header = () => {
   const {
@@ -45,51 +35,24 @@ export const Header = () => {
     navigate,
   } = useHeader();
 
-  // "Branded" covers any variant that should use the IA layout (IA, RadNet,
-  // Experimental, or CrossFit). Included so /catalog and /my-courses
-  // inherit the IA chrome — the experimental + crossfit hubs themselves
-  // ship their own layouts via dedicated routes.
   const isBranded =
-    themeVariant === "infuse-academy" ||
-    themeVariant === "radnet" ||
-    themeVariant === "experimental" ||
-    themeVariant === "crossfit";
-  // Alias kept so existing conditionals keep working.
+    themeVariant === "infuse-academy" || themeVariant === "experimental";
   const isIA = isBranded;
-  const isRadNet = themeVariant === "radnet";
   const isExperimental = themeVariant === "experimental";
-  const isCrossFit = themeVariant === "crossfit";
 
-  // The Learning Hub link routes to each theme's dedicated hub page.
   const learningHubPath = isExperimental
     ? "/learning-hub-experimental"
-    : isCrossFit
-    ? "/learning-hub-crossfit"
     : "/learning-hub";
 
-  /**
-   * When the theme changes, navigate to that theme's Learning Hub so
-   * the styling switch is instantly visible. Without this, picking
-   * CrossFit while on /learning-hub keeps you on the IA hub markup
-   * but with `body.theme-crossfit` — the IA hero/gamification-bar
-   * classes have no CrossFit CSS matches so you get a mostly-empty
-   * black page. Same fix pattern used in the experimental picker.
-   */
   const handleThemeChange = (e: SelectChangeEvent<ThemeVariant>) => {
     const next = e.target.value as ThemeVariant;
     setThemeVariant(next);
-    if (next === "crossfit") {
-      navigate("/learning-hub-crossfit");
-    } else if (next === "experimental") {
+    if (next === "experimental") {
       navigate("/learning-hub-experimental");
     } else {
       navigate("/learning-hub");
     }
   };
-
-  // RadNet logo: prefer a real PNG dropped at /public/radnet-logo.png, fall
-  // back to the inline SVG when the file is missing.
-  const [radnetImgOk, setRadnetImgOk] = useState(true);
 
   // Shared nav link renderer that respects the active theme.
   const renderNavLink = (to: string, label: string) => (
@@ -112,7 +75,7 @@ export const Header = () => {
   );
 
   /* ------------------------------------------------------------------
-   * Reusable pieces (used in multiple layout branches below)
+   * Reusable pieces
    * ---------------------------------------------------------------- */
 
   const appNavLinks = (
@@ -143,10 +106,7 @@ export const Header = () => {
         label="Theme"
         onChange={handleThemeChange}
       >
-        <MenuItem value="default">Default</MenuItem>
         <MenuItem value="infuse-academy">Infuse Academy</MenuItem>
-        <MenuItem value="radnet">RadNet</MenuItem>
-        <MenuItem value="crossfit">CrossFit</MenuItem>
         <MenuItem value="experimental">Experimental</MenuItem>
       </Select>
     </FormControl>
@@ -165,9 +125,7 @@ export const Header = () => {
           isIA
             ? {
                 "&:hover": {
-                  boxShadow: isRadNet
-                    ? "0 0 0 3px rgba(14,120,190,0.25)"
-                    : "0 0 0 3px rgba(108,99,255,0.25)",
+                  boxShadow: "0 0 0 3px rgba(108,99,255,0.25)",
                 },
               }
             : undefined
@@ -175,13 +133,7 @@ export const Header = () => {
       >
         <Avatar
           alt="Profile"
-          /* Under RadNet we skip Absorb's red-B avatar image and render a
-             sky-blue circle with the learner's initial instead. */
-          src={
-            isRadNet
-              ? undefined
-              : user.avatarUrl || "https://picsum.photos/300"
-          }
+          src={user.avatarUrl || "https://picsum.photos/300"}
           className={
             isIA
               ? "w-10 h-10"
@@ -190,109 +142,14 @@ export const Header = () => {
           sx={
             isIA
               ? {
-                  border: isRadNet
-                    ? "2px solid rgba(14,120,190,0.55)"
-                    : "2px solid rgba(108,99,255,0.35)",
-                  backgroundColor: isRadNet
-                    ? "#197ec1"
-                    : "var(--ia-surface-2)",
-                  color: isRadNet ? "#ffffff" : undefined,
-                  fontWeight: isRadNet ? 700 : undefined,
-                  fontFamily: isRadNet
-                    ? "'Open Sans', 'Inter', sans-serif"
-                    : undefined,
+                  border: "2px solid rgba(108,99,255,0.35)",
+                  backgroundColor: "var(--ia-surface-2)",
                 }
               : undefined
           }
-        >
-          {isRadNet
-            ? (user.firstName?.charAt(0)?.toUpperCase() ?? "")
-            : null}
-        </Avatar>
+        />
       </IconButton>
     </Tooltip>
-  );
-
-  const radnetLogo = (
-    <NavLink
-      to="/"
-      className="ia-header__logo ia-header__logo--image"
-      aria-label="RadNet"
-    >
-      {radnetImgOk && (
-        <img
-          className="ia-header__logo-img"
-          src="https://www.radnet.com/files/corporate/assets/branding/radnet-logo-no-tagline.webp"
-          alt="RadNet"
-          onError={() => setRadnetImgOk(false)}
-        />
-      )}
-      {!radnetImgOk && (
-        <svg
-          className="ia-header__logo-radnet-svg"
-          viewBox="0 0 210 70"
-          role="img"
-          aria-hidden
-        >
-          <defs>
-            <linearGradient
-              id="rn-arc-grad"
-              x1="0%"
-              y1="0%"
-              x2="100%"
-              y2="100%"
-            >
-              <stop offset="0%" stopColor="#1b1b1b" />
-              <stop offset="50%" stopColor="#6b6b6b" />
-              <stop offset="100%" stopColor="#d1d1d1" />
-            </linearGradient>
-          </defs>
-          <path
-            d="M 46 4 A 31 31 0 1 0 46 66"
-            fill="none"
-            stroke="url(#rn-arc-grad)"
-            strokeWidth="8"
-            strokeLinecap="round"
-          />
-          <path
-            d="M 42 16 A 19 19 0 1 0 42 54"
-            fill="none"
-            stroke="url(#rn-arc-grad)"
-            strokeWidth="6"
-            strokeLinecap="round"
-          />
-          <text
-            x="66"
-            y="50"
-            fontFamily="'Open Sans', 'Inter', sans-serif"
-            fontWeight="800"
-            fontSize="38"
-            fill="#851f1e"
-          >
-            Rad
-          </text>
-          <text
-            x="128"
-            y="50"
-            fontFamily="'Open Sans', 'Inter', sans-serif"
-            fontWeight="800"
-            fontSize="38"
-            fill="#706f70"
-          >
-            Net
-          </text>
-          <text
-            x="197"
-            y="58"
-            fontFamily="'Open Sans', sans-serif"
-            fontSize="8"
-            fill="#706f70"
-          >
-            ®
-          </text>
-        </svg>
-      )}
-    </NavLink>
   );
 
   /* ------------------------------------------------------------------
@@ -307,50 +164,7 @@ export const Header = () => {
           : "fixed top-0 left-0 right-0 bg-white bg-opacity-95 backdrop-blur-sm z-10 border-b"
       }
     >
-      {isRadNet ? (
-        <>
-          {/*
-            RadNet two-tier header (matches radnet.com).
-            Top band: light-gray full-width strip carrying the app nav +
-                      theme picker + avatar.
-            Bottom band: white full-width strip carrying the logo + the
-                         corporate nav links.
-          */}
-          <div
-            className="ia-header__band ia-header__band--top"
-            style={{
-              background: "rgba(0,0,0,0.04)",
-              borderBottom: "1px solid rgba(0,0,0,0.06)",
-            }}
-          >
-            <div className="max-w-[1280px] mx-auto px-6 h-[48px] flex justify-between items-center">
-              <div className="flex items-center gap-6">{appNavLinks}</div>
-              <div className="flex items-center gap-3">
-                {themeSelect}
-                {accountAvatar}
-              </div>
-            </div>
-          </div>
-          <div className="ia-header__band ia-header__band--bottom">
-            <div className="max-w-[1280px] mx-auto px-6 h-[96px] flex justify-between items-center">
-              {radnetLogo}
-              <nav className="flex items-center gap-7">
-                {RADNET_CORPORATE_NAV.map(([label, href]) => (
-                  <a
-                    key={href}
-                    href={href}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="ia-header__nav-link ia-header__nav-link--external"
-                  >
-                    {label}
-                  </a>
-                ))}
-              </nav>
-            </div>
-          </div>
-        </>
-      ) : isExperimental ? (
+      {isExperimental ? (
         /* Experimental — left: iX brand mark + wordmark only. Right:
            nav links + theme select + avatar grouped together so the
            layout matches the experimental hub's in-page topbar. */
@@ -368,7 +182,7 @@ export const Header = () => {
           </div>
         </div>
       ) : (
-        /* Default + Infuse Academy keep the original single-row layout. */
+        /* Infuse Academy single-row layout. */
         <div className={isIA ? "max-w-[1280px] mx-auto px-6" : ""}>
           <div
             className={

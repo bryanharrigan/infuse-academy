@@ -3,7 +3,6 @@ import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLocation } from "@r
 import "./tailwind.css";
 import "./styles/infuse-academy.css";
 import "./styles/experimental.css";
-import "./styles/crossfit.css";
 import { withEmotionCache } from "@emotion/react";
 import {
   ThemeProvider,
@@ -12,13 +11,9 @@ import {
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import ClientStyleContext from "./context/client-style.context";
-import defaultTheme from "./mui/theme";
 import infuseAcademyTheme from "./mui/theme-infuse-academy";
-import radnetTheme from "./mui/theme-radnet";
 import experimentalTheme from "./mui/theme-experimental";
-import crossfitTheme from "./mui/theme-crossfit";
 import { Header } from "./components/header/header.component";
-import { RadnetFooter } from "./components/footer/radnet-footer.component";
 import {
   AppStateProvider,
   useAppStateContext,
@@ -62,17 +57,6 @@ const Document = withEmotionCache(({ children, title }: DocumentProps, emotionCa
         <meta name="emotion-insertion-point" content="emotion-insertion-point" />
       </head>
       <body>
-        {/*
-          SVG gradient definition for the IA progress-ring component. Only
-          renders when the IA theme is active (defined server-side so it's
-          present in the DOM when CSS references it).
-        */}
-        {/*
-          SVG gradient used by IA progress rings. Colors reference CSS vars
-          so they automatically flip with the active theme — RadNet redefines
-          --ia-accent-1/2 under `body.theme-radnet`, so these stops become
-          RadNet red/blue. Falls back to the IA purple/pink defaults otherwise.
-        */}
         <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden>
           <defs>
             <linearGradient id="ia-ring-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -95,9 +79,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const path = url.pathname;
 
-  // Paths that DON'T require auth and shouldn't bounce through /signin:
-  //   /signin       — entry point that itself redirects to OAuth provider
-  //   /auth/callback — OAuth callback receiving the authorization code
   const isPublicPath = path === "/signin" || path === "/auth/callback";
 
   if (!token && !isPublicPath) return redirect("/signin");
@@ -115,20 +96,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 /**
  * Switches MUI's ThemeProvider based on the active theme variant in
- * AppStateContext. Lives inside the provider so it can read the context.
+ * AppStateContext.
  */
 const ThemedShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { themeVariant } = useAppStateContext();
   const activeTheme =
-    themeVariant === "radnet"
-      ? radnetTheme
-      : themeVariant === "infuse-academy"
-      ? infuseAcademyTheme
-      : themeVariant === "experimental"
-      ? experimentalTheme
-      : themeVariant === "crossfit"
-      ? crossfitTheme
-      : defaultTheme;
+    themeVariant === "infuse-academy" ? infuseAcademyTheme : experimentalTheme;
   return <ThemeProvider theme={activeTheme}>{children}</ThemeProvider>;
 };
 
@@ -139,12 +112,8 @@ export default function App() {
     <Document>
       <AppStateProvider>
         <ThemedShell>
-          {/* Single source of truth for chrome — the global Header now
-              renders on the experimental hub too so the header looks
-              identical across every authenticated page. */}
           {isNotLoginPage && <Header />}
           <Outlet />
-          {isNotLoginPage && <RadnetFooter />}
         </ThemedShell>
       </AppStateProvider>
     </Document>

@@ -9,10 +9,7 @@ import React, {
 } from "react";
 
 export type ThemeVariant =
-  | "default"
   | "infuse-academy"
-  | "radnet"
-  | "crossfit"
   | "experimental";
 const THEME_STORAGE_KEY = "ia:theme-variant";
 
@@ -31,12 +28,7 @@ const THEME_STORAGE_KEY = "ia:theme-variant";
  * needed.
  */
 export function isBrandedVariant(v: ThemeVariant): boolean {
-  return (
-    v === "infuse-academy" ||
-    v === "radnet" ||
-    v === "experimental" ||
-    v === "crossfit"
-  );
+  return v === "infuse-academy" || v === "experimental";
 }
 
 type AppStateContextType = {
@@ -65,13 +57,7 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-      if (
-        stored === "infuse-academy" ||
-        stored === "radnet" ||
-        stored === "experimental" ||
-        stored === "crossfit" ||
-        stored === "default"
-      ) {
+      if (stored === "infuse-academy" || stored === "experimental") {
         setThemeVariantState(stored);
       }
     } catch {
@@ -81,22 +67,14 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({
 
   // Mirror the variant onto <body> so CSS can scope branded styles.
   //   "infuse-academy" → body has `theme-ia`
-  //   "radnet"         → body has `theme-ia theme-radnet` (inherits IA layout,
-  //                      then .theme-radnet overrides the IA color variables)
-  //   "experimental"   → body has `theme-experimental` (its own standalone
-  //                      stylesheet — does NOT inherit from theme-ia)
-  //   "default"        → none of the above
+  //   "experimental"   → body has `theme-ia theme-experimental` (inherits IA
+  //                      layout then overrides with experimental styles)
   useEffect(() => {
     if (typeof document === "undefined") return;
     document.body.classList.toggle("theme-ia", isBrandedVariant(themeVariant));
-    document.body.classList.toggle("theme-radnet", themeVariant === "radnet");
     document.body.classList.toggle(
       "theme-experimental",
       themeVariant === "experimental"
-    );
-    document.body.classList.toggle(
-      "theme-crossfit",
-      themeVariant === "crossfit"
     );
   }, [themeVariant]);
 
@@ -111,7 +89,7 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({
 
   const toggleThemeVariant = useCallback(() => {
     setThemeVariantState((prev) => {
-      const next = prev === "infuse-academy" ? "default" : "infuse-academy";
+      const next = prev === "infuse-academy" ? "experimental" : "infuse-academy";
       try {
         window.localStorage.setItem(THEME_STORAGE_KEY, next);
       } catch {
