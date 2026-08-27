@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Church HR — Compliance Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@900&display=swap" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --nav-bg: #35366f;
+    --sidebar-bg: #5547a3;
+    --nav-active: #4d3e9e;
+    --nav-hover: #6155b4;
+    --nav-border: rgba(255,255,255,0.12);
+    --accent-blue: #5547a3;
+    --accent-indigo: #4d3e9e;
+    --warn-amber: #f59e0b;
+    --text-primary: #1e2235;
+    --text-muted: #64748b;
+    --surface: #f5f6fa;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --badge-report: #5547a5;
+    --badge-review: #5547a5;
+    --badge-curriculum: #059669;
+    --shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+
+  body { font-family: 'Inter', sans-serif; background: var(--surface); color: var(--text-primary); display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ── Impersonation banner ── */
+  .impersonation-bar {
+    background: #fefce8; border-bottom: 1px solid #fde68a;
+    padding: 8px 20px; font-size: 13px; display: flex; align-items: center; gap: 6px;
+    z-index: 100; position: sticky; top: 0;
+  }
+  .impersonation-bar .warn-icon { color: #d97706; font-size: 16px; }
+  .impersonation-bar strong { color: #92400e; }
+  .impersonation-bar .sep { color: #a16207; margin: 0 8px; }
+  .stop-btn {
+    margin-left: auto; background: #1e1e3a; color: #fff; border: none;
+    border-radius: 4px; padding: 4px 12px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 5px;
+  }
+  .stop-btn:hover { background: #2d2d52; }
+
+  /* ── Top nav bar ── */
+  .topbar {
+    background: var(--nav-bg); height: 56px; display: flex; align-items: center;
+    padding: 0 20px; gap: 16px; position: sticky; top: 36px; z-index: 99;
+  }
+  .topbar-logo { display: flex; align-items: center; min-width: 180px; }
+  .topbar-logo .logo-box {
+    background: transparent;
+    padding: 0;
+    display: flex;
+    align-items: center;
+  }
+  .topbar-logo .logo-p {
+    font-family: 'Barlow Condensed', 'Arial Black', sans-serif;
+    font-weight: 900;
+    font-size: 28px;
+    color: #6e6eb8;
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+  .topbar-logo .logo-s {
+    font-family: 'Barlow Condensed', 'Arial Black', sans-serif;
+    font-weight: 900;
+    font-size: 28px;
+    color: #ffffff;
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+  .topbar-search {
+    flex: 1; max-width: 520px; position: relative;
+  }
+  .topbar-search input {
+    width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px; color: #e2e8f0; padding: 7px 12px 7px 36px; font-size: 13px; outline: none;
+  }
+  .topbar-search input::placeholder { color: rgba(255,255,255,0.4); }
+  .topbar-search .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.4); font-size: 16px; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .topbar-avatar {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--accent-blue);
+    display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 13px;
+  }
+  .topbar-name { color: #e2e8f0; font-size: 13px; font-weight: 500; }
+  .topbar-icon { color: rgba(255,255,255,0.5); font-size: 18px; cursor: pointer; }
+
+  /* ── Layout ── */
+  .layout { display: flex; flex: 1; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background: var(--sidebar-bg); width: 200px; min-height: calc(100vh - 92px);
+    display: flex; flex-direction: column; padding: 12px 0; position: sticky; top: 92px; align-self: flex-start; height: calc(100vh - 92px);
+  }
+  .sidebar-btn {
+    margin: 8px 12px; background: rgba(255,255,255,0.12); color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 6px; padding: 9px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; gap: 8px; width: calc(100% - 24px);
+  }
+  .sidebar-btn:hover { background: rgba(255,255,255,0.2); }
+  .sidebar-divider { height: 1px; background: var(--nav-border); margin: 8px 0; }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 18px;
+    color: rgba(255,255,255,0.65); font-size: 13px; font-weight: 500;
+    cursor: pointer; text-decoration: none; transition: background 0.15s;
+  }
+  .sidebar-item:hover { background: var(--nav-hover); color: rgba(255,255,255,0.9); }
+  .sidebar-item.active { background: rgba(255,255,255,0.15); color: #fff; border-right: 3px solid rgba(255,255,255,0.6); }
+  .sidebar-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  /* ── Main ── */
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #51449e 0%, #4a3e98 100%);
+    color: #fff; padding: 28px 28px 24px;
+  }
+  .hero h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+  .hero p { color: rgba(255,255,255,0.55); font-size: 13px; }
+
+  /* ── Stats row ── */
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; border-bottom: 1px solid var(--border); }
+  .stat-card {
+    background: var(--card-bg); padding: 20px 22px;
+    border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px;
+  }
+  .stat-card:last-child { border-right: none; }
+  .stat-top { display: flex; align-items: center; gap: 12px; }
+  .stat-icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .stat-icon.consumers { background: #ede9fe; color: #5547a3; }
+  .stat-icon.attention { background: #fef3c7; color: #d97706; }
+  .stat-icon.expiring { background: #e0f2fe; color: #0284c7; }
+  .stat-icon.compliance { background: #dcfce7; color: #16a34a; }
+  .stat-value { font-size: 28px; font-weight: 700; line-height: 1; }
+  .stat-value.attention { color: var(--warn-amber); }
+  .stat-value.compliance-pct { color: #16a34a; }
+  .stat-label { font-size: 12px; color: var(--text-muted); font-weight: 500; margin-top: 2px; }
+  .stat-link { font-size: 12px; color: var(--text-muted); margin-top: 12px; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  .stat-link:hover { color: var(--accent-blue); }
+  .compliance-bar { height: 4px; background: #e2e8f0; border-radius: 2px; margin-top: 10px; }
+  .compliance-bar-fill { height: 100%; background: #e74c3c; border-radius: 2px; width: 51%; }
+
+  /* ── Content area ── */
+  .content-area { display: flex; flex: 1; gap: 0; }
+
+  /* ── Tasks ── */
+  .tasks-panel { flex: 1; padding: 24px; min-width: 0; }
+  .tasks-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .tasks-header h2 { font-size: 16px; font-weight: 700; }
+  .task-count { background: #5547a3; color: #fff; border-radius: 4px; font-size: 11px; font-weight: 700; padding: 2px 7px; }
+  .tasks-filters { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .filter-select {
+    border: 1px solid var(--border); border-radius: 5px; padding: 5px 10px;
+    font-size: 12px; color: var(--text-muted); background: #fff; cursor: pointer; outline: none;
+  }
+
+  .task-list { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .task-item {
+    display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+    border-bottom: 1px solid var(--border); background: #fff; transition: background 0.12s;
+  }
+  .task-item:last-child { border-bottom: none; }
+  .task-item:hover { background: #f8fafc; }
+  .task-item.sub-task { padding-left: 40px; background: #fafbff; border-left: 3px solid var(--badge-curriculum); }
+  .task-item.sub-task:hover { background: #f0f4ff; }
+
+  .task-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 3px;
+    color: #fff; text-transform: uppercase; letter-spacing: 0.4px; flex-shrink: 0;
+  }
+  .task-badge.report { background: var(--badge-report); }
+  .task-badge.review { background: var(--badge-review); }
+  .task-badge.curriculum { background: var(--badge-curriculum); }
+
+  .task-info { flex: 1; min-width: 0; }
+  .task-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+  .task-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .task-sub-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; display: flex; align-items: center; gap: 4px; }
+  .task-sub-desc svg { width: 12px; height: 12px; }
+
+  .task-actions { display: flex; align-items: center; gap: 8px; }
+  .task-btn {
+    border: 1px solid var(--border); background: #fff; color: var(--text-primary);
+    border-radius: 5px; padding: 5px 12px; font-size: 12px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 5px; white-space: nowrap;
+  }
+  .task-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+  .task-btn.play { border-color: var(--badge-curriculum); color: var(--badge-curriculum); }
+  .task-btn.play:hover { background: var(--badge-curriculum); color: #fff; }
+  .task-progress { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+  .progress-pill { display: inline-flex; align-items: center; gap: 4px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 12px; padding: 2px 8px; font-size: 10px; font-weight: 600; }
+
+  /* ── Actions panel ── */
+  .actions-panel { width: 260px; border-left: 1px solid var(--border); padding: 24px 20px; background: #fff; }
+  .actions-panel h2 { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 16px; }
+  .actions-panel h2 svg { color: var(--warn-amber); }
+  .action-add-btn {
+    width: 100%; background: #5547a3; color: #fff; border: none;
+    border-radius: 6px; padding: 11px; font-size: 13px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 12px;
+  }
+  .action-add-btn:hover { background: #4d3e9e; }
+  .action-link {
+    display: flex; align-items: center; gap: 10px; padding: 10px 0;
+    border-bottom: 1px solid var(--border); color: var(--text-primary); text-decoration: none; cursor: pointer;
+    font-size: 13px; font-weight: 500;
+  }
+  .action-link:hover { color: var(--accent-blue); }
+  .action-link:last-child { border-bottom: none; }
+  .action-link svg { color: var(--text-muted); width: 16px; height: 16px; flex-shrink: 0; }
+
+  /* ── Course Player Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: #0f0f1a; border-radius: 12px; width: 1020px; max-width: 96vw;
+    height: 84vh; display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    transform: scale(0.95); transition: transform 0.2s;
+  }
+  .modal-overlay.open .modal { transform: scale(1); }
+
+  .modal-header {
+    background: #1a1a2e; padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .modal-header h3 { color: #f1f5f9; font-size: 15px; font-weight: 700; flex: 1; }
+  .modal-header .badge { background: var(--badge-curriculum); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 3px; text-transform: uppercase; }
+  .modal-close {
+    background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer;
+    padding: 4px; border-radius: 4px; display: flex;
+  }
+  .modal-close:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+  .modal-body { display: flex; flex: 1; overflow: hidden; }
+
+  /* Lesson sidebar */
+  .lesson-sidebar {
+    width: 240px; background: #12122a; border-right: 1px solid rgba(255,255,255,0.07);
+    overflow-y: auto; padding: 12px 0;
+  }
+  .lesson-sidebar::-webkit-scrollbar { width: 4px; }
+  .lesson-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+  .chapter-label {
+    padding: 8px 16px 4px; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    color: rgba(255,255,255,0.3); text-transform: uppercase;
+  }
+  .lesson-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 16px;
+    cursor: pointer; transition: background 0.12s;
+  }
+  .lesson-item:hover { background: rgba(255,255,255,0.05); }
+  .lesson-item.active { background: rgba(74,108,247,0.2); border-left: 3px solid var(--accent-blue); }
+  .lesson-icon { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .lesson-icon.complete { background: #059669; }
+  .lesson-icon.active-icon { background: var(--accent-blue); }
+  .lesson-icon.locked { background: rgba(255,255,255,0.1); }
+  .lesson-icon svg { width: 12px; height: 12px; color: #fff; }
+  .lesson-title { font-size: 12px; color: rgba(255,255,255,0.75); line-height: 1.35; }
+  .lesson-item.active .lesson-title { color: #fff; font-weight: 600; }
+  .lesson-duration { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 2px; }
+
+  /* Player area */
+  .player-area {
+    flex: 1; display: flex; flex-direction: column; background: #0a0a18; min-width: 0;
+  }
+  .video-stage {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at center, #1a1a3a 0%, #0a0a18 70%);
+    position: relative; overflow: hidden;
+  }
+  .video-glow { position: absolute; width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(circle, rgba(74,108,247,0.15) 0%, transparent 70%); }
+  .play-center {
+    display: flex; flex-direction: column; align-items: center; gap: 16px; z-index: 1;
+  }
+  .big-play-btn {
+    width: 72px; height: 72px; border-radius: 50%; background: var(--accent-blue);
+    border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 0 12px rgba(74,108,247,0.15), 0 0 0 24px rgba(74,108,247,0.06);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .big-play-btn:hover { transform: scale(1.08); box-shadow: 0 0 0 16px rgba(74,108,247,0.2), 0 0 0 32px rgba(74,108,247,0.08); }
+  .big-play-btn svg { width: 30px; height: 30px; color: #fff; margin-left: 3px; }
+  .play-label { color: rgba(255,255,255,0.6); font-size: 13px; font-weight: 500; }
+  .lesson-active-name { color: #fff; font-size: 15px; font-weight: 700; text-align: center; }
+
+  .player-controls {
+    background: #12122a; padding: 12px 20px; display: flex; align-items: center; gap: 16px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
+  .ctrl-btn { background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; padding: 4px; border-radius: 4px; display: flex; }
+  .ctrl-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
+  .ctrl-btn svg { width: 18px; height: 18px; }
+  .progress-bar-wrap { flex: 1; height: 4px; background: rgba(255,255,255,0.12); border-radius: 2px; cursor: pointer; position: relative; }
+  .progress-bar-fill { height: 100%; background: var(--accent-blue); border-radius: 2px; width: 0%; transition: width 0.3s; }
+  .progress-bar-thumb { position: absolute; top: 50%; right: -6px; transform: translateY(-50%); width: 12px; height: 12px; background: var(--accent-blue); border-radius: 50%; }
+  .time-label { color: rgba(255,255,255,0.4); font-size: 11px; white-space: nowrap; }
+  .vol-wrap { display: flex; align-items: center; gap: 6px; }
+  .open-link { color: rgba(255,255,255,0.4); font-size: 11px; text-decoration: none; display: flex; align-items: center; gap: 4px; }
+  .open-link:hover { color: rgba(255,255,255,0.7); }
+  .open-link svg { width: 12px; height: 12px; }
+
+  /* iframe view */
+  .player-iframe { width: 100%; height: 100%; border: none; display: none; }
+  .player-iframe.visible { display: block; }
+
+  /* Shimmer loading */
+  @keyframes shimmer { 0% { background-position: -600px 0; } 100% { background-position: 600px 0; } }
+  .shimmer { background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%); background-size: 600px 100%; animation: shimmer 1.5s infinite; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- Impersonation bar -->
+<div class="impersonation-bar">
+  <span class="warn-icon">⚠</span>
+  <span><strong>Impersonating:</strong> Church HR (churchdemo@psbi.com)</span>
+  <span class="sep">|</span>
+  <span><strong>Original Admin:</strong> Ryan Sandberg</span>
+  <button class="stop-btn">✕ Stop Impersonating</button>
+</div>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <img src="data:image/png;base64,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" alt="PS" style="height:40px;display:block;" />
+  </div>
+  <div class="topbar-search">
+    <span class="search-icon">🔍</span>
+    <input type="text" placeholder="Search consumers, reports, or type a command…" />
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-icon">🔔</span>
+    <span class="topbar-icon">⚙</span>
+    <div class="topbar-avatar">CH</div>
+    <span class="topbar-name">Church HR</span>
+  </div>
+</div>
+
+<!-- Layout -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <button class="sidebar-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Order Services
+    </button>
+    <div class="sidebar-divider"></div>
+    <a class="sidebar-item active" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </a>
+    <a class="sidebar-item" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+      Adverse Actions
+    </a>
+    <a class="sidebar-item" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Invoices
+    </a>
+    <a class="sidebar-item" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Profile
+    </a>
+    <a class="sidebar-item" href="#" onclick="event.preventDefault()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+      Catalog
+    </a>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Hero -->
+    <div class="hero">
+      <h1>Welcome back, Church</h1>
+      <p>Your compliance overview at a glance.</p>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-top">
+          <div class="stat-icon consumers">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          </div>
+          <div>
+            <div class="stat-value">33</div>
+            <div class="stat-label">Total Consumers</div>
+          </div>
+        </div>
+        <div class="stat-link">ⓘ Click to view all</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top">
+          <div class="stat-icon attention">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div>
+            <div class="stat-value attention">24</div>
+            <div class="stat-label">Need Attention</div>
+          </div>
+        </div>
+        <div class="stat-link">⊿ Click to filter</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top">
+          <div class="stat-icon expiring">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div>
+            <div class="stat-value">0</div>
+            <div class="stat-label">Expiring Soon</div>
+          </div>
+        </div>
+        <div class="stat-link">⊿ Click to filter</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top">
+          <div class="stat-icon compliance">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <div>
+            <div class="stat-value compliance-pct">51%</div>
+            <div class="stat-label">Overall Compliance</div>
+          </div>
+        </div>
+        <div class="compliance-bar"><div class="compliance-bar-fill"></div></div>
+        <div class="stat-link">◎ All requirements</div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content-area">
+
+      <!-- Tasks -->
+      <div class="tasks-panel">
+        <div class="tasks-header">
+          <h2>My Tasks</h2>
+          <span class="task-count">38</span>
+          <div class="tasks-filters">
+            <select class="filter-select"><option>All Types</option><option>Report</option><option>Review</option><option>Curriculum</option></select>
+            <select class="filter-select"><option>Sort: Priority</option><option>Sort: Name</option><option>Sort: Date</option></select>
+          </div>
+        </div>
+
+        <div class="task-list">
+
+          <!-- Jordan Ellis — Report -->
+          <div class="task-item">
+            <span class="task-badge report">Report</span>
+            <div class="task-info">
+              <div class="task-name">Jordan Ellis</div>
+              <div class="task-desc">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="display:inline;vertical-align:middle;margin-right:3px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Review Report – Jordan Ellis
+              </div>
+            </div>
+            <div class="task-actions">
+              <button class="task-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
+                View Report
+              </button>
+            </div>
+          </div>
+
+          <!-- Jordan Ellis — Leadership Curriculum (sub-task) -->
+          <div class="task-item sub-task" id="curriculum-task">
+            <span class="task-badge curriculum">Curriculum</span>
+            <div class="task-info">
+              <div class="task-name">Jordan Ellis</div>
+              <div class="task-desc">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="display:inline;vertical-align:middle;margin-right:3px"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Leadership Curriculum — 5 Lessons · 2h 15m
+              </div>
+              <div class="task-sub-desc">
+                <span class="progress-pill">▶ 2 of 5 complete</span>
+              </div>
+            </div>
+            <div class="task-actions">
+              <button class="task-btn play" onclick="openPlayer()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Launch Course
+              </button>
+            </div>
+          </div>
+
+          <!-- David Sidebotham -->
+          <div class="task-item">
+            <span class="task-badge report">Report</span>
+            <div class="task-info">
+              <div class="task-name">David Sidebotham</div>
+              <div class="task-desc">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="display:inline;vertical-align:middle;margin-right:3px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
+                Review Report – David Sidebotham
+              </div>
+            </div>
+            <div class="task-actions">
+              <button class="task-btn">Review Report</button>
+            </div>
+          </div>
+
+          <!-- John Anderson -->
+          <div class="task-item">
+            <span class="task-badge review">Review</span>
+            <div class="task-info">
+              <div class="task-name">John Anderson</div>
+              <div class="task-desc">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="display:inline;vertical-align:middle;margin-right:3px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
+                Review Transaction – MVR (Motor Vehicle Records)
+              </div>
+            </div>
+            <div class="task-actions">
+              <button class="task-btn">Review</button>
+            </div>
+          </div>
+
+          <!-- Ryan Sandberg -->
+          <div class="task-item">
+            <span class="task-badge review">Review</span>
+            <div class="task-info">
+              <div class="task-name">Ryan Sandberg</div>
+              <div class="task-desc">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="display:inline;vertical-align:middle;margin-right:3px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
+                Review Transaction – National Criminal Scan
+              </div>
+            </div>
+            <div class="task-actions">
+              <button class="task-btn">Review</button>
+            </div>
+          </div>
+
+          <!-- Tom Anderson -->
+          <div class="task-item">
+            <span class="task-badge review">Review</span>
+            <div class="task-info">
+              <div class="task-name">Tom Anderson</div>
+              <div class="task-desc">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="display:inline;vertical-align:middle;margin-right:3px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
+                Review Transaction – National Criminal Scan, County Criminal, Federal Criminal (PACER), National Sex Offender Registry (NSOPW)
+              </div>
+            </div>
+            <div class="task-actions">
+              <button class="task-btn">Review</button>
+            </div>
+          </div>
+
+          <!-- Billy Anderson -->
+          <div class="task-item">
+            <span class="task-badge review">Review</span>
+            <div class="task-info">
+              <div class="task-name">Billy Anderson</div>
+              <div class="task-desc">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="display:inline;vertical-align:middle;margin-right:3px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
+                Review Transaction – National Criminal Scan
+              </div>
+            </div>
+            <div class="task-actions">
+              <button class="task-btn">Review</button>
+            </div>
+          </div>
+
+          <!-- Sarah Henderson -->
+          <div class="task-item">
+            <span class="task-badge review">Review</span>
+            <div class="task-info">
+              <div class="task-name">Sarah Henderson</div>
+              <div class="task-desc">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="display:inline;vertical-align:middle;margin-right:3px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
+                Review Transaction – County Criminal
+              </div>
+            </div>
+            <div class="task-actions">
+              <button class="task-btn">Review</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- My Actions -->
+      <div class="actions-panel">
+        <h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="color:#f59e0b"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          My Actions
+        </h2>
+        <button class="action-add-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          + Add Consumer
+        </button>
+        <a class="action-link" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          Checklists
+        </a>
+        <a class="action-link" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+          Tags
+        </a>
+        <a class="action-link" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+          Onboarding Links
+        </a>
+        <a class="action-link" href="#" onclick="event.preventDefault();openPlayer()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Leadership Curriculum
+        </a>
+      </div>
+
+    </div><!-- /content-area -->
+  </main>
+</div><!-- /layout -->
+
+
+<!-- ── Course Player Modal ── -->
+<div class="modal-overlay" id="playerModal" onclick="handleOverlayClick(event)">
+  <div class="modal">
+
+    <div class="modal-header">
+      <span class="badge">Curriculum</span>
+      <h3>Leadership Curriculum</h3>
+      <span style="color:rgba(255,255,255,0.35);font-size:12px">Jordan Ellis · 2 of 5 complete</span>
+      <button class="modal-close" onclick="closePlayer()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+
+      <!-- Lesson sidebar -->
+      <div class="lesson-sidebar">
+        <div class="chapter-label">Chapter 1 — Foundations</div>
+
+        <div class="lesson-item" onclick="selectLesson(this, 'Intro to Leadership', '8m')" data-done="true">
+          <div class="lesson-icon complete">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div>
+            <div class="lesson-title">Intro to Leadership</div>
+            <div class="lesson-duration">8 min · Complete</div>
+          </div>
+        </div>
+
+        <div class="lesson-item" onclick="selectLesson(this, 'Core Values & Vision', '14m')" data-done="true">
+          <div class="lesson-icon complete">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div>
+            <div class="lesson-title">Core Values &amp; Vision</div>
+            <div class="lesson-duration">14 min · Complete</div>
+          </div>
+        </div>
+
+        <div class="chapter-label">Chapter 2 — Communication</div>
+
+        <div class="lesson-item active" id="activeLessonItem" onclick="selectLesson(this, 'Communication Frameworks', '22m')">
+          <div class="lesson-icon active-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="10" height="10"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </div>
+          <div>
+            <div class="lesson-title">Communication Frameworks</div>
+            <div class="lesson-duration">22 min · In progress</div>
+          </div>
+        </div>
+
+        <div class="lesson-item" onclick="selectLesson(this, 'Active Listening Skills', '18m')">
+          <div class="lesson-icon locked">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" height="10"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          </div>
+          <div>
+            <div class="lesson-title">Active Listening Skills</div>
+            <div class="lesson-duration">18 min</div>
+          </div>
+        </div>
+
+        <div class="chapter-label">Chapter 3 — Strategy</div>
+
+        <div class="lesson-item" onclick="selectLesson(this, 'Decision Making Under Pressure', '33m')">
+          <div class="lesson-icon locked">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" height="10"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          </div>
+          <div>
+            <div class="lesson-title">Decision Making Under Pressure</div>
+            <div class="lesson-duration">33 min</div>
+          </div>
+        </div>
+
+      </div><!-- /lesson-sidebar -->
+
+      <!-- Player area -->
+      <div class="player-area">
+        <div class="video-stage" id="videoStage">
+          <div class="video-glow"></div>
+          <div class="play-center">
+            <div class="lesson-active-name" id="activeLessonName">Communication Frameworks</div>
+            <button class="big-play-btn" onclick="simulatePlay()">
+              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </button>
+            <div class="play-label">Click to play lesson</div>
+          </div>
+          <!-- In a real implementation, an Absorb lessonplayer iframe loads here -->
+        </div>
+
+        <div class="player-controls">
+          <button class="ctrl-btn" onclick="simulatePlay()">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+          <button class="ctrl-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+          </button>
+          <button class="ctrl-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+          </button>
+          <div class="progress-bar-wrap" id="progressBarWrap" onclick="scrubProgress(event)">
+            <div class="progress-bar-fill" id="progressFill"></div>
+            <div class="progress-bar-thumb"></div>
+          </div>
+          <span class="time-label" id="timeLabel">0:00 / 22:00</span>
+          <div class="vol-wrap">
+            <button class="ctrl-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
+            </button>
+          </div>
+          <a class="open-link" href="#" onclick="return false;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Open in Absorb
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  function openPlayer() {
+    document.getElementById('playerModal').classList.add('open');
+  }
+  function closePlayer() {
+    document.getElementById('playerModal').classList.remove('open');
+    clearInterval(window._playInterval);
+  }
+  function handleOverlayClick(e) {
+    if (e.target === document.getElementById('playerModal')) closePlayer();
+  }
+
+  function selectLesson(el, name, dur) {
+    document.querySelectorAll('.lesson-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('activeLessonName').textContent = name;
+    // Reset progress
+    document.getElementById('progressFill').style.width = '0%';
+    const totalMin = parseInt(dur);
+    document.getElementById('timeLabel').textContent = `0:00 / ${totalMin}:00`;
+    clearInterval(window._playInterval);
+  }
+
+  let _playing = false;
+  let _elapsed = 0;
+  let _total = 22 * 60;
+
+  function simulatePlay() {
+    if (_playing) return;
+    _playing = true;
+    _elapsed = 0;
+    _total = 22 * 60;
+    window._playInterval = setInterval(() => {
+      _elapsed += 1;
+      const pct = Math.min((_elapsed / _total) * 100, 100);
+      document.getElementById('progressFill').style.width = pct + '%';
+      const m = Math.floor(_elapsed / 60);
+      const s = _elapsed % 60;
+      const tm = Math.floor(_total / 60);
+      document.getElementById('timeLabel').textContent =
+        `${m}:${String(s).padStart(2,'0')} / ${tm}:00`;
+      if (_elapsed >= _total) { clearInterval(window._playInterval); _playing = false; }
+    }, 100); // sped up 10× for demo
+  }
+
+  function scrubProgress(e) {
+    const bar = document.getElementById('progressBarWrap');
+    const rect = bar.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    document.getElementById('progressFill').style.width = (pct * 100) + '%';
+    _elapsed = Math.round(pct * _total);
+    const m = Math.floor(_elapsed / 60);
+    const s = _elapsed % 60;
+    const tm = Math.floor(_total / 60);
+    document.getElementById('timeLabel').textContent =
+      `${m}:${String(s).padStart(2,'0')} / ${tm}:00`;
+  }
+
+  // Close on Escape
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePlayer(); });
+</script>
+
+</body>
+</html>
