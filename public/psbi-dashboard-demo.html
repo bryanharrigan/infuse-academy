@@ -286,6 +286,10 @@
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: contain; background: #0a0a18;
   }
+  .il-frame-el {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    border: none; background: #0a0a18;
+  }
   /* Overlay shown before first play / when paused on start */
   .il-overlay {
     position: absolute; inset: 0;
@@ -448,12 +452,16 @@
   .modal-player-stage { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
   .modal-video-wrap {
-    position: relative; width: 100%; aspect-ratio: 16/9;
-    background: #0a0a18; flex-shrink: 0; overflow: hidden;
+    position: relative; width: 100%; flex: 1;
+    min-height: 0; background: #0a0a18; overflow: hidden;
   }
   .modal-video-el {
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: contain; background: #0a0a18;
+  }
+  .mp-frame-el {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    border: none; background: #0a0a18;
   }
   .modal-video-overlay {
     position: absolute; inset: 0;
@@ -647,78 +655,21 @@
           <!-- Inline course player (expands below) -->
           <div class="inline-player-wrap" id="inlinePlayer">
 
-            <!-- Lesson list -->
+            <!-- Lesson list (dynamically populated) -->
             <div class="inline-lesson-list">
               <div class="il-header">
                 <span class="il-header-title">Absorb LMS Training Curriculum</span>
                 <button class="il-close" onclick="toggleInlinePlayer()">✕</button>
               </div>
-
-              <div class="il-chapter">Module 1 — Platform Overview</div>
-              <div class="il-lesson" onclick="ilSelectLesson(this,'Getting Started with Absorb',false)">
-                <div class="il-arrow done">✓</div>
-                <div class="il-meta"><div class="il-title">Getting Started with Absorb</div><div class="il-dur">12 min · Complete</div></div>
-              </div>
-              <div class="il-lesson" onclick="ilSelectLesson(this,'Navigating the Admin Portal',false)">
-                <div class="il-arrow done">✓</div>
-                <div class="il-meta"><div class="il-title">Navigating the Admin Portal</div><div class="il-dur">18 min · Complete</div></div>
-              </div>
-
-              <div class="il-chapter">Module 2 — Course Management</div>
-              <div class="il-lesson il-active" id="ilActiveLesson" onclick="ilSelectLesson(this,'Building & Publishing Courses',false)">
-                <div class="il-arrow playing">▶</div>
-                <div class="il-meta"><div class="il-title">Building &amp; Publishing Courses</div><div class="il-dur">24 min · In progress</div></div>
-              </div>
-              <div class="il-lesson" onclick="ilSelectLesson(this,'Enrollment Rules & Automation',false)">
-                <div class="il-arrow next">▶</div>
-                <div class="il-meta"><div class="il-title">Enrollment Rules &amp; Automation</div><div class="il-dur">21 min</div></div>
-              </div>
-
-              <div class="il-chapter">Module 3 — Reporting</div>
-              <div class="il-lesson il-locked" onclick="ilSelectLesson(this,'Completion Reports & Analytics',true)">
-                <div class="il-arrow locked">🔒</div>
-                <div class="il-meta"><div class="il-title">Completion Reports &amp; Analytics</div><div class="il-dur">20 min · Locked</div></div>
+              <div id="ilLessonList">
+                <div style="padding:16px;color:rgba(255,255,255,0.4);font-size:12px;">Click Launch Course to load…</div>
               </div>
             </div>
 
-            <!-- Player -->
+            <!-- Player — Absorb iframe -->
             <div class="inline-player-stage">
-              <!-- 16:9 video wrapper -->
               <div class="il-video-wrap">
-                <video id="ilVideo" class="il-video-el" preload="metadata"></video>
-                <!-- Overlay: shown before play starts -->
-                <div class="il-overlay" id="ilOverlay" onclick="ilPlay()">
-                  <div class="il-glow"></div>
-                  <div class="il-lesson-name" id="ilLessonName">Building &amp; Publishing Courses</div>
-                  <button class="il-big-play" onclick="ilPlay();event.stopPropagation()">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  </button>
-                  <div class="il-play-hint">Click to play</div>
-                </div>
-              </div>
-              <!-- Controls bar -->
-              <div class="il-controls">
-                <button class="il-ctrl" id="ilPlayBtn" onclick="ilPlay()">
-                  <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                </button>
-                <button class="il-ctrl" onclick="ilSkip(-10)" title="Rewind 10s">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
-                </button>
-                <button class="il-ctrl" onclick="ilSkip(10)" title="Forward 10s">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
-                </button>
-                <div class="il-bar-wrap" id="ilBarWrap" onclick="ilScrub(event)">
-                  <div class="il-bar-fill" id="ilBarFill"></div>
-                  <div class="il-bar-thumb" id="ilBarThumb"></div>
-                </div>
-                <span class="il-time" id="ilTime">0:00 / 0:00</span>
-                <button class="il-ctrl" onclick="ilToggleMute()" id="ilVolBtn" title="Mute/Unmute">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
-                </button>
-                <a class="il-open-link" href="#" onclick="return false;">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                  Open in Absorb
-                </a>
+                <iframe id="ilFrame" class="il-frame-el" src="about:blank" allowfullscreen allow="autoplay; fullscreen"></iframe>
               </div>
             </div>
 
@@ -869,192 +820,9 @@
     </div>
 
     <div class="catalog-grid" id="catalogGrid">
-
-      <div class="course-card" data-cat="tech">
-        <div class="course-thumb" style="background:linear-gradient(135deg,#1a1a3a,#2d2d5a)">
-          <span>🎓</span>
-          <span class="thumb-badge required">Required</span>
-        </div>
-        <div class="course-body">
-          <div class="course-category">Technology</div>
-          <div class="course-title">Absorb LMS Training Curriculum</div>
-          <div class="course-desc">Master the Absorb LMS platform — from admin setup to course publishing, enrollment rules, and reporting.</div>
-          <div class="course-meta">
-            <span>📚 5 lessons</span>
-            <span>⏱ 2h 15m</span>
-          </div>
-        </div>
-        <div class="course-footer">
-          <span class="course-duration">5 modules</span>
-          <div class="course-footer-btns">
-            <button class="launch-course-btn" onclick="launchFromCatalog('Absorb LMS Training Curriculum')">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11"><polygon points="5 3 19 12 5 21 5 3"/></svg> Launch
-            </button>
-            <button class="enroll-btn enrolled" disabled>✓ Enrolled</button>
-          </div>
-        </div>
+      <div style="grid-column:1/-1;text-align:center;padding:40px;color:#5547a3;font-weight:600;">
+        Loading courses from Absorb LMS…
       </div>
-
-      <div class="course-card" data-cat="compliance">
-        <div class="course-thumb" style="background:linear-gradient(135deg,#1e3a5f,#2563eb)">
-          <span>⚖️</span>
-          <span class="thumb-badge required">Required</span>
-        </div>
-        <div class="course-body">
-          <div class="course-category">Compliance</div>
-          <div class="course-title">HIPAA Privacy & Security Training</div>
-          <div class="course-desc">Understand HIPAA regulations, protected health information, and your obligations under the Privacy and Security Rules.</div>
-          <div class="course-meta">
-            <span>📚 4 lessons</span>
-            <span>⏱ 1h 30m</span>
-          </div>
-        </div>
-        <div class="course-footer">
-          <span class="course-duration">4 modules</span>
-          <button class="enroll-btn" onclick="enrollCourse(this)">Enroll</button>
-        </div>
-      </div>
-
-      <div class="course-card" data-cat="compliance">
-        <div class="course-thumb" style="background:linear-gradient(135deg,#3a1e1e,#dc2626)">
-          <span>🛡️</span>
-          <span class="thumb-badge required">Required</span>
-        </div>
-        <div class="course-body">
-          <div class="course-category">Compliance</div>
-          <div class="course-title">Data Privacy & Security Essentials</div>
-          <div class="course-desc">Learn how to protect sensitive data, recognize phishing, manage access controls, and respond to security incidents.</div>
-          <div class="course-meta">
-            <span>📚 6 lessons</span>
-            <span>⏱ 2h 45m</span>
-          </div>
-        </div>
-        <div class="course-footer">
-          <span class="course-duration">6 modules</span>
-          <button class="enroll-btn" onclick="enrollCourse(this)">Enroll</button>
-        </div>
-      </div>
-
-      <div class="course-card" data-cat="safety">
-        <div class="course-thumb" style="background:linear-gradient(135deg,#1a3a1a,#16a34a)">
-          <span>🦺</span>
-          <span class="thumb-badge optional">Optional</span>
-        </div>
-        <div class="course-body">
-          <div class="course-category">Safety</div>
-          <div class="course-title">Workplace Safety Fundamentals</div>
-          <div class="course-desc">Core safety practices for the modern workplace including emergency procedures, hazard identification, and incident reporting.</div>
-          <div class="course-meta">
-            <span>📚 5 lessons</span>
-            <span>⏱ 1h 50m</span>
-          </div>
-        </div>
-        <div class="course-footer">
-          <span class="course-duration">5 modules</span>
-          <button class="enroll-btn" onclick="enrollCourse(this)">Enroll</button>
-        </div>
-      </div>
-
-      <div class="course-card" data-cat="compliance">
-        <div class="course-thumb" style="background:linear-gradient(135deg,#3a2e1a,#d97706)">
-          <span>🤝</span>
-          <span class="thumb-badge required">Required</span>
-        </div>
-        <div class="course-body">
-          <div class="course-category">Compliance</div>
-          <div class="course-title">Sexual Harassment Prevention</div>
-          <div class="course-desc">Identify, prevent, and report sexual harassment in the workplace. Covers bystander intervention and reporting channels.</div>
-          <div class="course-meta">
-            <span>📚 3 lessons</span>
-            <span>⏱ 1h 15m</span>
-          </div>
-        </div>
-        <div class="course-footer">
-          <span class="course-duration">3 modules</span>
-          <button class="enroll-btn" onclick="enrollCourse(this)">Enroll</button>
-        </div>
-      </div>
-
-      <div class="course-card" data-cat="leadership">
-        <div class="course-thumb" style="background:linear-gradient(135deg,#2d1a3a,#7c3aed)">
-          <span>🌟</span>
-          <span class="thumb-badge new">New</span>
-        </div>
-        <div class="course-body">
-          <div class="course-category">Leadership</div>
-          <div class="course-title">Leadership Fundamentals for Managers</div>
-          <div class="course-desc">Build essential leadership skills — from giving feedback and running 1:1s to managing conflict and driving team performance.</div>
-          <div class="course-meta">
-            <span>📚 7 lessons</span>
-            <span>⏱ 3h 10m</span>
-          </div>
-        </div>
-        <div class="course-footer">
-          <span class="course-duration">7 modules</span>
-          <button class="enroll-btn" onclick="enrollCourse(this)">Enroll</button>
-        </div>
-      </div>
-
-      <div class="course-card" data-cat="safety">
-        <div class="course-thumb" style="background:linear-gradient(135deg,#1a2a3a,#0284c7)">
-          <span>🚑</span>
-          <span class="thumb-badge optional">Optional</span>
-        </div>
-        <div class="course-body">
-          <div class="course-category">Safety</div>
-          <div class="course-title">First Aid & Emergency Response</div>
-          <div class="course-desc">Learn CPR, AED use, and emergency response procedures to handle medical situations in the workplace with confidence.</div>
-          <div class="course-meta">
-            <span>📚 4 lessons</span>
-            <span>⏱ 2h 00m</span>
-          </div>
-        </div>
-        <div class="course-footer">
-          <span class="course-duration">4 modules</span>
-          <button class="enroll-btn" onclick="enrollCourse(this)">Enroll</button>
-        </div>
-      </div>
-
-      <div class="course-card" data-cat="compliance">
-        <div class="course-thumb" style="background:linear-gradient(135deg,#1a3a2a,#059669)">
-          <span>📋</span>
-          <span class="thumb-badge new">New</span>
-        </div>
-        <div class="course-body">
-          <div class="course-category">Compliance</div>
-          <div class="course-title">Background Check Compliance</div>
-          <div class="course-desc">Navigate FCRA requirements, adverse action procedures, and best practices for using background check data responsibly.</div>
-          <div class="course-meta">
-            <span>📚 4 lessons</span>
-            <span>⏱ 1h 40m</span>
-          </div>
-        </div>
-        <div class="course-footer">
-          <span class="course-duration">4 modules</span>
-          <button class="enroll-btn" onclick="enrollCourse(this)">Enroll</button>
-        </div>
-      </div>
-
-      <div class="course-card" data-cat="leadership">
-        <div class="course-thumb" style="background:linear-gradient(135deg,#1e1e3a,#35366f)">
-          <span>💬</span>
-          <span class="thumb-badge optional">Optional</span>
-        </div>
-        <div class="course-body">
-          <div class="course-category">Leadership</div>
-          <div class="course-title">Effective Communication in the Workplace</div>
-          <div class="course-desc">Master written, verbal, and non-verbal communication strategies to collaborate more effectively across your organization.</div>
-          <div class="course-meta">
-            <span>📚 5 lessons</span>
-            <span>⏱ 2h 20m</span>
-          </div>
-        </div>
-        <div class="course-footer">
-          <span class="course-duration">5 modules</span>
-          <button class="enroll-btn" onclick="enrollCourse(this)">Enroll</button>
-        </div>
-      </div>
-
     </div>
 
   </div><!-- /view-catalog -->
@@ -1075,37 +843,10 @@
       <!-- Lesson list -->
       <div class="modal-lesson-list" id="modalLessonList"></div>
 
-      <!-- Player -->
+      <!-- Player — Absorb iframe -->
       <div class="modal-player-stage">
         <div class="modal-video-wrap">
-          <video id="mpVideo" class="modal-video-el" preload="metadata"></video>
-          <div class="modal-video-overlay" id="mpOverlay" onclick="mpPlay()">
-            <div class="il-glow"></div>
-            <div class="il-lesson-name" id="mpLessonName">Loading…</div>
-            <button class="il-big-play" onclick="mpPlay();event.stopPropagation()">
-              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            </button>
-            <div class="il-play-hint">Click to play</div>
-          </div>
-        </div>
-        <div class="il-controls" style="background:#1a1a3a;border-top:1px solid rgba(85,71,163,0.25);">
-          <button class="il-ctrl" id="mpPlayBtn" onclick="mpPlay()">
-            <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          </button>
-          <button class="il-ctrl" onclick="mpSkip(-10)" title="Rewind 10s">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
-          </button>
-          <button class="il-ctrl" onclick="mpSkip(10)" title="Forward 10s">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
-          </button>
-          <div class="il-bar-wrap" id="mpBarWrap" onclick="mpScrub(event)">
-            <div class="il-bar-fill" id="mpBarFill"></div>
-            <div class="il-bar-thumb" id="mpBarThumb"></div>
-          </div>
-          <span class="il-time" id="mpTime">0:00 / 0:00</span>
-          <button class="il-ctrl" id="mpVolBtn" onclick="mpToggleMute()" title="Mute">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
-          </button>
+          <iframe id="mpFrame" class="mp-frame-el" src="about:blank" allowfullscreen allow="autoplay; fullscreen"></iframe>
         </div>
       </div>
 
@@ -1115,6 +856,11 @@
 
 <script>
   /* ════════════════════════════════════
+     Constants
+  ════════════════════════════════════ */
+  const CURRICULUM_ID = '8ba748f0-cbd4-40a9-9196-5331b204832f';
+
+  /* ════════════════════════════════════
      View switching
   ════════════════════════════════════ */
   function showView(name, linkEl) {
@@ -1122,11 +868,108 @@
     document.getElementById('view-' + name).classList.add('active');
     document.querySelectorAll('.sidebar-item').forEach(a => a.classList.remove('active'));
     if (linkEl) linkEl.classList.add('active');
+    if (name === 'catalog' && !window._catalogLoaded) loadCatalog();
   }
 
   /* ════════════════════════════════════
-     Catalog filters
+     Catalog — real API
   ════════════════════════════════════ */
+  const COURSE_TYPE_ICONS = {
+    OnlineCourse: '🎓',
+    InstructorLedCourse: '📅',
+    Curriculum: '📚',
+    default: '📖',
+  };
+
+  const COURSE_GRADIENTS = [
+    'linear-gradient(135deg,#1a1a3a,#2d2d5a)',
+    'linear-gradient(135deg,#1e3a5f,#2563eb)',
+    'linear-gradient(135deg,#3a1e1e,#dc2626)',
+    'linear-gradient(135deg,#1a3a1a,#16a34a)',
+    'linear-gradient(135deg,#3a2e1a,#d97706)',
+    'linear-gradient(135deg,#2d1a3a,#7c3aed)',
+    'linear-gradient(135deg,#1a2a3a,#0284c7)',
+    'linear-gradient(135deg,#1a3a2a,#059669)',
+    'linear-gradient(135deg,#1e1e3a,#35366f)',
+  ];
+
+  function courseGradient(idx) {
+    return COURSE_GRADIENTS[idx % COURSE_GRADIENTS.length];
+  }
+
+  function courseTypeLabel(type) {
+    if (type === 'InstructorLedCourse') return 'Instructor-Led';
+    if (type === 'Curriculum') return 'Curriculum';
+    return 'Online Course';
+  }
+
+  function renderCatalogCard(course, idx) {
+    const icon = COURSE_TYPE_ICONS[course.courseType] || COURSE_TYPE_ICONS.default;
+    const gradient = courseGradient(idx);
+    const isEnrolled = course.enrollmentStatus && course.enrollmentStatus !== '';
+    const isCurriculum = course.courseType === 'Curriculum';
+    const title = course.name || course.title || 'Untitled';
+    const desc = course.description || 'No description available.';
+    const typeLabel = courseTypeLabel(course.courseType);
+    const courseId = course.id;
+
+    const enrollBtnHtml = isEnrolled
+      ? `<button class="enroll-btn enrolled" disabled>✓ Enrolled</button>`
+      : `<button class="enroll-btn" onclick="enrollInCourse(this,'${courseId}')">Enroll</button>`;
+
+    const launchBtnHtml = isEnrolled
+      ? `<button class="launch-course-btn" onclick="launchCourse('${courseId}','${title.replace(/'/g,"\\'")}','${course.courseType}')">
+           <svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11"><polygon points="5 3 19 12 5 21 5 3"/></svg> Launch
+         </button>`
+      : '';
+
+    return `
+      <div class="course-card" data-cat="${isCurriculum ? 'curriculum' : 'course'}" data-course-id="${courseId}">
+        <div class="course-thumb" style="background:${gradient}">
+          <span>${icon}</span>
+          <span class="thumb-badge ${isEnrolled ? 'optional' : 'required'}">${typeLabel}</span>
+        </div>
+        <div class="course-body">
+          <div class="course-category">${typeLabel}</div>
+          <div class="course-title">${title}</div>
+          <div class="course-desc">${desc.slice(0, 120)}${desc.length > 120 ? '…' : ''}</div>
+        </div>
+        <div class="course-footer">
+          <span class="course-duration">${isCurriculum ? 'Curriculum' : 'Online'}</span>
+          <div class="course-footer-btns">
+            ${launchBtnHtml}
+            ${enrollBtnHtml}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  async function loadCatalog() {
+    window._catalogLoaded = true;
+    const grid = document.getElementById('catalogGrid');
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#5547a3;font-weight:600;">Loading courses from Absorb LMS…</div>';
+
+    try {
+      const resp = await fetch('/api/psbi/catalog', { credentials: 'include' });
+      if (resp.status === 401) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#dc2626;">Not signed in — please <a href="/signin">sign in</a> to view the catalog.</div>';
+        return;
+      }
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      const courses = data._embedded?.courses ?? [];
+
+      if (courses.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#64748b;">No courses found in the catalog.</div>';
+        return;
+      }
+
+      grid.innerHTML = courses.map((c, i) => renderCatalogCard(c, i)).join('');
+    } catch (err) {
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:#dc2626;">Failed to load catalog: ${err.message}</div>`;
+    }
+  }
+
   function filterCat(chip, cat) {
     document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
     chip.classList.add('active');
@@ -1138,360 +981,275 @@
   function filterCatalog(q) {
     const lq = q.toLowerCase();
     document.querySelectorAll('.course-card').forEach(card => {
-      const text = card.querySelector('.course-title').textContent.toLowerCase();
-      card.style.display = text.includes(lq) ? '' : 'none';
+      const el = card.querySelector('.course-title');
+      if (!el) return;
+      card.style.display = el.textContent.toLowerCase().includes(lq) ? '' : 'none';
     });
   }
 
-  /* ════════════════════════════════════
-     Catalog enroll + launch
-  ════════════════════════════════════ */
-  // ── Video sources ──────────────────────────────────────────────
-  // Single local demo file for all lessons.
-  // In production: replace with real Absorb lessonplayer URLs per lesson.
-  const DEMO_VIDEO = '/demo-lesson.mp4';
-  const IL_SRCS = {
-    'Getting Started with Absorb':    DEMO_VIDEO,
-    'Navigating the Admin Portal':    DEMO_VIDEO,
-    'Building & Publishing Courses':  DEMO_VIDEO,
-    'Enrollment Rules & Automation':  DEMO_VIDEO,
-    'Completion Reports & Analytics': DEMO_VIDEO,
-  };
-  const DEFAULT_SRC = DEMO_VIDEO;
-
-  // Map catalog course titles to a video src for demo playback
-  const CATALOG_SRCS = {
-    default: DEMO_VIDEO,
-  };
-
-  function enrollCourse(btn) {
-    btn.textContent = '✓ Enrolled';
-    btn.classList.add('enrolled');
+  async function enrollInCourse(btn, courseId) {
+    btn.textContent = 'Enrolling…';
     btn.disabled = true;
+    try {
+      const resp = await fetch('/api/psbi/catalog', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId }),
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      btn.textContent = '✓ Enrolled';
+      btn.classList.add('enrolled');
 
-    // Add a Launch button next to the enrolled badge
-    const footer = btn.closest('.course-footer');
-    if (footer && !footer.querySelector('.launch-course-btn')) {
-      const launch = document.createElement('button');
-      launch.className = 'launch-course-btn';
-      launch.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11"><polygon points="5 3 19 12 5 21 5 3"/></svg> Launch';
-      const title = btn.closest('.course-card').querySelector('.course-title').textContent;
-      launch.onclick = () => launchFromCatalog(title);
-      footer.insertBefore(launch, btn);
+      // Add Launch button
+      const footer = btn.closest('.course-footer');
+      if (footer && !footer.querySelector('.launch-course-btn')) {
+        const card = btn.closest('.course-card');
+        const title = card.querySelector('.course-title').textContent;
+        const courseType = card.dataset.courseType || 'OnlineCourse';
+        const launch = document.createElement('button');
+        launch.className = 'launch-course-btn';
+        launch.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11"><polygon points="5 3 19 12 5 21 5 3"/></svg> Launch';
+        launch.onclick = () => launchCourse(courseId, title, courseType);
+        footer.querySelector('.course-footer-btns').insertBefore(launch, btn);
+      }
+    } catch (err) {
+      btn.textContent = 'Error — retry';
+      btn.disabled = false;
+      console.error('Enroll error:', err);
     }
   }
 
-  function launchFromCatalog(courseTitle) {
-    openPlayerModal(courseTitle);
+  /* ════════════════════════════════════
+     Launch course — catalog + dashboard
+  ════════════════════════════════════ */
+  function launchCourse(courseId, courseTitle, courseType) {
+    openPlayerModal(courseId, courseTitle);
   }
 
   /* ════════════════════════════════════
-     Course player modal
+     Modal player — iframe-based
   ════════════════════════════════════ */
+  let _mpCourseId = null;
 
-  // Lesson data per catalog course
-  const COURSE_LESSONS = {
-    'Absorb LMS Training Curriculum': [
-      { name: 'Getting Started with Absorb',    dur: '12 min', state: 'done',    src: IL_SRCS['Getting Started with Absorb'] },
-      { name: 'Navigating the Admin Portal',    dur: '18 min', state: 'done',    src: IL_SRCS['Navigating the Admin Portal'] },
-      { name: 'Building & Publishing Courses',  dur: '24 min', state: 'playing', src: IL_SRCS['Building & Publishing Courses'] },
-      { name: 'Enrollment Rules & Automation',  dur: '21 min', state: 'next',    src: IL_SRCS['Enrollment Rules & Automation'] },
-      { name: 'Completion Reports & Analytics', dur: '20 min', state: 'locked',  src: IL_SRCS['Completion Reports & Analytics'] },
-    ],
-    'HIPAA Privacy & Security Training': [
-      { name: 'HIPAA Overview & History',       dur: '18 min', state: 'next', src: CATALOG_SRCS.default },
-      { name: 'Protected Health Information',   dur: '22 min', state: 'next', src: CATALOG_SRCS.default },
-      { name: 'Privacy Rule Requirements',      dur: '25 min', state: 'next', src: CATALOG_SRCS.default },
-      { name: 'Security Rule & Safeguards',     dur: '25 min', state: 'next', src: CATALOG_SRCS.default },
-    ],
-    'Data Privacy & Security Essentials': [
-      { name: 'Data Classification Basics',     dur: '20 min', state: 'next', src: CATALOG_SRCS.default },
-      { name: 'Recognizing Phishing Attacks',   dur: '18 min', state: 'next', src: CATALOG_SRCS.default },
-      { name: 'Access Control Management',      dur: '22 min', state: 'next', src: CATALOG_SRCS.default },
-      { name: 'Password & MFA Best Practices',  dur: '18 min', state: 'next', src: CATALOG_SRCS.default },
-      { name: 'Incident Response Procedures',   dur: '20 min', state: 'next', src: CATALOG_SRCS.default },
-      { name: 'Data Breach Notification',       dur: '22 min', state: 'next', src: CATALOG_SRCS.default },
-    ],
-    'Sexual Harassment Prevention': [
-      { name: 'Defining Sexual Harassment',     dur: '25 min', state: 'next', src: CATALOG_SRCS.default },
-      { name: 'Bystander Intervention',         dur: '25 min', state: 'next', src: CATALOG_SRCS.default },
-      { name: 'Reporting & Support Channels',   dur: '25 min', state: 'next', src: CATALOG_SRCS.default },
-    ],
-    'Leadership Fundamentals for Managers': [
-      { name: 'What Makes a Great Leader',      dur: '25 min', state: 'next', src: CATALOG_SRCS.default },
-      { name: 'Giving Effective Feedback',      dur: '28 min', state: 'next', src: CATALOG_SRCS.default },
-      { name: 'Running Productive 1:1s',        dur: '26 min', state: 'next', src: CATALOG_SRCS.default },
-      { name: 'Managing Conflict',              dur: '28 min', state: 'next', src: CATALOG_SRCS.default },
-      { name: 'Driving Team Performance',       dur: '26 min', state: 'next', src: CATALOG_SRCS.default },
-      { name: 'Delegation & Empowerment',       dur: '28 min', state: 'next', src: CATALOG_SRCS.default },
-      { name: 'Building Psychological Safety',  dur: '29 min', state: 'next', src: CATALOG_SRCS.default },
-    ],
-  };
-  // Default for any course not listed above
-  function getCourseLessons(title) {
-    if (COURSE_LESSONS[title]) return COURSE_LESSONS[title];
-    // Generic single lesson
-    return [{ name: title, dur: '30 min', state: 'next', src: CATALOG_SRCS.default }];
-  }
-
-  let mpLessons = [];
-
-  function openPlayerModal(courseTitle) {
-    mpLessons = getCourseLessons(courseTitle);
-    document.getElementById('modalTitle').textContent = courseTitle;
-
-    // Build lesson list HTML
-    const list = document.getElementById('modalLessonList');
-    list.innerHTML = '';
-
-    // Group by chapter if lessons have chapter info, else flat list
-    const ul = document.createElement('div');
-    mpLessons.forEach((lesson, i) => {
-      const row = document.createElement('div');
-      row.className = 'il-lesson' + (lesson.state === 'playing' ? ' il-active' : '') + (lesson.state === 'locked' ? ' il-locked' : '');
-      const arrowClass = lesson.state === 'done' ? 'done' : lesson.state === 'playing' ? 'playing' : lesson.state === 'locked' ? 'locked' : 'next';
-      const arrowLabel = lesson.state === 'done' ? '✓' : lesson.state === 'locked' ? '🔒' : '▶';
-      row.innerHTML = `
-        <div class="il-arrow ${arrowClass}">${arrowLabel}</div>
-        <div class="il-meta">
-          <div class="il-title">${lesson.name}</div>
-          <div class="il-dur">${lesson.dur}${lesson.state === 'done' ? ' · Complete' : lesson.state === 'playing' ? ' · In progress' : lesson.state === 'locked' ? ' · Locked' : ''}</div>
-        </div>`;
-      if (lesson.state !== 'locked') {
-        row.style.cursor = 'pointer';
-        row.addEventListener('click', () => mpSelectLesson(i));
-      }
-      ul.appendChild(row);
-    });
-    list.appendChild(ul);
-
-    // Load the first non-done, non-locked lesson (or first lesson)
-    const startIdx = mpLessons.findIndex(l => l.state === 'playing' || l.state === 'next') ?? 0;
-    mpLoadLesson(startIdx < 0 ? 0 : startIdx, false);
-
+  async function openPlayerModal(courseId, courseTitle) {
+    _mpCourseId = courseId;
+    document.getElementById('modalTitle').textContent = courseTitle || 'Loading…';
     document.getElementById('playerModal').classList.add('open');
     document.body.style.overflow = 'hidden';
+
+    const list = document.getElementById('modalLessonList');
+    const frame = document.getElementById('mpFrame');
+    list.innerHTML = '<div style="padding:16px;color:rgba(255,255,255,0.4);font-size:12px;">Loading lessons…</div>';
+    frame.src = 'about:blank';
+
+    try {
+      // Fetch player payload in "course" mode to get chapters + first lesson URL
+      const resp = await fetch(`/api/psbi/player?courseId=${encodeURIComponent(courseId)}&mode=course`, { credentials: 'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+
+      // Build lesson list from chapters
+      const chapters = payload.chapters || [];
+      list.innerHTML = '';
+      let lessonEls = [];
+      let firstLessonId = payload.lessonId;
+
+      if (chapters.length === 0) {
+        // No chapters — show single "Launch" entry
+        const row = buildLessonRow(null, courseTitle, 'playing', 0);
+        list.appendChild(row.el);
+        lessonEls.push(row);
+      } else {
+        let lessonIdx = 0;
+        chapters.forEach(chapter => {
+          const lessons = chapter._embedded?.lessons || [];
+          if (chapters.length > 1) {
+            const header = document.createElement('div');
+            header.className = 'il-chapter';
+            header.textContent = chapter.name || chapter.title || 'Chapter';
+            list.appendChild(header);
+          }
+          lessons.forEach(lesson => {
+            const isComplete = lesson.enrollment?.status?.toLowerCase() === 'complete';
+            const isCurrent = lesson.id === firstLessonId;
+            const state = isComplete ? 'done' : isCurrent ? 'playing' : 'next';
+            const row = buildLessonRow(lesson.id, lesson.name || lesson.title || 'Lesson', state, lessonIdx);
+            list.appendChild(row.el);
+            lessonEls.push(row);
+            lessonIdx++;
+          });
+        });
+      }
+
+      // Wire click handlers
+      lessonEls.forEach((row, i) => {
+        row.el.addEventListener('click', () => {
+          lessonEls.forEach(r => r.el.classList.remove('il-active'));
+          row.el.classList.add('il-active');
+          mpLoadLesson(courseId, row.lessonId);
+        });
+      });
+
+      // Set active lesson and load player
+      if (lessonEls.length > 0) {
+        const activeIdx = lessonEls.findIndex(r => r.state === 'playing') || 0;
+        const target = lessonEls[Math.max(0, activeIdx)];
+        lessonEls.forEach(r => r.el.classList.remove('il-active'));
+        target.el.classList.add('il-active');
+      }
+
+      // Load the player URL we already have
+      frame.src = payload.playerUrl;
+
+    } catch (err) {
+      list.innerHTML = `<div style="padding:16px;color:#f87171;font-size:12px;">Error: ${err.message}</div>`;
+      console.error('Modal player error:', err);
+    }
+  }
+
+  function buildLessonRow(lessonId, name, state, idx) {
+    const el = document.createElement('div');
+    el.className = 'il-lesson' + (state === 'playing' ? ' il-active' : '');
+    el.style.cursor = 'pointer';
+    const arrowClass = state === 'done' ? 'done' : state === 'playing' ? 'playing' : 'next';
+    const arrowLabel = state === 'done' ? '✓' : '▶';
+    const dur = state === 'done' ? ' · Complete' : state === 'playing' ? ' · In progress' : '';
+    el.innerHTML = `
+      <div class="il-arrow ${arrowClass}">${arrowLabel}</div>
+      <div class="il-meta">
+        <div class="il-title">${name}</div>
+        <div class="il-dur">${dur}</div>
+      </div>`;
+    return { el, lessonId, state };
+  }
+
+  async function mpLoadLesson(courseId, lessonId) {
+    const frame = document.getElementById('mpFrame');
+    frame.src = 'about:blank';
+    try {
+      const qs = lessonId ? `courseId=${encodeURIComponent(courseId)}&lessonId=${encodeURIComponent(lessonId)}` : `courseId=${encodeURIComponent(courseId)}`;
+      const resp = await fetch(`/api/psbi/player?${qs}`, { credentials: 'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+      frame.src = payload.playerUrl;
+    } catch (err) {
+      console.error('mpLoadLesson error:', err);
+    }
   }
 
   function closePlayerModal() {
     document.getElementById('playerModal').classList.remove('open');
     document.body.style.overflow = '';
-    const v = document.getElementById('mpVideo');
-    v.pause();
-    v.src = '';
+    const frame = document.getElementById('mpFrame');
+    frame.src = 'about:blank';
+    _mpCourseId = null;
   }
 
-  function mpLoadLesson(idx, autoplay) {
-    if (idx < 0 || idx >= mpLessons.length) return;
-    const lesson = mpLessons[idx];
-    // Highlight active row
-    document.querySelectorAll('#modalLessonList .il-lesson').forEach((el, i) => {
-      el.classList.toggle('il-active', i === idx);
-    });
-    document.getElementById('mpLessonName').textContent = lesson.name;
-    const v = document.getElementById('mpVideo');
-    v.pause();
-    v.src = lesson.src || CATALOG_SRCS.default;
-    v.load();
-    document.getElementById('mpBarFill').style.width = '0%';
-    document.getElementById('mpBarThumb').style.left = '0%';
-    document.getElementById('mpTime').textContent = '0:00 / 0:00';
-    mpSetPlayIcon(true);
-    document.getElementById('mpOverlay').classList.remove('hidden');
-    if (autoplay) v.play().then(() => document.getElementById('mpOverlay').classList.add('hidden')).catch(() => {});
-  }
-
-  function mpSelectLesson(idx) {
-    mpLoadLesson(idx, false);
-  }
-
-  function mpVideo()   { return document.getElementById('mpVideo'); }
-  function mpOverlay() { return document.getElementById('mpOverlay'); }
-
-  function mpSetPlayIcon(paused) {
-    const btn = document.getElementById('mpPlayBtn');
-    if (!btn) return;
-    btn.innerHTML = paused
-      ? '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
-      : '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
-  }
-
-  function mpUpdateBar() {
-    const v = mpVideo();
-    const pct = (v.duration && isFinite(v.duration)) ? (v.currentTime / v.duration) * 100 : 0;
-    document.getElementById('mpBarFill').style.width = pct + '%';
-    document.getElementById('mpBarThumb').style.left = pct + '%';
-    document.getElementById('mpTime').textContent = ilFmt(v.currentTime) + ' / ' + ilFmt(v.duration);
-  }
-
-  function mpPlay() {
-    const v = mpVideo();
-    if (!v.src || v.src === window.location.href) return;
-    if (v.paused) {
-      v.play().then(() => mpOverlay().classList.add('hidden')).catch(err => console.warn('mpPlay error:', err));
-    } else {
-      v.pause();
-    }
-  }
-
-  function mpSkip(sec) {
-    const v = mpVideo();
-    if (v.readyState >= 1) v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + sec));
-  }
-
-  function mpScrub(e) {
-    const v = mpVideo();
-    if (!v.duration || !isFinite(v.duration)) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    v.currentTime = pct * v.duration;
-    mpUpdateBar();
-  }
-
-  function mpToggleMute() {
-    const v = mpVideo();
-    v.muted = !v.muted;
-    document.getElementById('mpVolBtn').style.color = v.muted ? 'rgba(255,255,255,0.25)' : '';
-  }
-
-  // Wire up modal video events (runs immediately — DOM is ready)
-  (function initModalPlayer() {
-    const v = mpVideo();
-    if (!v) return;
-    v.addEventListener('play',           () => { mpSetPlayIcon(false); mpOverlay().classList.add('hidden'); });
-    v.addEventListener('pause',          () => { mpSetPlayIcon(true); });
-    v.addEventListener('ended',          () => { mpSetPlayIcon(true); mpOverlay().classList.remove('hidden'); });
-    v.addEventListener('timeupdate',     mpUpdateBar);
-    v.addEventListener('loadedmetadata', mpUpdateBar);
-
-    const bar = document.getElementById('mpBarWrap');
-    let dragging = false;
-    bar.addEventListener('mousedown', (e) => { dragging = true; mpScrub(e); });
-    document.addEventListener('mousemove', (e) => { if (dragging) mpScrub({ currentTarget: bar, clientX: e.clientX }); });
-    document.addEventListener('mouseup',   ()  => { dragging = false; });
-
-    // Close on Escape key
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePlayerModal(); });
-  })();
+  // Escape key closes modal
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePlayerModal(); });
 
   /* ════════════════════════════════════
-     Video player helpers
+     Inline player — dashboard curriculum
   ════════════════════════════════════ */
-  // (IL_SRCS / DEFAULT_SRC / DEMO_VIDEO declared above with CATALOG_SRCS)
+  let _ilLoaded = false;
 
-  function ilVideo()   { return document.getElementById('ilVideo'); }
-  function ilOverlay() { return document.getElementById('ilOverlay'); }
-
-  function ilFmt(s) {
-    s = (isNaN(s) || !isFinite(s)) ? 0 : Math.floor(s);
-    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
-  }
-
-  function ilSetPlayIcon(paused) {
-    const btn = document.getElementById('ilPlayBtn');
-    if (!btn) return;
-    btn.innerHTML = paused
-      ? '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
-      : '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
-  }
-
-  function ilUpdateBar() {
-    const v = ilVideo();
-    const pct = (v.duration && isFinite(v.duration)) ? (v.currentTime / v.duration) * 100 : 0;
-    document.getElementById('ilBarFill').style.width = pct + '%';
-    document.getElementById('ilBarThumb').style.left = pct + '%';
-    document.getElementById('ilTime').textContent = ilFmt(v.currentTime) + ' / ' + ilFmt(v.duration);
-  }
-
-  function ilPlay() {
-    const v = ilVideo();
-    // Ensure a src is set — empty string means no src attribute was present
-    if (!v.src || v.src === window.location.href) { v.src = DEFAULT_SRC; }
-    if (v.paused) {
-      v.play().then(() => {
-        ilOverlay().classList.add('hidden');
-      }).catch(err => console.warn('Play error:', err));
-    } else {
-      v.pause();
-    }
-  }
-
-  function ilSkip(sec) {
-    const v = ilVideo();
-    if (v.readyState >= 1) v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + sec));
-  }
-
-  function ilScrub(e) {
-    const v = ilVideo();
-    if (!v.duration || !isFinite(v.duration)) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    v.currentTime = pct * v.duration;
-    ilUpdateBar();
-  }
-
-  function ilToggleMute() {
-    const v = ilVideo();
-    v.muted = !v.muted;
-    document.getElementById('ilVolBtn').style.color = v.muted ? 'rgba(255,255,255,0.25)' : '';
-  }
-
-  function ilSelectLesson(el, name, locked) {
-    if (locked) return;
-    document.querySelectorAll('.il-lesson').forEach(i => i.classList.remove('il-active'));
-    el.classList.add('il-active');
-    document.getElementById('ilLessonName').textContent = name;
-    const v = ilVideo();
-    v.pause();
-    v.src = IL_SRCS[name] || DEFAULT_SRC;
-    v.load();
-    document.getElementById('ilBarFill').style.width = '0%';
-    document.getElementById('ilBarThumb').style.left = '0%';
-    document.getElementById('ilTime').textContent = '0:00 / 0:00';
-    ilSetPlayIcon(true);
-    ilOverlay().classList.remove('hidden');
-  }
-
-  function toggleInlinePlayer() {
+  async function toggleInlinePlayer() {
     const player = document.getElementById('inlinePlayer');
     const btn = document.getElementById('launchBtn');
     const open = player.classList.toggle('open');
+
     if (open) {
-      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause / Hide';
-      // Pre-load the default src so metadata is ready before user clicks play
-      const v = ilVideo();
-      if (!v.src || v.src === window.location.href) { v.src = DEFAULT_SRC; }
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Hide';
       setTimeout(() => player.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+
+      if (!_ilLoaded) {
+        _ilLoaded = true;
+        await loadInlinePlayer();
+      }
     } else {
       btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><polygon points="5 3 19 12 5 21 5 3"/></svg> Launch Course';
-      ilVideo().pause();
+      const frame = document.getElementById('ilFrame');
+      if (frame) frame.src = 'about:blank';
     }
   }
 
-  /* ════════════════════════════════════
-     Wire up video element events
-     NOTE: Script runs at end of <body>,
-     so DOM is already ready — no need
-     for DOMContentLoaded wrapper.
-  ════════════════════════════════════ */
-  (function initPlayer() {
-    const v = ilVideo();
-    if (!v) return;
+  async function loadInlinePlayer() {
+    const lessonList = document.getElementById('ilLessonList');
+    const frame = document.getElementById('ilFrame');
+    lessonList.innerHTML = '<div style="padding:16px;color:rgba(255,255,255,0.4);font-size:12px;">Loading curriculum…</div>';
+    if (frame) frame.src = 'about:blank';
 
-    v.addEventListener('play',            () => { ilSetPlayIcon(false); ilOverlay().classList.add('hidden'); });
-    v.addEventListener('pause',           () => { ilSetPlayIcon(true); });
-    v.addEventListener('ended',           () => { ilSetPlayIcon(true); ilOverlay().classList.remove('hidden'); });
-    v.addEventListener('timeupdate',      ilUpdateBar);
-    v.addEventListener('loadedmetadata',  ilUpdateBar);
-    v.addEventListener('error',           () => console.warn('Video load error — check src URL'));
+    try {
+      // Fetch curriculum children
+      const childResp = await fetch(`/api/psbi/curriculum/${CURRICULUM_ID}`, { credentials: 'include' });
+      if (!childResp.ok) throw new Error('HTTP ' + childResp.status);
+      const childData = await childResp.json();
+      const courses = childData.courses || [];
 
-    // Scrub bar drag
-    const bar = document.getElementById('ilBarWrap');
-    let dragging = false;
-    bar.addEventListener('mousedown', (e) => { dragging = true; ilScrub(e); });
-    document.addEventListener('mousemove', (e) => { if (dragging) ilScrub({ currentTarget: bar, clientX: e.clientX }); });
-    document.addEventListener('mouseup',   ()  => { dragging = false; });
-  })();
+      lessonList.innerHTML = '';
+
+      if (courses.length === 0) {
+        lessonList.innerHTML = '<div style="padding:16px;color:rgba(255,255,255,0.4);font-size:12px;">No lessons found.</div>';
+        // Still load curriculum player
+        ilLoadCourse(CURRICULUM_ID);
+        return;
+      }
+
+      // Build lesson rows from curriculum children (each child is a course)
+      const rows = courses.map((course, idx) => {
+        const isComplete = course.enrollmentStatus?.toLowerCase() === 'complete';
+        const state = isComplete ? 'done' : idx === 0 ? 'playing' : 'next';
+        const el = document.createElement('div');
+        el.className = 'il-lesson' + (state === 'playing' ? ' il-active' : '');
+        el.style.cursor = 'pointer';
+        const arrowClass = state === 'done' ? 'done' : state === 'playing' ? 'playing' : 'next';
+        const arrowLabel = state === 'done' ? '✓' : '▶';
+        const dur = isComplete ? ' · Complete' : state === 'playing' ? ' · In progress' : '';
+        el.innerHTML = `
+          <div class="il-arrow ${arrowClass}">${arrowLabel}</div>
+          <div class="il-meta">
+            <div class="il-title">${course.name || course.title || 'Course'}</div>
+            <div class="il-dur">${dur}</div>
+          </div>`;
+        lessonList.appendChild(el);
+        return { el, courseId: course.id, state };
+      });
+
+      // Wire click handlers
+      rows.forEach(row => {
+        row.el.addEventListener('click', () => {
+          rows.forEach(r => r.el.classList.remove('il-active'));
+          row.el.classList.add('il-active');
+          ilLoadCourse(row.courseId);
+        });
+      });
+
+      // Load the first course player
+      ilLoadCourse(courses[0].id);
+
+    } catch (err) {
+      lessonList.innerHTML = `<div style="padding:16px;color:#f87171;font-size:12px;">Error: ${err.message}</div>`;
+      console.error('Inline player error:', err);
+    }
+  }
+
+  async function ilLoadCourse(courseId) {
+    const frame = document.getElementById('ilFrame');
+    if (!frame) return;
+    frame.src = 'about:blank';
+    try {
+      const resp = await fetch(`/api/psbi/player?courseId=${encodeURIComponent(courseId)}`, { credentials: 'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+      frame.src = payload.playerUrl;
+    } catch (err) {
+      console.error('ilLoadCourse error:', err);
+    }
+  }
 </script>
 </body>
 </html>
