@@ -400,6 +400,68 @@
   .launch-course-btn:hover { background: #5547a3; color: #fff; }
   .course-footer-btns { display: flex; gap: 6px; align-items: center; }
   .course-duration { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
+  /* ── Course Player Modal ── */
+  .player-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(5,5,20,0.88); z-index: 500;
+    align-items: center; justify-content: center; padding: 24px;
+    backdrop-filter: blur(4px);
+  }
+  .player-modal-overlay.open { display: flex; }
+
+  .player-modal {
+    background: #0d0d1e; border-radius: 12px; overflow: hidden;
+    width: 100%; max-width: 980px;
+    display: flex; flex-direction: column;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(85,71,163,0.3);
+    max-height: calc(100vh - 48px);
+  }
+
+  .modal-header {
+    background: #1a1a3a; padding: 13px 20px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid rgba(85,71,163,0.3); flex-shrink: 0;
+  }
+  .modal-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 3px;
+    background: var(--badge-curriculum); color: #fff; text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .modal-title { color: #fff; font-size: 14px; font-weight: 700; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .modal-close {
+    width: 28px; height: 28px; border-radius: 50%; border: none;
+    background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6);
+    cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .modal-close:hover { background: rgba(255,255,255,0.16); color: #fff; }
+
+  .modal-body { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+  .modal-lesson-list {
+    width: 250px; flex-shrink: 0; background: #111126;
+    border-right: 1px solid rgba(255,255,255,0.07);
+    overflow-y: auto; display: flex; flex-direction: column;
+  }
+  .modal-lesson-list::-webkit-scrollbar { width: 3px; }
+  .modal-lesson-list::-webkit-scrollbar-thumb { background: rgba(85,71,163,0.4); border-radius: 2px; }
+
+  .modal-player-stage { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  .modal-video-wrap {
+    position: relative; width: 100%; aspect-ratio: 16/9;
+    background: #0a0a18; flex-shrink: 0; overflow: hidden;
+  }
+  .modal-video-el {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: contain; background: #0a0a18;
+  }
+  .modal-video-overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    background: radial-gradient(ellipse at center, #1e1e42 0%, #0a0a18 70%);
+    z-index: 2; cursor: pointer; transition: opacity 0.25s;
+  }
+  .modal-video-overlay.hidden { opacity: 0; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -999,6 +1061,58 @@
 
   </main>
 </div><!-- /layout -->
+
+<!-- ── Course Player Modal ── -->
+<div class="player-modal-overlay" id="playerModal" onclick="if(event.target===this)closePlayerModal()">
+  <div class="player-modal">
+    <div class="modal-header">
+      <span class="modal-badge">Curriculum</span>
+      <span class="modal-title" id="modalTitle">Course Title</span>
+      <button class="modal-close" onclick="closePlayerModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Lesson list -->
+      <div class="modal-lesson-list" id="modalLessonList"></div>
+
+      <!-- Player -->
+      <div class="modal-player-stage">
+        <div class="modal-video-wrap">
+          <video id="mpVideo" class="modal-video-el" preload="metadata"></video>
+          <div class="modal-video-overlay" id="mpOverlay" onclick="mpPlay()">
+            <div class="il-glow"></div>
+            <div class="il-lesson-name" id="mpLessonName">Loading…</div>
+            <button class="il-big-play" onclick="mpPlay();event.stopPropagation()">
+              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </button>
+            <div class="il-play-hint">Click to play</div>
+          </div>
+        </div>
+        <div class="il-controls" style="background:#1a1a3a;border-top:1px solid rgba(85,71,163,0.25);">
+          <button class="il-ctrl" id="mpPlayBtn" onclick="mpPlay()">
+            <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+          <button class="il-ctrl" onclick="mpSkip(-10)" title="Rewind 10s">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+          </button>
+          <button class="il-ctrl" onclick="mpSkip(10)" title="Forward 10s">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+          </button>
+          <div class="il-bar-wrap" id="mpBarWrap" onclick="mpScrub(event)">
+            <div class="il-bar-fill" id="mpBarFill"></div>
+            <div class="il-bar-thumb" id="mpBarThumb"></div>
+          </div>
+          <span class="il-time" id="mpTime">0:00 / 0:00</span>
+          <button class="il-ctrl" id="mpVolBtn" onclick="mpToggleMute()" title="Mute">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <script>
   /* ════════════════════════════════════
      View switching
@@ -1055,27 +1169,197 @@
   }
 
   function launchFromCatalog(courseTitle) {
-    // Switch to dashboard, open inline player with the course title shown
-    const dashLink = document.querySelector('.sidebar-item[onclick*="dashboard"]');
-    showView('dashboard', dashLink);
-
-    const v = ilVideo();
-    const src = CATALOG_SRCS[courseTitle] || CATALOG_SRCS.default;
-    v.pause();
-    v.src = src;
-    v.load();
-    document.getElementById('ilLessonName').textContent = courseTitle;
-    document.getElementById('ilBarFill').style.width = '0%';
-    document.getElementById('ilBarThumb').style.left = '0%';
-    document.getElementById('ilTime').textContent = '0:00 / 0:00';
-    ilSetPlayIcon(true);
-    ilOverlay().classList.remove('hidden');
-
-    // Open the inline player if not already open
-    const player = document.getElementById('inlinePlayer');
-    if (!player.classList.contains('open')) toggleInlinePlayer();
-    else player.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    openPlayerModal(courseTitle);
   }
+
+  /* ════════════════════════════════════
+     Course player modal
+  ════════════════════════════════════ */
+
+  // Lesson data per catalog course
+  const COURSE_LESSONS = {
+    'Absorb LMS Training Curriculum': [
+      { name: 'Getting Started with Absorb',    dur: '12 min', state: 'done',    src: IL_SRCS['Getting Started with Absorb'] },
+      { name: 'Navigating the Admin Portal',    dur: '18 min', state: 'done',    src: IL_SRCS['Navigating the Admin Portal'] },
+      { name: 'Building & Publishing Courses',  dur: '24 min', state: 'playing', src: IL_SRCS['Building & Publishing Courses'] },
+      { name: 'Enrollment Rules & Automation',  dur: '21 min', state: 'next',    src: IL_SRCS['Enrollment Rules & Automation'] },
+      { name: 'Completion Reports & Analytics', dur: '20 min', state: 'locked',  src: IL_SRCS['Completion Reports & Analytics'] },
+    ],
+    'HIPAA Privacy & Security Training': [
+      { name: 'HIPAA Overview & History',       dur: '18 min', state: 'next', src: CATALOG_SRCS.default },
+      { name: 'Protected Health Information',   dur: '22 min', state: 'next', src: CATALOG_SRCS.default },
+      { name: 'Privacy Rule Requirements',      dur: '25 min', state: 'next', src: CATALOG_SRCS.default },
+      { name: 'Security Rule & Safeguards',     dur: '25 min', state: 'next', src: CATALOG_SRCS.default },
+    ],
+    'Data Privacy & Security Essentials': [
+      { name: 'Data Classification Basics',     dur: '20 min', state: 'next', src: CATALOG_SRCS.default },
+      { name: 'Recognizing Phishing Attacks',   dur: '18 min', state: 'next', src: CATALOG_SRCS.default },
+      { name: 'Access Control Management',      dur: '22 min', state: 'next', src: CATALOG_SRCS.default },
+      { name: 'Password & MFA Best Practices',  dur: '18 min', state: 'next', src: CATALOG_SRCS.default },
+      { name: 'Incident Response Procedures',   dur: '20 min', state: 'next', src: CATALOG_SRCS.default },
+      { name: 'Data Breach Notification',       dur: '22 min', state: 'next', src: CATALOG_SRCS.default },
+    ],
+    'Sexual Harassment Prevention': [
+      { name: 'Defining Sexual Harassment',     dur: '25 min', state: 'next', src: CATALOG_SRCS.default },
+      { name: 'Bystander Intervention',         dur: '25 min', state: 'next', src: CATALOG_SRCS.default },
+      { name: 'Reporting & Support Channels',   dur: '25 min', state: 'next', src: CATALOG_SRCS.default },
+    ],
+    'Leadership Fundamentals for Managers': [
+      { name: 'What Makes a Great Leader',      dur: '25 min', state: 'next', src: CATALOG_SRCS.default },
+      { name: 'Giving Effective Feedback',      dur: '28 min', state: 'next', src: CATALOG_SRCS.default },
+      { name: 'Running Productive 1:1s',        dur: '26 min', state: 'next', src: CATALOG_SRCS.default },
+      { name: 'Managing Conflict',              dur: '28 min', state: 'next', src: CATALOG_SRCS.default },
+      { name: 'Driving Team Performance',       dur: '26 min', state: 'next', src: CATALOG_SRCS.default },
+      { name: 'Delegation & Empowerment',       dur: '28 min', state: 'next', src: CATALOG_SRCS.default },
+      { name: 'Building Psychological Safety',  dur: '29 min', state: 'next', src: CATALOG_SRCS.default },
+    ],
+  };
+  // Default for any course not listed above
+  function getCourseLessons(title) {
+    if (COURSE_LESSONS[title]) return COURSE_LESSONS[title];
+    // Generic single lesson
+    return [{ name: title, dur: '30 min', state: 'next', src: CATALOG_SRCS.default }];
+  }
+
+  let mpLessons = [];
+
+  function openPlayerModal(courseTitle) {
+    mpLessons = getCourseLessons(courseTitle);
+    document.getElementById('modalTitle').textContent = courseTitle;
+
+    // Build lesson list HTML
+    const list = document.getElementById('modalLessonList');
+    list.innerHTML = '';
+
+    // Group by chapter if lessons have chapter info, else flat list
+    const ul = document.createElement('div');
+    mpLessons.forEach((lesson, i) => {
+      const row = document.createElement('div');
+      row.className = 'il-lesson' + (lesson.state === 'playing' ? ' il-active' : '') + (lesson.state === 'locked' ? ' il-locked' : '');
+      const arrowClass = lesson.state === 'done' ? 'done' : lesson.state === 'playing' ? 'playing' : lesson.state === 'locked' ? 'locked' : 'next';
+      const arrowLabel = lesson.state === 'done' ? '✓' : lesson.state === 'locked' ? '🔒' : '▶';
+      row.innerHTML = `
+        <div class="il-arrow ${arrowClass}">${arrowLabel}</div>
+        <div class="il-meta">
+          <div class="il-title">${lesson.name}</div>
+          <div class="il-dur">${lesson.dur}${lesson.state === 'done' ? ' · Complete' : lesson.state === 'playing' ? ' · In progress' : lesson.state === 'locked' ? ' · Locked' : ''}</div>
+        </div>`;
+      if (lesson.state !== 'locked') {
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => mpSelectLesson(i));
+      }
+      ul.appendChild(row);
+    });
+    list.appendChild(ul);
+
+    // Load the first non-done, non-locked lesson (or first lesson)
+    const startIdx = mpLessons.findIndex(l => l.state === 'playing' || l.state === 'next') ?? 0;
+    mpLoadLesson(startIdx < 0 ? 0 : startIdx, false);
+
+    document.getElementById('playerModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closePlayerModal() {
+    document.getElementById('playerModal').classList.remove('open');
+    document.body.style.overflow = '';
+    const v = document.getElementById('mpVideo');
+    v.pause();
+    v.src = '';
+  }
+
+  function mpLoadLesson(idx, autoplay) {
+    if (idx < 0 || idx >= mpLessons.length) return;
+    const lesson = mpLessons[idx];
+    // Highlight active row
+    document.querySelectorAll('#modalLessonList .il-lesson').forEach((el, i) => {
+      el.classList.toggle('il-active', i === idx);
+    });
+    document.getElementById('mpLessonName').textContent = lesson.name;
+    const v = document.getElementById('mpVideo');
+    v.pause();
+    v.src = lesson.src || CATALOG_SRCS.default;
+    v.load();
+    document.getElementById('mpBarFill').style.width = '0%';
+    document.getElementById('mpBarThumb').style.left = '0%';
+    document.getElementById('mpTime').textContent = '0:00 / 0:00';
+    mpSetPlayIcon(true);
+    document.getElementById('mpOverlay').classList.remove('hidden');
+    if (autoplay) v.play().then(() => document.getElementById('mpOverlay').classList.add('hidden')).catch(() => {});
+  }
+
+  function mpSelectLesson(idx) {
+    mpLoadLesson(idx, false);
+  }
+
+  function mpVideo()   { return document.getElementById('mpVideo'); }
+  function mpOverlay() { return document.getElementById('mpOverlay'); }
+
+  function mpSetPlayIcon(paused) {
+    const btn = document.getElementById('mpPlayBtn');
+    if (!btn) return;
+    btn.innerHTML = paused
+      ? '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+  }
+
+  function mpUpdateBar() {
+    const v = mpVideo();
+    const pct = (v.duration && isFinite(v.duration)) ? (v.currentTime / v.duration) * 100 : 0;
+    document.getElementById('mpBarFill').style.width = pct + '%';
+    document.getElementById('mpBarThumb').style.left = pct + '%';
+    document.getElementById('mpTime').textContent = ilFmt(v.currentTime) + ' / ' + ilFmt(v.duration);
+  }
+
+  function mpPlay() {
+    const v = mpVideo();
+    if (!v.src || v.src === window.location.href) return;
+    if (v.paused) {
+      v.play().then(() => mpOverlay().classList.add('hidden')).catch(err => console.warn('mpPlay error:', err));
+    } else {
+      v.pause();
+    }
+  }
+
+  function mpSkip(sec) {
+    const v = mpVideo();
+    if (v.readyState >= 1) v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + sec));
+  }
+
+  function mpScrub(e) {
+    const v = mpVideo();
+    if (!v.duration || !isFinite(v.duration)) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    v.currentTime = pct * v.duration;
+    mpUpdateBar();
+  }
+
+  function mpToggleMute() {
+    const v = mpVideo();
+    v.muted = !v.muted;
+    document.getElementById('mpVolBtn').style.color = v.muted ? 'rgba(255,255,255,0.25)' : '';
+  }
+
+  // Wire up modal video events (runs immediately — DOM is ready)
+  (function initModalPlayer() {
+    const v = mpVideo();
+    if (!v) return;
+    v.addEventListener('play',           () => { mpSetPlayIcon(false); mpOverlay().classList.add('hidden'); });
+    v.addEventListener('pause',          () => { mpSetPlayIcon(true); });
+    v.addEventListener('ended',          () => { mpSetPlayIcon(true); mpOverlay().classList.remove('hidden'); });
+    v.addEventListener('timeupdate',     mpUpdateBar);
+    v.addEventListener('loadedmetadata', mpUpdateBar);
+
+    const bar = document.getElementById('mpBarWrap');
+    let dragging = false;
+    bar.addEventListener('mousedown', (e) => { dragging = true; mpScrub(e); });
+    document.addEventListener('mousemove', (e) => { if (dragging) mpScrub({ currentTarget: bar, clientX: e.clientX }); });
+    document.addEventListener('mouseup',   ()  => { dragging = false; });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePlayerModal(); });
+  })();
 
   /* ════════════════════════════════════
      Video player helpers
