@@ -473,6 +473,91 @@
     z-index: 2; cursor: pointer; transition: opacity 0.25s;
   }
   .modal-video-overlay.hidden { opacity: 0; pointer-events: none; }
+
+  /* ── Sessions Modal (Instructor-Led) ── */
+  .sessions-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(5,5,20,0.88); z-index: 500;
+    align-items: center; justify-content: center; padding: 24px;
+    backdrop-filter: blur(4px);
+  }
+  .sessions-modal-overlay.open { display: flex; }
+  .sessions-modal {
+    background: #fff; border-radius: 12px; overflow: hidden;
+    width: 100%; max-width: 700px; max-height: calc(100vh - 48px);
+    display: flex; flex-direction: column;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+  }
+  .sessions-modal-header {
+    background: #1a1a3a; padding: 16px 20px;
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  }
+  .sessions-modal-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 3px;
+    background: #f59e0b; color: #fff; text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .sessions-modal-title {
+    color: #fff; font-size: 14px; font-weight: 700; flex: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .sessions-modal-close {
+    width: 28px; height: 28px; border-radius: 50%; border: none;
+    background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7);
+    cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center;
+  }
+  .sessions-modal-close:hover { background: rgba(255,255,255,0.2); color: #fff; }
+  .sessions-modal-body { padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+  .sessions-empty {
+    text-align: center; padding: 40px 20px; color: #64748b;
+    font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .sessions-loading {
+    text-align: center; padding: 40px 20px; color: #5547a3; font-weight: 600;
+  }
+  .session-card {
+    border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px;
+    display: flex; flex-direction: column; gap: 10px;
+    transition: box-shadow 0.15s;
+  }
+  .session-card:hover { box-shadow: 0 4px 14px rgba(85,71,163,0.12); }
+  .session-card-top { display: flex; align-items: flex-start; gap: 10px; }
+  .session-type-badge {
+    flex-shrink: 0; font-size: 10px; font-weight: 700; padding: 3px 8px;
+    border-radius: 4px; text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .session-type-badge.virtual { background: #ede9fe; color: #5547a3; }
+  .session-type-badge.classroom { background: #dcfce7; color: #15803d; }
+  .session-card-info { flex: 1; min-width: 0; }
+  .session-card-name { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+  .session-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+  .session-meta-item {
+    font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 4px;
+  }
+  .session-meta-item svg { flex-shrink: 0; }
+  .session-card-footer {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    padding-top: 10px; border-top: 1px solid #f1f5f9;
+  }
+  .session-seats { font-size: 12px; color: #64748b; }
+  .session-seats.full { color: #dc2626; font-weight: 600; }
+  .session-actions { display: flex; gap: 8px; }
+  .session-join-btn {
+    background: #5547a3; color: #fff; border: none; border-radius: 5px;
+    padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; gap: 5px; text-decoration: none;
+  }
+  .session-join-btn:hover { background: #4d3e9e; }
+  .session-register-btn {
+    background: #fff; color: #5547a3; border: 1.5px solid #5547a3;
+    border-radius: 5px; padding: 6px 14px; font-size: 12px; font-weight: 600;
+    cursor: pointer;
+  }
+  .session-register-btn:hover { background: #5547a3; color: #fff; }
+  .session-register-btn:disabled { opacity: 0.5; cursor: default; }
+  .session-enrolled-badge {
+    font-size: 12px; font-weight: 600; color: #059669;
+    background: #dcfce7; padding: 5px 12px; border-radius: 5px;
+  }
 </style>
 </head>
 <body>
@@ -533,9 +618,17 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
       Catalog
     </a>
-    <a class="sidebar-item" href="/absorb-portal-sso">
+    <a class="sidebar-item" href="https://bharrigan.myabsorb.ca" target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
       Absorb Portal
+    </a>
+    <a class="sidebar-item" href="https://bharrigan.myabsorb.ca/#/online-course-player/f8fb774c-e13d-4f38-8091-537798dc1005" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
+      Aura
+    </a>
+    <a class="sidebar-item" href="https://bharrigan.myabsorb.ca/#/courses/" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      My Courses
     </a>
   </nav>
 
@@ -861,6 +954,20 @@
   </div>
 </div>
 
+<!-- ── Sessions Modal (Instructor-Led) ── -->
+<div class="sessions-modal-overlay" id="sessionsModal" onclick="if(event.target===this)closeSessionsModal()">
+  <div class="sessions-modal">
+    <div class="sessions-modal-header">
+      <span class="sessions-modal-badge">Instructor-Led</span>
+      <span class="sessions-modal-title" id="sessionsModalTitle">Course Title</span>
+      <button class="sessions-modal-close" onclick="closeSessionsModal()">✕</button>
+    </div>
+    <div class="sessions-modal-body" id="sessionsModalBody">
+      <div class="sessions-loading">Loading sessions…</div>
+    </div>
+  </div>
+</div>
+
 <script>
   /* ════════════════════════════════════
      Constants
@@ -921,18 +1028,29 @@
     const typeLabel = courseTypeLabel(course.courseType);
     const courseId = course.id;
 
-    const enrollBtnHtml = isEnrolled
-      ? `<button class="enroll-btn enrolled" disabled>✓ Enrolled</button>`
-      : `<button class="enroll-btn" onclick="enrollInCourse(this,'${courseId}')">Enroll</button>`;
+    const isILT = course.courseType === 'InstructorLedCourse';
+    const safeCourseId = courseId.replace(/'/g, "\\'");
+    const safeTitle = title.replace(/'/g, "\\'");
+    const safeType = (course.courseType || '').replace(/'/g, "\\'");
 
-    const launchBtnHtml = isEnrolled
-      ? `<button class="launch-course-btn" onclick="launchCourse('${courseId}','${title.replace(/'/g,"\\'")}','${course.courseType}')">
-           <svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11"><polygon points="5 3 19 12 5 21 5 3"/></svg> Launch
-         </button>`
-      : '';
+    let footerBtns = '';
+    if (isILT) {
+      // ILT: single "View Sessions" button — enrollment happens per-session inside the modal
+      footerBtns = `<button class="enroll-btn" style="background:#f59e0b" onclick="openSessionsModal('${safeCourseId}','${safeTitle}')">📅 View Sessions</button>`;
+    } else if (isEnrolled) {
+      footerBtns = `
+        <button class="launch-course-btn" onclick="launchCourse('${safeCourseId}','${safeTitle}','${safeType}')">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11"><polygon points="5 3 19 12 5 21 5 3"/></svg> Launch
+        </button>
+        <button class="enroll-btn enrolled" disabled>✓ Enrolled</button>`;
+    } else {
+      footerBtns = `<button class="enroll-btn" onclick="enrollInCourse(this,'${safeCourseId}','${safeTitle}','${safeType}')">Enroll</button>`;
+    }
+
+    const durLabel = isILT ? 'Instructor-Led' : isCurriculum ? 'Curriculum' : 'Online';
 
     return `
-      <div class="course-card" data-cat="${isCurriculum ? 'curriculum' : 'course'}" data-course-id="${courseId}">
+      <div class="course-card" data-cat="${isCurriculum ? 'curriculum' : isILT ? 'ilt' : 'course'}" data-course-id="${courseId}" data-course-type="${course.courseType}">
         <div class="course-thumb" style="background:${gradient}">
           <span>${icon}</span>
           <span class="thumb-badge ${isEnrolled ? 'optional' : 'required'}">${typeLabel}</span>
@@ -943,11 +1061,8 @@
           <div class="course-desc">${desc.slice(0, 120)}${desc.length > 120 ? '…' : ''}</div>
         </div>
         <div class="course-footer">
-          <span class="course-duration">${isCurriculum ? 'Curriculum' : 'Online'}</span>
-          <div class="course-footer-btns">
-            ${launchBtnHtml}
-            ${enrollBtnHtml}
-          </div>
+          <span class="course-duration">${durLabel}</span>
+          <div class="course-footer-btns">${footerBtns}</div>
         </div>
       </div>`;
   }
@@ -995,7 +1110,7 @@
     });
   }
 
-  async function enrollInCourse(btn, courseId) {
+  async function enrollInCourse(btn, courseId, courseTitle, courseType) {
     btn.textContent = 'Enrolling…';
     btn.disabled = true;
     try {
@@ -1009,16 +1124,13 @@
       btn.textContent = '✓ Enrolled';
       btn.classList.add('enrolled');
 
-      // Add Launch button
+      // Add Launch button for online courses
       const footer = btn.closest('.course-footer');
       if (footer && !footer.querySelector('.launch-course-btn')) {
-        const card = btn.closest('.course-card');
-        const title = card.querySelector('.course-title').textContent;
-        const courseType = card.dataset.courseType || 'OnlineCourse';
         const launch = document.createElement('button');
         launch.className = 'launch-course-btn';
         launch.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11"><polygon points="5 3 19 12 5 21 5 3"/></svg> Launch';
-        launch.onclick = () => launchCourse(courseId, title, courseType);
+        launch.onclick = () => launchCourse(courseId, courseTitle || '', courseType || 'OnlineCourse');
         footer.querySelector('.course-footer-btns').insertBefore(launch, btn);
       }
     } catch (err) {
@@ -1032,7 +1144,157 @@
      Launch course — catalog + dashboard
   ════════════════════════════════════ */
   function launchCourse(courseId, courseTitle, courseType) {
-    openPlayerModal(courseId, courseTitle);
+    if (courseType === 'InstructorLedCourse') {
+      openSessionsModal(courseId, courseTitle);
+    } else {
+      openPlayerModal(courseId, courseTitle);
+    }
+  }
+
+  /* ════════════════════════════════════
+     Sessions Modal — Instructor-Led
+  ════════════════════════════════════ */
+  function closeSessionsModal() {
+    document.getElementById('sessionsModal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  async function openSessionsModal(courseId, courseTitle) {
+    document.getElementById('sessionsModalTitle').textContent = courseTitle || 'Sessions';
+    document.getElementById('sessionsModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    const body = document.getElementById('sessionsModalBody');
+    body.innerHTML = '<div class="sessions-loading">Loading sessions…</div>';
+
+    try {
+      const resp = await fetch(`/sessions/${encodeURIComponent(courseId)}`, { credentials: 'include' });
+      if (resp.status === 401) {
+        body.innerHTML = '<div class="sessions-empty">⚠️ Not signed in — please sign in to view sessions.</div>';
+        return;
+      }
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      const sessions = data.sessions || [];
+
+      if (sessions.length === 0) {
+        body.innerHTML = `
+          <div class="sessions-empty">
+            <span style="font-size:32px">📅</span>
+            <strong>No upcoming sessions</strong>
+            <span>There are no scheduled sessions for this course right now. Check back later or contact your administrator.</span>
+          </div>`;
+        return;
+      }
+
+      body.innerHTML = sessions.map(s => renderSessionCard(courseId, s)).join('');
+    } catch (err) {
+      body.innerHTML = `<div class="sessions-empty">⚠️ Failed to load sessions: ${err.message}</div>`;
+      console.error('Sessions fetch error:', err);
+    }
+  }
+
+  function renderSessionCard(courseId, s) {
+    const isVirtual = (s.meetingType || '').toLowerCase().includes('virtual') ||
+                      (s.meetingType || '').toLowerCase().includes('online') ||
+                      !!s.webinarUrl;
+    const typeBadge = isVirtual
+      ? '<span class="session-type-badge virtual">🌐 Virtual</span>'
+      : '<span class="session-type-badge classroom">🏫 In-Person</span>';
+
+    // Format date range
+    let dateStr = '';
+    if (s.startDate) {
+      const start = new Date(s.startDate);
+      const end = s.endDate ? new Date(s.endDate) : null;
+      const opts = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+      const timeOpts = { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' };
+      dateStr = start.toLocaleDateString(undefined, opts);
+      if (end && end.toDateString() !== start.toDateString()) {
+        dateStr += ` – ${end.toLocaleDateString(undefined, opts)}`;
+      }
+      dateStr += `, ${start.toLocaleTimeString(undefined, timeOpts)}`;
+      if (end) dateStr += ` – ${end.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+    }
+
+    // Location label
+    const locParts = [s.location || s.venue, s.city, s.state].filter(Boolean);
+    const locationStr = locParts.join(', ') || (isVirtual ? 'Online' : 'TBD');
+
+    // Seats
+    let seatsHtml = '';
+    if (s.capacity != null) {
+      const filled = s.registeredCount ?? (s.capacity - (s.seatsAvailable ?? 0));
+      const avail = s.seatsAvailable ?? (s.capacity - filled);
+      const isFull = avail <= 0;
+      seatsHtml = `<span class="session-seats${isFull ? ' full' : ''}">${isFull ? '🔴 Full' : `${avail} of ${s.capacity} seats available`}</span>`;
+    }
+
+    // Action button
+    let actionHtml = '';
+    if (s.isLearnerEnrolled || (s.enrollmentStatus || '').toLowerCase() === 'complete' ||
+        (s.enrollmentStatus || '').toLowerCase() === 'enrolled') {
+      actionHtml = '<span class="session-enrolled-badge">✓ Enrolled</span>';
+      if (isVirtual && s.webinarUrl) {
+        actionHtml += `<a class="session-join-btn" href="${s.webinarUrl}" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Join Webinar
+        </a>`;
+      }
+    } else {
+      const isFull = s.seatsAvailable != null && s.seatsAvailable <= 0;
+      actionHtml = `<button class="session-register-btn" ${isFull ? 'disabled' : ''} onclick="enrollInSession(this,'${courseId}','${s.id}')">
+        ${isFull ? 'Full' : 'Register for Session'}
+      </button>`;
+    }
+
+    // Instructor
+    const instructorHtml = s.instructor
+      ? `<span class="session-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${s.instructor}</span>`
+      : '';
+
+    return `
+      <div class="session-card">
+        <div class="session-card-top">
+          ${typeBadge}
+          <div class="session-card-info">
+            <div class="session-card-name">${s.name || 'Session'}</div>
+            <div class="session-meta">
+              ${dateStr ? `<span class="session-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${dateStr}</span>` : ''}
+              <span class="session-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>${locationStr}</span>
+              ${instructorHtml}
+            </div>
+          </div>
+        </div>
+        <div class="session-card-footer">
+          ${seatsHtml}
+          <div class="session-actions">${actionHtml}</div>
+        </div>
+      </div>`;
+  }
+
+  async function enrollInSession(btn, courseId, sessionId) {
+    btn.textContent = 'Registering…';
+    btn.disabled = true;
+    try {
+      const resp = await fetch(`/enroll/${encodeURIComponent(courseId)}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+
+      // Replace button with enrolled badge
+      const actions = btn.closest('.session-actions');
+      actions.innerHTML = '<span class="session-enrolled-badge">✓ Registered</span>';
+    } catch (err) {
+      btn.textContent = 'Error — retry';
+      btn.disabled = false;
+      console.error('Session enroll error:', err);
+    }
   }
 
   /* ════════════════════════════════════
