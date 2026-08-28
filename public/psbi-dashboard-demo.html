@@ -419,7 +419,7 @@
 
   .player-modal {
     background: #0d0d1e; border-radius: 12px; overflow: hidden;
-    width: 100%; max-width: 980px;
+    width: calc(100vw - 48px); max-width: 1600px;
     display: flex; flex-direction: column;
     box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(85,71,163,0.3);
   }
@@ -1147,7 +1147,7 @@
     if (courseType === 'InstructorLedCourse') {
       openSessionsModal(courseId, courseTitle);
     } else {
-      openPlayerModal(courseId, courseTitle);
+      openPlayerModal(courseId, courseTitle, courseType);
     }
   }
 
@@ -1302,7 +1302,7 @@
   ════════════════════════════════════ */
   let _mpCourseId = null;
 
-  async function openPlayerModal(courseId, courseTitle) {
+  async function openPlayerModal(courseId, courseTitle, courseType) {
     _mpCourseId = courseId;
     document.getElementById('modalTitle').textContent = courseTitle || 'Loading…';
     document.getElementById('playerModal').classList.add('open');
@@ -1310,24 +1310,93 @@
 
     const list = document.getElementById('modalLessonList');
     const frame = document.getElementById('mpFrame');
-    list.innerHTML = '<div style="padding:16px;color:rgba(255,255,255,0.4);font-size:12px;">Loading lessons…</div>';
+    list.innerHTML = '<div style="padding:16px;color:rgba(255,255,255,0.4);font-size:12px;">Loading…</div>';
     frame.src = 'about:blank';
 
+    if (courseType === 'Curriculum') {
+      await openPlayerModalCurriculum(courseId, courseTitle, list, frame);
+    } else {
+      await openPlayerModalOnline(courseId, courseTitle, list, frame);
+    }
+  }
+
+  // Curriculum: fetch child courses, build list, load first online child in iframe
+  async function openPlayerModalCurriculum(curriculumId, curriculumTitle, list, frame) {
     try {
-      // Fetch player payload in "course" mode to get chapters + first lesson URL
+      const resp = await fetch(`/api/psbi/curriculum/${encodeURIComponent(curriculumId)}`, { credentials: 'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+      const courses = data.courses || [];
+
+      list.innerHTML = '';
+
+      if (courses.length === 0) {
+        list.innerHTML = '<div style="padding:16px;color:rgba(255,255,255,0.4);font-size:12px;">No lessons in this curriculum.</div>';
+        return;
+      }
+
+      const rows = courses.map((course, idx) => {
+        const isComplete = course.enrollmentStatus?.toLowerCase() === 'complete';
+        const isILT = course.courseType === 'InstructorLedCourse';
+        const state = isComplete ? 'done' : 'next';
+        const el = document.createElement('div');
+        el.className = 'il-lesson';
+        el.style.cursor = 'pointer';
+        const arrowLabel = isComplete ? '✓' : isILT ? '📅' : '▶';
+        const arrowClass = isComplete ? 'done' : 'next';
+        const durLabel = isComplete ? ' · Complete' : isILT ? ' · Instructor-Led' : '';
+        const iltPill = isILT ? ' <span style="font-size:9px;background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 5px;font-weight:700;text-transform:uppercase;vertical-align:middle;">Sessions</span>' : '';
+        el.innerHTML = `
+          <div class="il-arrow ${arrowClass}" style="${isILT ? 'font-size:14px;background:transparent;color:#f59e0b;' : ''}">${arrowLabel}</div>
+          <div class="il-meta">
+            <div class="il-title">${course.name || course.title || 'Course'}</div>
+            <div class="il-dur">${durLabel}${iltPill}</div>
+          </div>`;
+        list.appendChild(el);
+        return { el, courseId: course.id, courseTitle: course.name || course.title || 'Course', isILT, state };
+      });
+
+      // Wire clicks
+      rows.forEach(row => {
+        row.el.addEventListener('click', () => {
+          rows.forEach(r => r.el.classList.remove('il-active'));
+          row.el.classList.add('il-active');
+          if (row.isILT) {
+            frame.src = 'about:blank';
+            openSessionsModal(row.courseId, row.courseTitle);
+          } else {
+            mpLoadLesson(row.courseId, null);
+          }
+        });
+      });
+
+      // Auto-load first non-ILT child
+      const firstOnline = rows.find(r => !r.isILT);
+      if (firstOnline) {
+        firstOnline.el.classList.add('il-active');
+        mpLoadLesson(firstOnline.courseId, null);
+      }
+    } catch (err) {
+      list.innerHTML = `<div style="padding:16px;color:#f87171;font-size:12px;">Error: ${err.message}</div>`;
+      console.error('Modal curriculum error:', err);
+    }
+  }
+
+  // Online course: use /api/psbi/player chapter/lesson structure
+  async function openPlayerModalOnline(courseId, courseTitle, list, frame) {
+    try {
       const resp = await fetch(`/api/psbi/player?courseId=${encodeURIComponent(courseId)}&mode=course`, { credentials: 'include' });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const payload = await resp.json();
       if (payload.error) throw new Error(payload.error);
 
-      // Build lesson list from chapters
       const chapters = payload.chapters || [];
       list.innerHTML = '';
       let lessonEls = [];
       let firstLessonId = payload.lessonId;
 
       if (chapters.length === 0) {
-        // No chapters — show single "Launch" entry
         const row = buildLessonRow(null, courseTitle, 'playing', 0);
         list.appendChild(row.el);
         lessonEls.push(row);
@@ -1353,8 +1422,7 @@
         });
       }
 
-      // Wire click handlers
-      lessonEls.forEach((row, i) => {
+      lessonEls.forEach(row => {
         row.el.addEventListener('click', () => {
           lessonEls.forEach(r => r.el.classList.remove('il-active'));
           row.el.classList.add('il-active');
@@ -1362,17 +1430,13 @@
         });
       });
 
-      // Set active lesson and load player
       if (lessonEls.length > 0) {
-        const activeIdx = lessonEls.findIndex(r => r.state === 'playing') || 0;
-        const target = lessonEls[Math.max(0, activeIdx)];
+        const activeIdx = Math.max(0, lessonEls.findIndex(r => r.state === 'playing'));
         lessonEls.forEach(r => r.el.classList.remove('il-active'));
-        target.el.classList.add('il-active');
+        lessonEls[activeIdx].el.classList.add('il-active');
       }
 
-      // Load the player URL we already have
       frame.src = payload.playerUrl;
-
     } catch (err) {
       list.innerHTML = `<div style="padding:16px;color:#f87171;font-size:12px;">Error: ${err.message}</div>`;
       console.error('Modal player error:', err);
@@ -1418,8 +1482,12 @@
     _mpCourseId = null;
   }
 
-  // Escape key closes modal
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePlayerModal(); });
+  // Escape key closes whichever modal is open
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (document.getElementById('sessionsModal').classList.contains('open')) closeSessionsModal();
+    else closePlayerModal();
+  });
 
   /* ════════════════════════════════════
      Inline player — dashboard curriculum
