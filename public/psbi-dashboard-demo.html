@@ -1471,34 +1471,51 @@
       // Build lesson rows from curriculum children (each child is a course)
       const rows = courses.map((course, idx) => {
         const isComplete = course.enrollmentStatus?.toLowerCase() === 'complete';
+        const isILT = course.courseType === 'InstructorLedCourse';
         const state = isComplete ? 'done' : idx === 0 ? 'playing' : 'next';
         const el = document.createElement('div');
-        el.className = 'il-lesson' + (state === 'playing' ? ' il-active' : '');
+        el.className = 'il-lesson' + (state === 'playing' && !isILT ? ' il-active' : '');
         el.style.cursor = 'pointer';
         const arrowClass = state === 'done' ? 'done' : state === 'playing' ? 'playing' : 'next';
-        const arrowLabel = state === 'done' ? '✓' : '▶';
-        const dur = isComplete ? ' · Complete' : state === 'playing' ? ' · In progress' : '';
+        const arrowLabel = state === 'done' ? '✓' : isILT ? '📅' : '▶';
+        const dur = isComplete
+          ? ' · Complete'
+          : isILT
+            ? ' · Instructor-Led'
+            : state === 'playing' ? ' · In progress' : '';
         el.innerHTML = `
-          <div class="il-arrow ${arrowClass}">${arrowLabel}</div>
+          <div class="il-arrow ${arrowClass}" style="${isILT ? 'font-size:14px;background:transparent;color:#f59e0b;' : ''}">${arrowLabel}</div>
           <div class="il-meta">
             <div class="il-title">${course.name || course.title || 'Course'}</div>
-            <div class="il-dur">${dur}</div>
+            <div class="il-dur">${dur}${isILT ? ' <span style="font-size:9px;background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 5px;font-weight:700;text-transform:uppercase;vertical-align:middle;">Sessions</span>' : ''}</div>
           </div>`;
         lessonList.appendChild(el);
-        return { el, courseId: course.id, state };
+        return { el, courseId: course.id, courseTitle: course.name || course.title || 'Course', courseType: course.courseType, state, isILT };
       });
 
       // Wire click handlers
       rows.forEach(row => {
         row.el.addEventListener('click', () => {
-          rows.forEach(r => r.el.classList.remove('il-active'));
-          row.el.classList.add('il-active');
-          ilLoadCourse(row.courseId);
+          if (row.isILT) {
+            // ILT: open sessions modal, don't touch the iframe
+            rows.forEach(r => r.el.classList.remove('il-active'));
+            row.el.classList.add('il-active');
+            openSessionsModal(row.courseId, row.courseTitle);
+          } else {
+            rows.forEach(r => r.el.classList.remove('il-active'));
+            row.el.classList.add('il-active');
+            ilLoadCourse(row.courseId);
+          }
         });
       });
 
-      // Load the first course player
-      ilLoadCourse(courses[0].id);
+      // Load the first non-ILT course in the iframe; if first is ILT just leave blank
+      const firstOnline = courses.find(c => c.courseType !== 'InstructorLedCourse');
+      if (firstOnline) {
+        ilLoadCourse(firstOnline.id);
+        const firstOnlineRow = rows.find(r => r.courseId === firstOnline.id);
+        if (firstOnlineRow) firstOnlineRow.el.classList.add('il-active');
+      }
 
     } catch (err) {
       lessonList.innerHTML = `<div style="padding:16px;color:#f87171;font-size:12px;">Error: ${err.message}</div>`;
