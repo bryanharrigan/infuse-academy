@@ -1067,6 +1067,58 @@
       </div>`;
   }
 
+  const PINNED_COURSES = [
+    {
+      title: 'Aura',
+      icon: '✨',
+      gradient: 'linear-gradient(135deg,#f59e0b,#d97706,#b45309)',
+      badge: 'Featured',
+      badgeClass: 'optional',
+      url: 'https://bharrigan.myabsorb.ca/#/online-course-player/f8fb774c-e13d-4f38-8091-537798dc1005',
+      description: 'The Optimism Library features new lessons from Simon, along with more than 50 recordings of our best live online classes, led by Simon\'s world-class Optimist Instructors. Updated monthly, the Library provides practical career lessons, leadership insights based on Simon\'s teachings, comprehensive communication strategies, productivity advice, and more.',
+      price: null,
+    },
+    {
+      title: 'The Optimism Library',
+      icon: '📚',
+      gradient: 'linear-gradient(135deg,#7c3aed,#5547a3,#312e81)',
+      badge: 'Bundle',
+      badgeClass: 'required',
+      url: 'https://bharrigan.myabsorb.ca/#/course-bundles/e096c1e7-1aa7-4a9c-9374-d4983e89ca0f',
+      description: 'The Optimism Library features new lessons from Simon, along with more than 50 recordings of our best live online classes, led by Simon\'s world-class Optimist Instructors. Updated monthly, the Library provides practical career lessons, leadership insights based on Simon\'s teachings, comprehensive communication strategies, productivity advice, and more.',
+      price: 299,
+    },
+  ];
+
+  function renderPinnedCard(p) {
+    const desc = p.description.slice(0, 120) + '…';
+    const priceHtml = p.price != null
+      ? `<span class="course-duration" style="font-weight:700;color:#059669;font-size:14px;">$${p.price}</span>`
+      : `<span class="course-duration">External</span>`;
+    return `
+      <div class="course-card" data-cat="external">
+        <div class="course-thumb" style="background:${p.gradient}">
+          <span>${p.icon}</span>
+          <span class="thumb-badge ${p.badgeClass}">${p.badge}</span>
+        </div>
+        <div class="course-body">
+          <div class="course-category">Featured</div>
+          <div class="course-title">${p.title}</div>
+          <div class="course-desc">${desc}</div>
+        </div>
+        <div class="course-footer">
+          ${priceHtml}
+          <div class="course-footer-btns">
+            <a class="launch-course-btn" href="${p.url}" target="_blank" rel="noopener"
+               style="text-decoration:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Open
+            </a>
+          </div>
+        </div>
+      </div>`;
+  }
+
   async function loadCatalog() {
     window._catalogLoaded = true;
     const grid = document.getElementById('catalogGrid');
@@ -1082,12 +1134,15 @@
       const data = await resp.json();
       const courses = data._embedded?.courses ?? [];
 
+      const pinnedHtml = PINNED_COURSES.map(renderPinnedCard).join('');
+
       if (courses.length === 0) {
-        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#64748b;">No courses found in the catalog.</div>';
+        grid.innerHTML = pinnedHtml || '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#64748b;">No courses found in the catalog.</div>';
         return;
       }
 
-      grid.innerHTML = courses.map((c, i) => renderCatalogCard(c, i)).join('');
+      // Offset index so API courses pick up gradients after the pinned ones
+      grid.innerHTML = pinnedHtml + courses.map((c, i) => renderCatalogCard(c, i + PINNED_COURSES.length)).join('');
     } catch (err) {
       grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:#dc2626;">Failed to load catalog: ${err.message}</div>`;
     }
