@@ -56,13 +56,19 @@ import { searchEmbedCatalog, type EmbedCourse } from "~/.server/embed-catalog";
 import { authenticate } from "~/.server/infuse-api";
 
 /**
- * Remix/Express may attach a default `X-Frame-Options` upstream. Strip it for
- * this route — being framable by arbitrary sites IS the feature here. Note we
- * deliberately do NOT send `frame-ancestors`, which would reintroduce the
- * per-domain registration problem this design exists to avoid.
+ * Nothing in this app sets `X-Frame-Options` (checked: no helmet, no
+ * frameguard, nothing in server.js or entry.server), so we must not set one
+ * either — being framable by arbitrary sites IS the feature here.
+ *
+ * An earlier version sent `X-Frame-Options: ""` defensively. Chrome ignores an
+ * empty value but logs "Invalid 'X-Frame-Options' header encountered … '' is
+ * not a recognized directive", which is noise in every embedding page's
+ * console. Send no header at all instead.
+ *
+ * We also deliberately do NOT send `frame-ancestors`, which would reintroduce
+ * the per-domain registration problem this design exists to avoid.
  */
 export const headers: HeadersFunction = () => ({
-  "X-Frame-Options": "",
   "Cache-Control": "no-store",
 });
 
@@ -151,6 +157,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 type PlayResponse = {
   playerUrl?: string;
+  lessonId?: string | null;
+  /**
+   * False when the minted URL is Absorb's course player, which refuses to
+   * frame. Decided server-side because it cannot be detected here — Chrome
+   * fires `load` on the refusal page, so a watchdog never trips. See
+   * embed_.play.ts.
+   */
+  framable?: boolean;
+  /** Portal URL to open when the content can't be framed. */
+  externalUrl?: string;
+  /** Set when a curriculum was opened via one of its child courses. */
+  partOfCurriculum?: boolean;
+  playingCourseName?: string;
+  /** Curriculum with no online child — nothing to play inline. */
+  notEmbeddable?: boolean;
+  reason?: string;
   needsAuth?: boolean;
   needsEnrollment?: boolean;
   error?: string;
@@ -185,14 +207,22 @@ export default function Embed() {
     if (play.data?.playerUrl) {
       setPlayerUrl(play.data.playerUrl);
       setFrameLoaded(false);
-      setFrameBlocked(false);
+      // The server already knows whether this URL can be framed. Trust it
+      // rather than waiting to find out — otherwise an unframable player
+      // shows an empty box for 8 seconds before anything useful appears.
+      setFrameBlocked(play.data.framable === false);
     }
   }, [play.data]);
 
   /**
-   * Watchdog: a frame Absorb refuses to render fires no load event, so after
-   * 8s with nothing we assume it was blocked and offer the popup instead.
-   * The popup is a top-level context, so no framing rules apply to it at all.
+   * Backstop watchdog for the case where Absorb refuses a URL we expected to
+   * work (e.g. the Allow List changes).
+   *
+   * NOTE: this cannot be the primary mechanism. Chrome fires `load` on the
+   * X-Frame-Options refusal page, so `frameLoaded` goes true even when the
+   * frame is blocked and this timer is cancelled. `framable` from the server
+   * is what actually catches the known case; this only helps when the frame
+   * truly hangs.
    */
   useEffect(() => {
     if (!playerUrl || frameLoaded || frameBlocked) return;
@@ -229,7 +259,12 @@ export default function Embed() {
             <button type="button" onClick={back} style={styles.linkBtn}>
               ← All courses
             </button>
-            <span style={styles.barTitle}>{selected.name}</span>
+            <span style={styles.barTitle}>
+              {selected.name}
+              {play.data?.partOfCurriculum && play.data.playingCourseName
+                ? ` · ${play.data.playingCourseName}`
+                : ""}
+            </span>
           </div>
 
           {play.state !== "idle" && !playerUrl && (
@@ -241,6 +276,29 @@ export default function Embed() {
               You don't have access to this course yet. Ask your administrator to
               enrol you, then try again.
             </p>
+          )}
+
+          {/* Curriculum with nothing playable inline — offer Absorb instead of
+              dropping the learner into an empty frame. */}
+          {play.data?.notEmbeddable && (
+            <div style={styles.fallback}>
+              <p style={styles.muted}>{play.data.reason}</p>
+              {play.data.externalUrl && (
+                <button
+                  type="button"
+                  style={styles.primaryBtn}
+                  onClick={() =>
+                    window.open(
+                      play.data!.externalUrl,
+                      "_blank",
+                      "noopener,width=1100,height=760"
+                    )
+                  }
+                >
+                  Open in Absorb
+                </button>
+              )}
+            </div>
           )}
 
           {play.data?.error && !play.data.needsEnrollment && (
