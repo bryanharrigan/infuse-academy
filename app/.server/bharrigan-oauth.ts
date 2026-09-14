@@ -3,7 +3,7 @@
  *
  * Mirrors infuse-oauth.ts but targets the second Absorb portal.
  * The authorize/token endpoints follow the same Absorb pattern:
- *   - client_secret is passed as a query param on /oauth/authorize
+ *   - /oauth/authorize takes client_id only — never client_secret (see below)
  *   - token exchange is form-urlencoded to /oauth/token with x-api-key = client_id
  *
  * Env vars required:
@@ -30,12 +30,15 @@ export const BHARRIGAN_REDIRECT_URI = `${PUBLIC_URL}/auth/bharrigan-callback`;
 
 /**
  * Build the Absorb OAuth authorization URL for the bharrigan portal.
- * Absorb requires client_secret on the query string (non-standard but documented).
+ *
+ * client_secret is deliberately omitted — this URL is a browser redirect
+ * target, so anything in its query string leaks to history, logs and Referer
+ * headers. See the note in infuse-oauth.ts#buildAuthorizeUrl; the secret is
+ * sent on the back-channel token POST instead.
  */
 export function buildBharriganAuthorizeUrl(state: string): string {
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
-    client_secret: CLIENT_SECRET,
     redirect_uri: BHARRIGAN_REDIRECT_URI,
     response_type: "code",
     scope: "learner openid profile email",

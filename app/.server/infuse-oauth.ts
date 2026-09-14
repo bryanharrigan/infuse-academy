@@ -101,12 +101,19 @@ export async function stateIsKnown(
 }
 
 export function buildAuthorizeUrl(state: string): string {
-  // Per Absorb docs the authorize endpoint takes client_id + client_secret
-  // as query parameters (unusual for OAuth but documented). Scope is a
-  // space-delimited string of the supported scopes.
+  // NOTE: client_secret is deliberately NOT sent here.
+  //
+  // This URL is a 302 target — it lands in the learner's address bar, their
+  // browser history, Cloudflare and Absorb access logs, and any Referer header
+  // the login page emits. A client secret must never travel in a query string.
+  //
+  // Earlier revisions included it because Absorb's docs show it on
+  // /oauth/authorize. Tested against bryanh.myabsorb.com on 2026-09-14: the
+  // authorize endpoint returns the same 200 + hosted login page with the
+  // parameter omitted, so it is not required to start the flow. The secret is
+  // still sent — correctly — on the back-channel POST to /oauth/token below.
   const params = new URLSearchParams({
     client_id: ClientId,
-    client_secret: ClientSecret,
     redirect_uri: RedirectUri,
     response_type: "code",
     scope: "learner openid profile email",
@@ -174,19 +181,23 @@ export async function exchangeCodeForTokens(
   }
   clearTimeout(timeout);
 
-  const bodyPreview = await response
-    .clone()
-    .text()
-    .then((t) => t.slice(0, 400))
-    .catch(() => "<unreadable>");
-  console.log(
-    `[oauth] /oauth/token → ${response.status} (clientIdLen=${ClientId.length} secretLen=${ClientSecret.length}) body=${bodyPreview}`
-  );
-
+  // Only read the response body for logging when the exchange FAILED.
+  // A successful body contains access_token and refresh_token; logging it
+  // wrote live learner credentials into CloudWatch on every sign-in.
   if (!response.ok) {
+    const bodyPreview = await response
+      .clone()
+      .text()
+      .then((t) => t.slice(0, 400))
+      .catch(() => "<unreadable>");
+    console.log(
+      `[oauth] /oauth/token → ${response.status} (clientIdLen=${ClientId.length} secretLen=${ClientSecret.length}) body=${bodyPreview}`
+    );
     throw new Error(
       `OAuth token exchange failed (status=${response.status}) body=${bodyPreview}`
     );
   }
+
+  console.log(`[oauth] /oauth/token → ${response.status} (tokens received)`);
   return response.json();
 }
