@@ -79,7 +79,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const path = url.pathname;
 
-  const isPublicPath = path === "/signin" || path === "/auth/callback";
+  // The embed widget (/embed, /embed/play) is public by design: it is framed
+  // by third-party sites and carries its own session in `infuse_embed_jwt`
+  // (SameSite=None), not the app's `infuse_jwt`. Bouncing it to /signin would
+  // render this app's full login page inside someone else's iframe.
+  const isEmbedPath = path === "/embed" || path.startsWith("/embed/");
+
+  const isPublicPath =
+    path === "/signin" || path === "/auth/callback" || isEmbedPath;
 
   if (!token && !isPublicPath) return redirect("/signin");
   if (token && path === "/signin") return redirect("/");
@@ -107,7 +114,21 @@ const ThemedShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 export default function App() {
   const location = useLocation();
-  const isNotLoginPage = location.pathname !== "/signin";
+  const path = location.pathname;
+  const isEmbed = path === "/embed" || path.startsWith("/embed/");
+
+  // The embed is framed inside someone else's page, where our header, theme
+  // shell and global chrome are noise at best and a layout fight at worst.
+  // Render it bare — it brings its own self-contained styling.
+  if (isEmbed) {
+    return (
+      <Document>
+        <Outlet />
+      </Document>
+    );
+  }
+
+  const isNotLoginPage = path !== "/signin";
   return (
     <Document>
       <AppStateProvider>
