@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infuse Embed — drop-in demo</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0;
+    font: 15px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #f6f7f9;
+    color: #111827;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .sub { color: #6b7280; margin: 0 0 28px; }
+  .frame-box {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+  }
+  iframe { display: block; width: 100%; height: 640px; border: 0; }
+  h2 { font-size: 16px; margin: 36px 0 8px; }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 14px 16px;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-size: 13px;
+  }
+  ul { padding-left: 20px; }
+  li { margin: 4px 0; }
+  code { background: #eef2ff; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  footer { margin-top: 40px; color: #6b7280; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Infuse Academy — embeddable player</h1>
+  <p class="sub">
+    Everything below the line is a single iframe. Host this file on any domain;
+    nothing else needs configuring.
+  </p>
+
+  <div class="frame-box">
+    <iframe
+      src="https://infuse.bryanharrigan.dev/embed"
+      title="Infuse Academy course player"
+      allowfullscreen></iframe>
+  </div>
+
+  <h2>The snippet</h2>
+<pre><code>&lt;iframe src="https://infuse.bryanharrigan.dev/embed"
+        width="100%" height="640"
+        style="border:0" allowfullscreen&gt;&lt;/iframe&gt;</code></pre>
+
+  <h2>Options</h2>
+  <ul>
+    <li><code>?course=&lt;courseId&gt;</code> — open on one course, skipping the catalog</li>
+    <li><code>?q=leadership</code> — pre-filter the catalog</li>
+    <li><code>?theme=dark</code> — dark surface for dark host pages</li>
+  </ul>
+
+  <h2>What it does</h2>
+  <ul>
+    <li>Browsing and searching the catalog needs <strong>no login</strong>.</li>
+    <li>Absorb credentials are asked for only when a learner presses play, and
+      are typed into the Absorb domain inside the frame — never into this page.</li>
+    <li>Playback access is enforced by Absorb at launch, not by this page.</li>
+    <li>No API key, portal URL, or secret appears anywhere in the snippet.</li>
+  </ul>
+
+  <footer>
+    Demo harness for the Infuse Academy embed. The host page holds no
+    credentials and no configuration.
+  </footer>
+
+</div>
+</body>
+</html>
