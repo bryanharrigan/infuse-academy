@@ -50,6 +50,11 @@ import {
   getPortalCourseUrl,
 } from "~/.server/infuse-api";
 import { getEmbedCourse } from "~/.server/embed-catalog";
+import {
+  ProvisionBusyError,
+  autoProvisionEnabled,
+  provisionDemoLearner,
+} from "~/.server/embed-provision";
 
 /** Only the lesson player can be framed — see the header comment. */
 function isFramable(playerUrl: string): boolean {
@@ -74,17 +79,61 @@ function looksLikeEnrollmentFailure(message: string): boolean {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const token = await embedJwtCookie.parse(request.headers.get("Cookie"));
-  if (!token) {
-    return json({ needsAuth: true, error: "Sign in to start this course." }, { status: 401 });
-  }
-
   const url = new URL(request.url);
   const courseId = url.searchParams.get("courseId");
   const lessonId = url.searchParams.get("lessonId") ?? undefined;
   if (!courseId) {
     return json({ error: "courseId required" }, { status: 400 });
   }
+
+  let token = await embedJwtCookie.parse(request.headers.get("Cookie"));
+
+  /**
+   * No session yet. With auto-provisioning on, create a throwaway learner so
+   * the visitor goes straight to playing — no sign-in, no signup form.
+   *
+   * The cookie check above is the session-reuse guard: a visitor who already
+   * has one never reaches here, so refreshing the page does not mint a second
+   * account. See embed-provision.ts for the other limits.
+   */
+  let setCookie: string | null = null;
+  if (!token && autoProvisionEnabled()) {
+    try {
+      const provisioned = await provisionDemoLearner(courseId);
+      token = provisioned.token;
+      setCookie = await embedJwtCookie.serialize(provisioned.token);
+    } catch (err) {
+      if (err instanceof ProvisionBusyError) {
+        return json(
+          {
+            error:
+              "This demo is handling a lot of traffic right now. Try again in a few minutes.",
+          },
+          { status: 429 }
+        );
+      }
+      // Fall through to the sign-in prompt rather than dead-ending: the
+      // existing credential path still works when provisioning is misconfigured.
+      console.error(
+        "[embed/play] auto-provisioning failed:",
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
+  if (!token) {
+    return json({ needsAuth: true, error: "Sign in to start this course." }, { status: 401 });
+  }
+
+  /** Attach the new session to whatever we return below. */
+  const withCookie = (payload: unknown, init?: ResponseInit) =>
+    json(payload, {
+      ...init,
+      headers: {
+        ...(init?.headers ?? {}),
+        ...(setCookie ? { "Set-Cookie": setCookie } : {}),
+      },
+    });
 
   try {
     const course = await getEmbedCourse(courseId).catch(() => null);
@@ -117,7 +166,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           mode: "lesson",
           returnUrl: "",
         });
-        return json({
+        return withCookie({
           playerUrl: childPayload.playerUrl,
           lessonId: childPayload.lessonId,
           framable: isFramable(childPayload.playerUrl),
@@ -129,7 +178,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         });
       }
 
-      return json({
+      return withCookie({
         notEmbeddable: true,
         reason:
           "This curriculum has no online course that can play inside an embedded frame.",
@@ -154,7 +203,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       );
     }
 
-    return json({
+    return withCookie({
       playerUrl: payload.playerUrl,
       lessonId: payload.lessonId,
       framable,
@@ -165,10 +214,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.error(`[embed/play] mint failed for course ${courseId}: ${message}`);
 
     if (looksLikeEnrollmentFailure(message)) {
-      return json({ needsEnrollment: true }, { status: 403 });
+      return withCookie({ needsEnrollment: true }, { status: 403 });
     }
     // Absorb's error bodies can echo request internals — don't forward them
     // to a page that an arbitrary third-party site is framing.
-    return json({ error: "Could not start this course. Please try again." }, { status: 500 });
+    return withCookie(
+      { error: "Could not start this course. Please try again." },
+      { status: 500 }
+    );
   }
 };
