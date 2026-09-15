@@ -52,8 +52,13 @@ import {
 import { useFetcher, useLoaderData, useSearchParams } from "@remix-run/react";
 
 import { embedJwtCookie } from "~/constants/embed-cookie.server";
-import { searchEmbedCatalog, type EmbedCourse } from "~/.server/embed-catalog";
+import {
+  getEmbedCourse,
+  searchEmbedCatalog,
+  type EmbedCourse,
+} from "~/.server/embed-catalog";
 import { authenticate } from "~/.server/infuse-api";
+import { autoProvisionEnabled } from "~/.server/embed-provision";
 
 /**
  * Nothing in this app sets `X-Frame-Options` (checked: no helmet, no
@@ -81,6 +86,16 @@ type LoaderData = {
   error: string | null;
   /** Portal self-signup URL for the configured enrollment key, or null. */
   signupUrl: string | null;
+  /**
+   * True when the server can create a throwaway learner on demand. The widget
+   * then plays straight through instead of asking for credentials.
+   */
+  autoProvision: boolean;
+  /**
+   * Set when ?course= names a course, even one absent from the catalog list —
+   * a single-course embed shouldn't depend on catalog visibility.
+   */
+  focusCourse: EmbedCourse | null;
 };
 
 /**
@@ -135,6 +150,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       (err instanceof Error ? err.message : String(err));
   }
 
+  // Resolve ?course= directly so a single-course embed works whether or not
+  // the course appears in the catalog listing.
+  let focusCourse: EmbedCourse | null = null;
+  if (focusCourseId) {
+    focusCourse =
+      courses.find((c) => c.id === focusCourseId) ??
+      (await getEmbedCourse(focusCourseId).catch(() => null));
+  }
+
   return json<LoaderData>({
     courses,
     query,
@@ -143,6 +167,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     theme,
     error,
     signupUrl: buildSignupUrl(key),
+    autoProvision: autoProvisionEnabled(),
+    focusCourse,
   });
 };
 
@@ -221,14 +247,22 @@ export default function Embed() {
   const play = useFetcher<PlayResponse>();
 
   const [selected, setSelected] = useState<EmbedCourse | null>(
-    () => data.courses.find((c) => c.id === data.focusCourseId) ?? null
+    () => data.focusCourse ?? data.courses.find((c) => c.id === data.focusCourseId) ?? null
   );
   const [playerUrl, setPlayerUrl] = useState<string | null>(null);
   const [frameBlocked, setFrameBlocked] = useState(false);
   const [frameLoaded, setFrameLoaded] = useState(false);
   const frameRef = useRef<HTMLIFrameElement>(null);
 
-  const signedIn = data.signedIn || auth.data?.ok === true;
+  /**
+   * With auto-provisioning on, the server mints a learner during /embed/play,
+   * so the widget should go straight to the player rather than showing a
+   * sign-in form. If provisioning then fails, /embed/play answers needsAuth
+   * and the form appears as the fallback.
+   */
+  const canPlayWithoutCredentials = data.autoProvision && !play.data?.needsAuth;
+  const signedIn =
+    data.signedIn || auth.data?.ok === true || canPlayWithoutCredentials;
   const dark = data.theme === "dark";
 
   // Launch as soon as we have a course and a session.
