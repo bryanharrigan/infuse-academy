@@ -79,13 +79,47 @@ type LoaderData = {
   focusCourseId: string | null;
   theme: "light" | "dark";
   error: string | null;
+  /** Portal self-signup URL for the configured enrollment key, or null. */
+  signupUrl: string | null;
 };
+
+/**
+ * Absorb enrollment key used for self-signup, e.g. "SmartSignUp".
+ *
+ * Set `EMBED_ENROLLMENT_KEY` in the Amplify environment variables to turn the
+ * signup option on; leave it unset and the widget only offers sign-in.
+ *
+ * The key is not a secret — it ends up in a link on a page anyone can view —
+ * so it lives in config for convenience, not for protection. Absorb's own
+ * `maxUses` and `expiryDate` on the key are what actually bound its use.
+ */
+const EnrollmentKey = process.env.EMBED_ENROLLMENT_KEY ?? "";
+const PortalUrl = process.env.INFUSE_PORTAL_URL ?? "https://bryanh.myabsorb.com";
+
+/**
+ * Build the portal's self-signup URL for an enrollment key.
+ *
+ * Verified against bryanh.myabsorb.com on 14 Sep 2026: `?KeyName=<key>` on the
+ * portal ROOT redirects to `#/signup-form` with the key already applied — the
+ * learner never sees or types the key, and is left with just First Name, Last
+ * Name and Password. The hash route (`#/signup?useEnrollmentKey=true&…`) does
+ * NOT prefill; only the root query param is read at load. No other field can
+ * be prefilled — FirstName, LastName and EmailAddress params are all ignored,
+ * which is the right call for a password form.
+ */
+function buildSignupUrl(key: string): string | null {
+  if (!key) return null;
+  const base = PortalUrl.replace(/\/$/, "");
+  return `${base}?KeyName=${encodeURIComponent(key)}`;
+}
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const query = url.searchParams.get("q") ?? "";
   const focusCourseId = url.searchParams.get("course");
   const theme = url.searchParams.get("theme") === "dark" ? "dark" : "light";
+  // Per-embed override, so one deploy can demo several keys.
+  const key = url.searchParams.get("key") ?? EnrollmentKey;
 
   const token = await embedJwtCookie.parse(request.headers.get("Cookie"));
 
@@ -108,6 +142,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     focusCourseId,
     theme,
     error,
+    signupUrl: buildSignupUrl(key),
   });
 };
 
@@ -363,6 +398,39 @@ export default function Embed() {
             {auth.data?.error && <p style={styles.error}>{auth.data.error}</p>}
           </auth.Form>
 
+          {/*
+            Self-signup via an Absorb enrollment key.
+
+            Opens in a NEW TAB rather than in this frame: the portal root sends
+            X-Frame-Options: SAMEORIGIN, so a signup page nested here would be
+            refused outright. A plain link with target="_blank" is also not a
+            scripted popup, so nothing blocks it.
+
+            The learner comes back and signs in with the account they just
+            made. We can't sign them in automatically — the portal session and
+            this widget's session are different things, and we never see the
+            password they chose.
+          */}
+          {data.signupUrl && (
+            <div style={styles.signupBlock}>
+              <div style={styles.divider}>
+                <span style={styles.dividerText}>or</span>
+              </div>
+              <a
+                href={data.signupUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={styles.secondaryBtn}
+              >
+                Create an account
+              </a>
+              <p style={styles.fineprint}>
+                Opens the portal in a new tab. It takes your name and a password,
+                enrols you automatically, then come back here and sign in.
+              </p>
+            </div>
+          )}
+
           {/* So a learner can see whose portal they're handing credentials to,
               even when this widget is framed by a site they don't recognise. */}
           <p style={styles.fineprint}>
@@ -513,6 +581,35 @@ function embedStyles(dark: boolean) {
       color: "#2563eb",
       font: "inherit",
       cursor: "pointer",
+    },
+    secondaryBtn: {
+      display: "inline-block",
+      padding: "9px 16px",
+      border: `1px solid ${border}`,
+      borderRadius: 8,
+      background: bg,
+      color: fg,
+      font: "inherit",
+      fontWeight: 600,
+      textDecoration: "none",
+      cursor: "pointer",
+    },
+    signupBlock: { maxWidth: 320, marginTop: 4 },
+    divider: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      margin: "18px 0 14px",
+      color: muted,
+      fontSize: 12,
+    },
+    dividerText: {
+      flex: "0 0 auto",
+      borderTop: `1px solid ${border}`,
+      width: "100%",
+      textAlign: "center",
+      lineHeight: 0,
+      overflow: "visible",
     },
     muted: { color: muted },
     error: { color: "#dc2626" },
