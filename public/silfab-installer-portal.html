@@ -93,6 +93,138 @@
   .card-h .n{margin-left:auto;font-size:11px;font-weight:700;background:var(--sf-grey);padding:2px 8px;border-radius:20px;opacity:.7}
   .card-b{padding:16px}
 
+
+  /* ══════════════════════════════════════════
+     LIVE certification check.
+
+     GET /api/silfab/cert-check?sku=... hits Absorb for real:
+     it reads this learner's enrollment on the certificate-bearing
+     course/curriculum and answers certified / billingHold.
+
+     A certification in Absorb is any course OR curriculum with
+     "Certificate" enabled - the certificate is awarded on completion -
+     so the check is simply whether that item is complete.
+  ══════════════════════════════════════════ */
+  function paintApi(reqText, resObj, tag){
+    var req = document.getElementById('apiReq');
+    var res = document.getElementById('apiRes');
+    var lt  = document.getElementById('apiLiveTag');
+    if (!req || !res) return;
+    req.innerHTML = reqText;
+    if (lt) lt.innerHTML = tag || '';
+    if (typeof resObj === 'string') { res.innerHTML = resObj; return; }
+    var pretty = JSON.stringify(resObj, null, 2)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/"([^"]+)":/g, '<span class="f">"$1"</span>:')
+      .replace(/: (true|false|null)/g, function(_m, v){
+        return ': <span class="' + (v === 'false' || v === 'null' ? 'x' : 'f') + '">' + v + '</span>';
+      });
+    res.innerHTML = pretty;
+  }
+
+  async function runCertCheck(job){
+    if (!job.skuCode) {
+      liveCert[job.id] = { unmapped:true };
+      paintApi('<span class="m">GET</span> /api/silfab/cert-check\n    ?sku=' + esc(job.sku),
+               'No certification mapped for this series in the demo.',
+               '<span style="color:rgba(255,255,255,.3)">not mapped</span>');
+      return;
+    }
+    var url = '/api/silfab/cert-check?sku=' + encodeURIComponent(job.skuCode);
+    paintApi('<span class="m">GET</span> ' + url.replace('?', '\n    ?'), 'Checking Absorb&hellip;', '');
+    try {
+      var resp = await fetch(url, { credentials:'include' });
+      var body = await resp.json();
+      if (resp.status === 401) {
+        liveCert[job.id] = { unauth:true };
+        paintApi('<span class="m">GET</span> ' + url.replace('?', '\n    ?'),
+                 'Not authenticated — <a href="/signin" style="color:#FFB68C">sign in</a> to run this check against the live portal.',
+                 '<span style="color:rgba(255,255,255,.3)">signed out</span>');
+        renderJob();
+        return;
+      }
+      liveCert[job.id] = resp.ok ? body : { error: body.error || ('HTTP ' + resp.status) };
+      paintApi('<span class="m">GET</span> ' + url.replace('?', '\n    ?'), body,
+               '<span style="color:#8FD0A4">&#9679; live</span>');
+      renderJob();
+    } catch (err) {
+      liveCert[job.id] = { error: err.message };
+      paintApi('<span class="m">GET</span> ' + url.replace('?', '\n    ?'),
+               'Request failed: ' + esc(err.message), '');
+    }
+  }
+
+
+  /* ══════════════════════════════════════════
+     Webhook watcher.
+
+     Absorb -> this server is a PUSH: the "Certificate Awarded" Webhook
+     arrives the instant the certificate is granted, so nothing polls the
+     LMS. The browser then picks the change up from our own origin, which
+     costs Absorb nothing and is the robust transport for a live demo.
+  ══════════════════════════════════════════ */
+  var hookSeq = 0;
+  var hookSeen = 0;
+
+  function showToast(title, sub){
+    var el = document.getElementById('toast');
+    if (!el) return;
+    document.getElementById('toastT').textContent = title;
+    document.getElementById('toastS').textContent = sub;
+    el.classList.add('show');
+    setTimeout(function(){ el.classList.remove('show'); }, 7000);
+  }
+
+  function paintHook(events){
+    var el = document.getElementById('apiHook');
+    var tag = document.getElementById('hookTag');
+    if (!el) return;
+    if (!events.length) return;
+    var lines = events.slice(-4).map(function(e){
+      return '<span class="m">POST</span> /api/silfab/webhook\n' +
+             '  <span class="f">"event"</span>: "' + esc(e.event) + '"\n' +
+             '  <span class="f">"userId"</span>: "' + esc(e.userId || '-') + '"\n' +
+             '  <span class="f">"verified"</span>: <span class="f">true</span>' +
+             '   <span style="color:rgba(255,255,255,.4)">' + esc(String(e.receivedAt).slice(11,19)) + ' UTC</span>';
+    });
+    el.innerHTML = lines.join('\n\n');
+    if (tag) tag.innerHTML = '<span style="color:#8FD0A4">&#9679; received</span>';
+  }
+
+  async function pollHooks(){
+    try {
+      var resp = await fetch('/api/silfab/events?since=' + hookSeen, { credentials:'include' });
+      if (!resp.ok) return;
+      var data = await resp.json();
+      if (data.version === hookSeq) return;
+
+      hookSeq = data.version;
+      var fresh = data.events || [];
+      if (fresh.length) {
+        hookSeen = fresh[fresh.length - 1].seq;
+        paintHook(fresh);
+
+        var certEvent = fresh.some(function(e){ return /certificate/i.test(e.event); });
+        var job = JOBS[active];
+        var wasHeld = liveCert[job.id] && liveCert[job.id].billingHold;
+
+        // The payload is lean by design, so re-ask the API for the truth.
+        delete liveCert[job.id];
+        await runCertCheck(job);
+
+        var nowClear = liveCert[job.id] && liveCert[job.id].certified;
+        if (certEvent && wasHeld && nowClear) {
+          showToast('Certificate awarded',
+                    'Absorb pushed the award and the billing hold on ' + job.id + ' cleared.');
+        } else if (certEvent) {
+          showToast('Certificate awarded', 'Absorb pushed an update; certification re-checked.');
+        }
+      }
+    } catch (err) {
+      /* a dropped poll is not worth surfacing during a demo */
+    }
+  }
+
   /* ── Work order list ─────────────────────── */
   .wo{padding:13px 16px;border-bottom:1px solid var(--sf-line);cursor:pointer;display:block;width:100%;text-align:left;background:none;border-left:3px solid transparent;font:inherit}
   .wo:last-child{border-bottom:0}
@@ -243,6 +375,18 @@
 
   .note{font-size:12.5px;opacity:.6;padding:10px 0}
   .err{font-size:12.5px;color:var(--sf-stop);padding:10px 0}
+  .toast{
+    position:fixed;right:22px;bottom:22px;z-index:200;max-width:360px;
+    background:#0E7A3E;color:#fff;border-radius:10px;padding:14px 16px;
+    box-shadow:0 12px 34px rgba(0,0,0,.28);
+    display:flex;gap:12px;align-items:flex-start;
+    transform:translateY(16px);opacity:0;pointer-events:none;
+    transition:transform .25s ease,opacity .25s ease;
+  }
+  .toast.show{transform:translateY(0);opacity:1}
+  .toast-ic{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+  .toast-t{font-size:14px;font-weight:700;line-height:1.3}
+  .toast-s{font-size:12.5px;opacity:.85;margin-top:2px;line-height:1.45}
   .hide{display:none !important}
   .foot{max-width:1320px;margin:0 auto;padding:22px 20px 0;font-size:12px;opacity:.5;line-height:1.6}
 </style>
@@ -381,33 +525,15 @@
         <div class="api-b">
           <div class="api-blk">
             <div class="api-k">1 &bull; CRM asks before allowing the job to be billed</div>
-<pre><span class="m">GET</span> /api/v1/certifications/check
-    ?installerId=INST-10492
-    &amp;sku=SIL-590-XM-NTC</pre>
+            <pre id="apiReq">&mdash;</pre>
           </div>
           <div class="api-blk">
-            <div class="api-k">2 &bull; Absorb answers</div>
-<pre>{
-  <span class="f">"installerId"</span>: "INST-10492",
-  <span class="f">"company"</span>:     "Cascade Solar Works",
-  <span class="f">"sku"</span>:         "SIL-590-XM-NTC",
-  <span class="f">"series"</span>:      "Silfab Commercial",
-  <span class="f">"certified"</span>:   <span class="x">false</span>,
-  <span class="f">"billingHold"</span>: <span class="x">true</span>,
-  <span class="f">"missing"</span>: [
-    { <span class="f">"courseId"</span>: "xm-hw-safety",
-      <span class="f">"title"</span>: "High-Wattage Bifacial Safety (XM+)",
-      <span class="f">"minutes"</span>: 45 }
-  ]
-}</pre>
+            <div class="api-k">2 &bull; Absorb answers <span id="apiLiveTag"></span></div>
+            <pre id="apiRes">&mdash;</pre>
           </div>
           <div class="api-blk">
-            <div class="api-k">3 &bull; On completion, Absorb pushes the change back</div>
-<pre><span class="m">POST</span> https://crm.silfabsolar.com/hooks/absorb
-<span class="f">"event"</span>: "certification.granted"
-<span class="f">"installerId"</span>: "INST-10492"
-<span class="f">"series"</span>: "Silfab Commercial"
-<span class="f">"billingHold"</span>: <span class="f">false</span></pre>
+            <div class="api-k">3 &bull; Absorb pushes the award the instant it happens <span id="hookTag"></span></div>
+            <pre id="apiHook">Listening on <span class="f">/api/silfab/webhook</span> for <span class="f">Certificate Awarded</span>&hellip;</pre>
           </div>
         </div>
       </div>
@@ -436,6 +562,14 @@
     through the portal's own API &mdash; no Absorb-branded interface is shown to the installer.
     Panel model numbers and series names are Silfab Solar's; the logo is used to illustrate
     branding only. Work orders, installers and certification records are fictitious sample data.
+  </div>
+</div>
+
+<div class="toast" id="toast">
+  <div class="toast-ic">&#10003;</div>
+  <div>
+    <div class="toast-t" id="toastT">Certificate awarded</div>
+    <div class="toast-s" id="toastS">Absorb pushed the update &mdash; billing hold cleared.</div>
   </div>
 </div>
 
@@ -471,7 +605,7 @@
     {
       id:'WO-44902', title:'Harborview Commons', where:'Everett, WA',
       type:'Commercial rooftop', qty:'240 modules',
-      sku:'SIL-590 XM+ (NTC)', series:'Silfab Commercial',
+      sku:'SIL-590 XM+ (NTC)', skuCode:'SIL-590-XM-NTC', series:'Silfab Commercial',
       due:'17 Oct 2026', value:'$218,400',
       state:'hold', hold:true,
       required:[
@@ -483,7 +617,7 @@
     {
       id:'WO-45010', title:'Riverbend Depot', where:'Kent, WA',
       type:'Utility ground-mount', qty:'1,400 modules',
-      sku:'SIL-630 XL (NTC)', series:'Silfab Utility',
+      sku:'SIL-630 XL (NTC)', skuCode:'SIL-630-XL-NTC', series:'Silfab Utility',
       due:'04 Nov 2026', value:'$946,000',
       state:'warn', hold:false,
       required:[
@@ -494,7 +628,7 @@
     {
       id:'WO-44821', title:'Lakeside Avenue', where:'Tacoma, WA',
       type:'Residential rooftop', qty:'18 modules',
-      sku:'SIL-440 QD (NTC)', series:'Silfab Prime',
+      sku:'SIL-440 QD (NTC)', skuCode:'SIL-440-QD-NTC', series:'Silfab Prime',
       due:'16 Oct 2026', value:'$14,250',
       state:'ok', hold:false,
       required:[
@@ -505,7 +639,7 @@
     {
       id:'WO-44788', title:'Maple Row', where:'Olympia, WA',
       type:'Residential rooftop', qty:'12 modules',
-      sku:'SIL-380 BK', series:'Silfab Elite',
+      sku:'SIL-380 BK', skuCode:null, series:'Silfab Elite',
       due:'Closed 09 Oct 2026', value:'$9,880',
       state:'done', hold:false,
       required:[ { title:'Elite Series BK Installation', mins:90, done:true } ]
@@ -515,6 +649,7 @@
   var CATALOG_LIMIT = 6;
   var active = 0;
   var catalogCourses = [];
+  var liveCert = {};   // jobId -> live cert-check result, 'pending', or {unauth|error}
 
   function esc(s){
     return String(s == null ? '' : s)
@@ -523,6 +658,12 @@
   }
 
   function pillFor(j){
+    var lv = liveCert[j.id];
+    if (lv && lv !== 'pending' && typeof lv.certified === 'boolean') {
+      return lv.certified
+        ? '<span class="pill ok">Cleared</span>'
+        : '<span class="pill stop">Billing hold</span>';
+    }
     if (j.state === 'hold') return '<span class="pill stop">Billing hold</span>';
     if (j.state === 'warn') return '<span class="pill warn">Renewal due</span>';
     if (j.state === 'done') return '<span class="pill done">Billed</span>';
@@ -551,7 +692,32 @@
     var card = document.getElementById('jobCard');
 
     var gateClass, gateIcon, gateTitle, gateBody;
-    if (j.hold) {
+    var lv = liveCert[j.id];
+    if (lv === 'pending') lv = null;
+    var haveLive = lv && typeof lv.certified === 'boolean';
+
+    if (haveLive) {
+      /* Live answer from Absorb wins over the sample framing, so the
+         screen never shows a verdict the API panel contradicts. */
+      var badge = ' <span class="pill info" style="vertical-align:2px">Live from Absorb</span>';
+      if (lv.certified) {
+        gateClass = 'ok'; gateIcon = '\u2713';
+        gateTitle = 'Cleared to install and bill';
+        gateBody = 'Certification <strong>' + esc(lv.certification && lv.certification.name) + '</strong> ' +
+          'is complete for <strong>' + esc(lv.learner) + '</strong>' +
+          (lv.completionDate ? ' (awarded ' + esc(String(lv.completionDate).slice(0,10)) + ')' : '') +
+          ', so <code>billingHold: false</code> and the CRM will accept this work order.' + badge;
+      } else {
+        gateClass = 'stop'; gateIcon = '!';
+        gateTitle = 'Billing locked \u2014 certification required';
+        gateBody = 'This job uses <strong>' + esc(j.sku) + '</strong> (' + esc(j.series) + '). ' +
+          'Absorb reports <strong>' + esc(lv.learner) + '</strong> as <code>' +
+          esc(lv.enrollmentStatus || 'incomplete') + '</code> on <strong>' +
+          esc(lv.certification && lv.certification.name) + '</strong>, so the check returns ' +
+          '<code>billingHold: true</code> and the work order cannot be closed. Complete it and the ' +
+          'hold clears automatically.' + badge;
+      }
+    } else if (j.hold) {
       gateClass = 'stop'; gateIcon = '!';
       gateTitle = 'Billing locked — certification required';
       gateBody = 'This job uses <strong>' + esc(j.sku) + '</strong>, which belongs to the ' +
@@ -627,6 +793,12 @@
     });
 
     renderCatalogSlot();
+
+    // Fire the live check once per job; runCertCheck re-renders on return.
+    if (liveCert[j.id] === undefined) {
+      liveCert[j.id] = 'pending';
+      runCertCheck(j);
+    }
   }
 
   /* ══════════════════════════════════════════
@@ -898,6 +1070,8 @@
   renderList();
   renderJob();
   loadCatalog().then(renderCatalogSlot);
+  pollHooks();
+  setInterval(pollHooks, 3000);
 })();
 </script>
 </body>
