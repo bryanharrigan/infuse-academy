@@ -1,0 +1,23 @@
+{
+  "_comment": "Copy to C:\\ProgramData\\infuse-deploy\\config.json and fill in from the discovery report. Contains no secrets - safe to keep in version control if you want.",
+
+  "repoPath": "C:\\PATH\\FROM\\DISCOVERY\\infuse-academy",
+  "branch": "main",
+  "expectedRemote": "https://github.com/bryanharrigan/infuse-academy.git",
+
+  "appServiceName": "infuse-academy",
+  "healthUrl": "http://127.0.0.1:3000/",
+  "healthTimeoutSeconds": 90,
+
+  "pollSeconds": 60,
+
+  "_requireSignedCommits": "Set true only AFTER you have set up commit signing and imported your public key into the service account's GPG keyring. Until then a true value here blocks every deploy.",
+  "requireSignedCommits": false,
+
+  "_paths": "Absolute paths, because a Windows service does not inherit your interactive PATH. Fill these from the Toolchain section of the discovery report.",
+  "gitPath": "C:\\Program Files\\Git\\cmd\\git.exe",
+  "npmPath": "C:\\Program Files\\nodejs\\npm.cmd",
+  "nssmPath": "C:\\ProgramData\\infuse-deploy\\nssm.exe",
+
+  "logPath": "C:\\ProgramData\\infuse-deploy\\deploy.log"
+}
