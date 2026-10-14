@@ -1,0 +1,20 @@
+Infuse Academy deploy pipeline check
+=====================================
+
+If you are reading this at https://infuse.bryanharrigan.dev/deploy-check.txt
+then the whole chain works end to end:
+
+  Claude wrote this into the clone on absorb-9r0cl44
+    -> Bryan committed and pushed to main
+    -> DESKTOP-HGPP7U3 pulled it
+    -> npm run build copied public/ into build/client
+    -> the Infuse service restarted and is serving the new build
+    -> Cloudflare Tunnel is routing to it
+
+That last-but-two step is the one worth proving. Remix's Vite build copies
+public/ into build/client, and build/client is what gets served - so a file
+dropped into public/ without a rebuild never appears. This file appearing
+means the rebuild genuinely happened, not just a git pull.
+
+Stamp: first pipeline test, 14 October 2026
+Safe to delete once the pipeline is trusted.
