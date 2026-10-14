@@ -1,6 +1,17 @@
 import { json, LoaderFunctionArgs } from "@remix-run/node";
 import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
-import { getMyCourseEnrollment, getUserProfile } from "~/.server/infuse-api";
+import {
+  getMyCourseEnrollment,
+  getUserProfile,
+  getAllAvailableCatalog,
+} from "~/.server/infuse-api";
+import { lookupCertificateExpiry } from "~/.server/silfab-absorb";
+import {
+  CERTIFICATIONS,
+  findCertification,
+  resolveExpiry,
+  type Certification,
+} from "~/.server/silfab-certifications";
 
 /**
  * GET /api/silfab/cert-check?sku=<panel sku>
@@ -30,55 +41,47 @@ import { getMyCourseEnrollment, getUserProfile } from "~/.server/infuse-api";
  * Swap the IDs in CERTIFICATIONS to repoint the demo.
  */
 
-type Certification = {
-  series: string;
-  /** Course or curriculum ID with Certificate enabled. */
-  id: string;
-  name: string;
-  /** Panel SKUs in this series, as shown on the portal. */
-  skus: string[];
-};
-
 /**
- * NOTE: `name` here must match the course/curriculum title in Absorb. The
- * portal displays this value, and nothing re-reads the title from the LMS,
- * so renaming in Absorb without updating here would make the screen lie.
+ * Resolve a certification's display title from Absorb, so renaming the
+ * course or curriculum in the LMS is reflected in the portal immediately
+ * with no code change. Falls back to the configured name if the catalogue
+ * cannot be read or the item is not in it.
+ *
+ * The catalogue is cached briefly in-process: a learner clicking between
+ * work orders would otherwise re-fetch it on every check.
  */
-const CERTIFICATIONS: Certification[] = [
-  {
-    series: "Silfab Commercial",
-    id: "b6e3d500-ae22-47e9-bae5-9a8933dfe042",
-    name: "High-Wattage Bifacial Safety (XM+)",
-    skus: ["SIL-590-XM-NTC", "SIL-580-XM-NTC", "SIL-570-XM-NTC", "SIL-520-QM-NTC", "SIL-500-HM"],
-  },
-  {
-    series: "Silfab Prime",
-    id: "6dcd9527-3d0f-469c-8753-2f28bdbc8de4",
-    name: "Prime Series QD Installation",
-    skus: ["SIL-440-QD-NTC", "SIL-430-QD-NTC", "SIL-420-QD-NTC", "SIL-410-HC", "SIL-370-HC"],
-  },
-  {
-    series: "Silfab Utility",
-    id: "8ba748f0-cbd4-40a9-9196-5331b204832f",
-    name: "Utility Series XL Certification",
-    skus: ["SIL-620-XL-NTC", "SIL-630-XL-NTC", "SIL-640-XL-NTC"],
-  },
-];
+type TitleCache = { at: number; byId: Map<string, string> };
+let titleCache: TitleCache | null = null;
+const TITLE_TTL_MS = 60_000;
 
-function findCertification(sku: string | null, series: string | null) {
-  if (sku) {
-    const bySku = CERTIFICATIONS.find((c) =>
-      c.skus.some((s) => s.toLowerCase() === sku.toLowerCase())
-    );
-    if (bySku) return bySku;
+async function resolveTitle(
+  token: string,
+  id: string,
+  fallback: string
+): Promise<{ name: string; source: "absorb" | "fallback" }> {
+  try {
+    if (!titleCache || Date.now() - titleCache.at > TITLE_TTL_MS) {
+      const catalog = await getAllAvailableCatalog(token);
+      const courses =
+        ((catalog as unknown as { _embedded?: { courses?: unknown[] } })._embedded
+          ?.courses as Array<Record<string, unknown>> | undefined) ?? [];
+      const byId = new Map<string, string>();
+      for (const c of courses) {
+        const cid = typeof c.id === "string" ? c.id : undefined;
+        const nm =
+          (typeof c.name === "string" && c.name) ||
+          (typeof c.title === "string" && c.title) ||
+          undefined;
+        if (cid && nm) byId.set(cid.toLowerCase(), nm);
+      }
+      titleCache = { at: Date.now(), byId };
+    }
+    const hit = titleCache.byId.get(id.toLowerCase());
+    if (hit) return { name: hit, source: "absorb" };
+  } catch {
+    /* fall through to the configured name */
   }
-  if (series) {
-    const bySeries = CERTIFICATIONS.find(
-      (c) => c.series.toLowerCase() === series.toLowerCase()
-    );
-    if (bySeries) return bySeries;
-  }
-  return null;
+  return { name: fallback, source: "fallback" };
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -97,11 +100,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         error: "No certification mapped for that SKU or series",
         sku,
         series,
-        knownSeries: CERTIFICATIONS.map((c) => c.series),
+        knownSeries: CERTIFICATIONS.map((c: Certification) => c.series),
       },
       { status: 404 }
     );
   }
+
+  // Title straight from Absorb, so LMS renames show up here automatically.
+  const title = await resolveTitle(token, cert.id, cert.fallbackName);
 
   // Learner identity is nice-to-have for the demo panel, never fatal.
   let learner = "Unknown learner";
@@ -138,18 +144,50 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   }
 
-  const certified =
+  const completed =
     enrolled &&
     (String(enrollmentStatus).toLowerCase() === "complete" || !!completionDate);
+
+  /**
+   * Expiry is checked only once the item is complete - an incomplete
+   * certification is already a hold, and calling it "expired" would be wrong.
+   *
+   * An EXPIRED certification is treated exactly like never-certified:
+   * clearance is withdrawn and the work order locks again. That is the
+   * behaviour Silfab described - lapsed installers cannot bill.
+   */
+  /**
+   * Prefer Absorb's own certificate expiry over our computed window.
+   * Only worth asking once the course is complete - no completion, no
+   * certificate, nothing to expire. Any failure falls back silently and
+   * is surfaced as expirySource/expiryNote rather than breaking the page.
+   */
+  let absorbExpiry: string | null = null;
+  let expiryNote: string | undefined;
+  if (completed) {
+    const look = await lookupCertificateExpiry(token, title.name);
+    absorbExpiry = look.expiry;
+    if (!look.expiry) expiryNote = look.reason;
+  }
+
+  const expiry = resolveExpiry(cert, completionDate, absorbExpiry);
+  const expired = completed && expiry.status === "expired";
+  const certified = completed && !expired;
 
   return json(
     {
       learner,
       sku: sku ?? null,
       series: cert.series,
-      certification: { id: cert.id, name: cert.name },
+      certification: { id: cert.id, name: title.name, nameSource: title.source },
       certified,
       billingHold: !certified,
+      status: !completed ? "incomplete" : expiry.status,
+      expiresAt: expiry.expiresAt,
+      daysRemaining: expiry.daysRemaining,
+      expirySource: expiry.source,
+      ...(expiryNote ? { expiryNote } : {}),
+      recertifyUrl: expired ? "/api/silfab/recertify" : null,
       enrollmentStatus: enrolled ? enrollmentStatus : "NotEnrolled",
       progress,
       completionDate,
