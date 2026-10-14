@@ -743,6 +743,13 @@
         '<strong>' + esc(j.sku) + '</strong>. The CRM will accept this work order for billing.';
     }
 
+    /* When the live check names the certificate-bearing course, point the
+       outstanding module straight at it. Completing that exact course is
+       what awards the certificate and fires the Webhook - title-matching
+       the catalogue could land on something else and break the demo. */
+    var certId = haveLive && !lv.certified && lv.certification ? lv.certification.id : null;
+    var certAttr = certId ? ' data-cert="' + esc(certId) + '"' : '';
+
     var reqRows = j.required.map(function(r, idx){
       var done = r.done;
       return '' +
@@ -754,7 +761,7 @@
           '</div>' +
           (done
             ? '<button class="btn btn-sec" data-train="' + idx + '">Review</button>'
-            : '<button class="btn btn-pri" data-train="' + idx + '">Start training</button>') +
+            : '<button class="btn btn-pri" data-train="' + idx + '"' + certAttr + '>Start training</button>') +
         '</div>';
     }).join('');
 
@@ -788,6 +795,8 @@
     card.querySelectorAll('[data-train]').forEach(function(btn){
       btn.addEventListener('click', function(){
         var r = j.required[parseInt(btn.getAttribute('data-train'), 10)];
+        var direct = btn.getAttribute('data-cert');
+        if (direct) { openPlayerModal(direct, r.title, 'OnlineCourse'); return; }
         launchTraining(r.title);
       });
     });
