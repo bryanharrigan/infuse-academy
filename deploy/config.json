@@ -1,0 +1,27 @@
+{
+  "_comment": "Real values for DESKTOP-HGPP7U3, filled in from the 14 Oct discovery probe. Contains no secrets - safe in the public repo.",
+
+  "repoPath": "C:\\Infuse",
+  "branch": "main",
+  "expectedRemote": "https://github.com/bryanharrigan/infuse-academy.git",
+
+  "_service": "The app is ALREADY supervised by NSSM as the service named 'Infuse' (running as .\\web, auto-start). The deployer restarts that service rather than creating a new one.",
+  "appServiceName": "Infuse",
+
+  "_health": "/healthz returns 404 because the app runs remix-serve, not the Amplify-era server.js that defines it. '/' returns a redirect, which counts as healthy (any non-5xx does).",
+  "healthUrl": "http://127.0.0.1:3000/",
+  "healthTimeoutSeconds": 90,
+
+  "pollSeconds": 60,
+
+  "_signing": "Probe showed %G? = N (unsigned) on HEAD. Leaving this true would block every deploy. Turn it on only after commit signing is set up AND the public key is in the deploy service account's keyring.",
+  "requireSignedCommits": false,
+
+  "_paths": "Absolute, because a Windows service does not inherit an interactive PATH. Verified present by the probe except npmCliJs - confirm with Test-Path before first run.",
+  "gitPath": "C:\\Program Files\\Git\\cmd\\git.exe",
+  "nodePath": "C:\\Program Files\\nodejs\\node.exe",
+  "npmCliJs": "C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js",
+  "nssmPath": "C:\\Windows\\System32\\NSSM\\nssm.exe",
+
+  "logPath": "C:\\ProgramData\\infuse-deploy\\deploy.log"
+}

@@ -4,6 +4,11 @@ node_modules
 /build
 .env
 .env.local
+# Every .env variant holds live secrets. .env.production was UNTRACKED and
+# UNIGNORED on the origin machine (14 Oct) - one `git add -A` from being
+# published to this PUBLIC repo. Ignore the whole family.
+.env.*
+!.env.example
 
 # Vite writes these when reloading vite.config.ts under Node ESM — they're
 # transient and shouldn't be tracked.

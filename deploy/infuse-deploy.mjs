@@ -86,7 +86,11 @@ cfg.pollSeconds ??= 60;
 cfg.healthTimeoutSeconds ??= 90;
 cfg.requireSignedCommits ??= false;
 cfg.gitPath ??= "git";
-cfg.npmPath ??= "npm.cmd";
+// Node >= 20.12 refuses to spawn .cmd/.bat without a shell (EINVAL), and the
+// origin runs Node 24. So npm is invoked as `node npm-cli.js ...` rather than
+// `npm.cmd`, which keeps shell:false and avoids the restriction entirely.
+cfg.nodePath ??= process.execPath;
+cfg.npmCliJs ??= null;
 cfg.nssmPath ??= null;
 cfg.logPath ??= join(dirname(CONFIG_PATH), "deploy.log");
 
@@ -142,6 +146,22 @@ async function run(file, argv, { cwd = cfg.repoPath, timeout = 600_000 } = {}) {
 
 const git = (...argv) => run(cfg.gitPath, argv);
 
+/**
+ * Run npm WITHOUT a shell. Node >= 20.12 blocks spawning .cmd/.bat with
+ * shell:false, so npm.cmd is unusable here. npm ships a plain JS entrypoint
+ * (npm-cli.js); running it under node sidesteps the restriction and keeps the
+ * no-shell guarantee that makes the fixed command sequence trustworthy.
+ */
+async function npm(argv, timeout = 900_000) {
+  if (!cfg.npmCliJs) {
+    throw new Error('config.npmCliJs is not set - point it at npm-cli.js (e.g. "C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js")');
+  }
+  if (!existsSync(cfg.npmCliJs)) {
+    throw new Error(`config.npmCliJs does not exist: ${cfg.npmCliJs}`);
+  }
+  return run(cfg.nodePath, [cfg.npmCliJs, ...argv], { timeout });
+}
+
 async function gitOut(...argv) {
   const r = await exec(cfg.gitPath, argv, {
     cwd: cfg.repoPath,
@@ -166,6 +186,10 @@ async function preflight() {
         `  expected: ${cfg.expectedRemote}\n` +
         `  actual:   ${remote}`
     );
+  }
+
+  if (!cfg.npmCliJs || !existsSync(cfg.npmCliJs)) {
+    throw new Error(`npmCliJs missing or not found: ${cfg.npmCliJs}`);
   }
 
   const branch = await gitOut("rev-parse", "--abbrev-ref", "HEAD");
@@ -299,18 +323,23 @@ async function deploy(fromSha, toSha) {
     const reset = await git("reset", "--hard", toSha);
     if (!reset.ok) throw new Error("git reset --hard failed");
 
-    // Remove files git no longer tracks, but keep ignored files so .env,
-    // node_modules and certs/ survive. -d = dirs, -f = force, no -x.
-    await git("clean", "-df");
+    // NOTE: `git clean -df` was REMOVED on 14 Oct 2026.
+    //
+    // The origin machine carries `.env.production` (live secrets) as an
+    // UNTRACKED file. `clean -df` removes untracked-and-unignored files, so it
+    // would have deleted the production secrets on the first deploy. Adding
+    // `.env.*` to .gitignore fixes that, but a destructive step guarding
+    // nothing important is not worth the blast radius. Files that git stops
+    // tracking now linger in the working tree; that is the safer failure.
 
     // -- dependencies --------------------------------------------------------
     if (needsInstall) {
-      const ci = await run(cfg.npmPath, ["ci", "--no-audit", "--no-fund"], { timeout: 900_000 });
+      const ci = await npm(["ci", "--no-audit", "--no-fund"], 900_000);
       if (!ci.ok) throw new Error("npm ci failed");
     }
 
     // -- build ---------------------------------------------------------------
-    const build = await run(cfg.npmPath, ["run", "build"], { timeout: 900_000 });
+    const build = await npm(["run", "build"], 900_000);
     if (!build.ok) throw new Error("npm run build failed");
 
     // -- restart + verify ----------------------------------------------------
