@@ -94,137 +94,6 @@
   .card-b{padding:16px}
 
 
-  /* ══════════════════════════════════════════
-     LIVE certification check.
-
-     GET /api/silfab/cert-check?sku=... hits Absorb for real:
-     it reads this learner's enrollment on the certificate-bearing
-     course/curriculum and answers certified / billingHold.
-
-     A certification in Absorb is any course OR curriculum with
-     "Certificate" enabled - the certificate is awarded on completion -
-     so the check is simply whether that item is complete.
-  ══════════════════════════════════════════ */
-  function paintApi(reqText, resObj, tag){
-    var req = document.getElementById('apiReq');
-    var res = document.getElementById('apiRes');
-    var lt  = document.getElementById('apiLiveTag');
-    if (!req || !res) return;
-    req.innerHTML = reqText;
-    if (lt) lt.innerHTML = tag || '';
-    if (typeof resObj === 'string') { res.innerHTML = resObj; return; }
-    var pretty = JSON.stringify(resObj, null, 2)
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-      .replace(/"([^"]+)":/g, '<span class="f">"$1"</span>:')
-      .replace(/: (true|false|null)/g, function(_m, v){
-        return ': <span class="' + (v === 'false' || v === 'null' ? 'x' : 'f') + '">' + v + '</span>';
-      });
-    res.innerHTML = pretty;
-  }
-
-  async function runCertCheck(job){
-    if (!job.skuCode) {
-      liveCert[job.id] = { unmapped:true };
-      paintApi('<span class="m">GET</span> /api/silfab/cert-check\n    ?sku=' + esc(job.sku),
-               'No certification mapped for this series in the demo.',
-               '<span style="color:rgba(255,255,255,.3)">not mapped</span>');
-      return;
-    }
-    var url = '/api/silfab/cert-check?sku=' + encodeURIComponent(job.skuCode);
-    paintApi('<span class="m">GET</span> ' + url.replace('?', '\n    ?'), 'Checking Absorb&hellip;', '');
-    try {
-      var resp = await fetch(url, { credentials:'include' });
-      var body = await resp.json();
-      if (resp.status === 401) {
-        liveCert[job.id] = { unauth:true };
-        paintApi('<span class="m">GET</span> ' + url.replace('?', '\n    ?'),
-                 'Not authenticated — <a href="/signin" style="color:#FFB68C">sign in</a> to run this check against the live portal.',
-                 '<span style="color:rgba(255,255,255,.3)">signed out</span>');
-        renderJob();
-        return;
-      }
-      liveCert[job.id] = resp.ok ? body : { error: body.error || ('HTTP ' + resp.status) };
-      paintApi('<span class="m">GET</span> ' + url.replace('?', '\n    ?'), body,
-               '<span style="color:#8FD0A4">&#9679; live</span>');
-      renderJob();
-    } catch (err) {
-      liveCert[job.id] = { error: err.message };
-      paintApi('<span class="m">GET</span> ' + url.replace('?', '\n    ?'),
-               'Request failed: ' + esc(err.message), '');
-    }
-  }
-
-
-  /* ══════════════════════════════════════════
-     Webhook watcher.
-
-     Absorb -> this server is a PUSH: the "Certificate Awarded" Webhook
-     arrives the instant the certificate is granted, so nothing polls the
-     LMS. The browser then picks the change up from our own origin, which
-     costs Absorb nothing and is the robust transport for a live demo.
-  ══════════════════════════════════════════ */
-  var hookSeq = 0;
-  var hookSeen = 0;
-
-  function showToast(title, sub){
-    var el = document.getElementById('toast');
-    if (!el) return;
-    document.getElementById('toastT').textContent = title;
-    document.getElementById('toastS').textContent = sub;
-    el.classList.add('show');
-    setTimeout(function(){ el.classList.remove('show'); }, 7000);
-  }
-
-  function paintHook(events){
-    var el = document.getElementById('apiHook');
-    var tag = document.getElementById('hookTag');
-    if (!el) return;
-    if (!events.length) return;
-    var lines = events.slice(-4).map(function(e){
-      return '<span class="m">POST</span> /api/silfab/webhook\n' +
-             '  <span class="f">"event"</span>: "' + esc(e.event) + '"\n' +
-             '  <span class="f">"userId"</span>: "' + esc(e.userId || '-') + '"\n' +
-             '  <span class="f">"verified"</span>: <span class="f">true</span>' +
-             '   <span style="color:rgba(255,255,255,.4)">' + esc(String(e.receivedAt).slice(11,19)) + ' UTC</span>';
-    });
-    el.innerHTML = lines.join('\n\n');
-    if (tag) tag.innerHTML = '<span style="color:#8FD0A4">&#9679; received</span>';
-  }
-
-  async function pollHooks(){
-    try {
-      var resp = await fetch('/api/silfab/events?since=' + hookSeen, { credentials:'include' });
-      if (!resp.ok) return;
-      var data = await resp.json();
-      if (data.version === hookSeq) return;
-
-      hookSeq = data.version;
-      var fresh = data.events || [];
-      if (fresh.length) {
-        hookSeen = fresh[fresh.length - 1].seq;
-        paintHook(fresh);
-
-        var certEvent = fresh.some(function(e){ return /certificate/i.test(e.event); });
-        var job = JOBS[active];
-        var wasHeld = liveCert[job.id] && liveCert[job.id].billingHold;
-
-        // The payload is lean by design, so re-ask the API for the truth.
-        delete liveCert[job.id];
-        await runCertCheck(job);
-
-        var nowClear = liveCert[job.id] && liveCert[job.id].certified;
-        if (certEvent && wasHeld && nowClear) {
-          showToast('Certificate awarded',
-                    'Absorb pushed the award and the billing hold on ' + job.id + ' cleared.');
-        } else if (certEvent) {
-          showToast('Certificate awarded', 'Absorb pushed an update; certification re-checked.');
-        }
-      }
-    } catch (err) {
-      /* a dropped poll is not worth surfacing during a demo */
-    }
-  }
-
   /* ── Work order list ─────────────────────── */
   .wo{padding:13px 16px;border-bottom:1px solid var(--sf-line);cursor:pointer;display:block;width:100%;text-align:left;background:none;border-left:3px solid transparent;font:inherit}
   .wo:last-child{border-bottom:0}
@@ -668,6 +537,137 @@
     if (j.state === 'warn') return '<span class="pill warn">Renewal due</span>';
     if (j.state === 'done') return '<span class="pill done">Billed</span>';
     return '<span class="pill ok">Cleared</span>';
+  }
+
+  /* ══════════════════════════════════════════
+     LIVE certification check.
+
+     GET /api/silfab/cert-check?sku=... hits Absorb for real:
+     it reads this learner's enrollment on the certificate-bearing
+     course/curriculum and answers certified / billingHold.
+
+     A certification in Absorb is any course OR curriculum with
+     "Certificate" enabled - the certificate is awarded on completion -
+     so the check is simply whether that item is complete.
+  ══════════════════════════════════════════ */
+  function paintApi(reqText, resObj, tag){
+    var req = document.getElementById('apiReq');
+    var res = document.getElementById('apiRes');
+    var lt  = document.getElementById('apiLiveTag');
+    if (!req || !res) return;
+    req.innerHTML = reqText;
+    if (lt) lt.innerHTML = tag || '';
+    if (typeof resObj === 'string') { res.innerHTML = resObj; return; }
+    var pretty = JSON.stringify(resObj, null, 2)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/"([^"]+)":/g, '<span class="f">"$1"</span>:')
+      .replace(/: (true|false|null)/g, function(_m, v){
+        return ': <span class="' + (v === 'false' || v === 'null' ? 'x' : 'f') + '">' + v + '</span>';
+      });
+    res.innerHTML = pretty;
+  }
+
+  async function runCertCheck(job){
+    if (!job.skuCode) {
+      liveCert[job.id] = { unmapped:true };
+      paintApi('<span class="m">GET</span> /api/silfab/cert-check\n    ?sku=' + esc(job.sku),
+               'No certification mapped for this series in the demo.',
+               '<span style="color:rgba(255,255,255,.3)">not mapped</span>');
+      return;
+    }
+    var url = '/api/silfab/cert-check?sku=' + encodeURIComponent(job.skuCode);
+    paintApi('<span class="m">GET</span> ' + url.replace('?', '\n    ?'), 'Checking Absorb&hellip;', '');
+    try {
+      var resp = await fetch(url, { credentials:'include' });
+      var body = await resp.json();
+      if (resp.status === 401) {
+        liveCert[job.id] = { unauth:true };
+        paintApi('<span class="m">GET</span> ' + url.replace('?', '\n    ?'),
+                 'Not authenticated — <a href="/signin" style="color:#FFB68C">sign in</a> to run this check against the live portal.',
+                 '<span style="color:rgba(255,255,255,.3)">signed out</span>');
+        renderJob();
+        return;
+      }
+      liveCert[job.id] = resp.ok ? body : { error: body.error || ('HTTP ' + resp.status) };
+      paintApi('<span class="m">GET</span> ' + url.replace('?', '\n    ?'), body,
+               '<span style="color:#8FD0A4">&#9679; live</span>');
+      renderJob();
+    } catch (err) {
+      liveCert[job.id] = { error: err.message };
+      paintApi('<span class="m">GET</span> ' + url.replace('?', '\n    ?'),
+               'Request failed: ' + esc(err.message), '');
+    }
+  }
+
+
+  /* ══════════════════════════════════════════
+     Webhook watcher.
+
+     Absorb -> this server is a PUSH: the "Certificate Awarded" Webhook
+     arrives the instant the certificate is granted, so nothing polls the
+     LMS. The browser then picks the change up from our own origin, which
+     costs Absorb nothing and is the robust transport for a live demo.
+  ══════════════════════════════════════════ */
+  var hookSeq = 0;
+  var hookSeen = 0;
+
+  function showToast(title, sub){
+    var el = document.getElementById('toast');
+    if (!el) return;
+    document.getElementById('toastT').textContent = title;
+    document.getElementById('toastS').textContent = sub;
+    el.classList.add('show');
+    setTimeout(function(){ el.classList.remove('show'); }, 7000);
+  }
+
+  function paintHook(events){
+    var el = document.getElementById('apiHook');
+    var tag = document.getElementById('hookTag');
+    if (!el) return;
+    if (!events.length) return;
+    var lines = events.slice(-4).map(function(e){
+      return '<span class="m">POST</span> /api/silfab/webhook\n' +
+             '  <span class="f">"event"</span>: "' + esc(e.event) + '"\n' +
+             '  <span class="f">"userId"</span>: "' + esc(e.userId || '-') + '"\n' +
+             '  <span class="f">"verified"</span>: <span class="f">true</span>' +
+             '   <span style="color:rgba(255,255,255,.4)">' + esc(String(e.receivedAt).slice(11,19)) + ' UTC</span>';
+    });
+    el.innerHTML = lines.join('\n\n');
+    if (tag) tag.innerHTML = '<span style="color:#8FD0A4">&#9679; received</span>';
+  }
+
+  async function pollHooks(){
+    try {
+      var resp = await fetch('/api/silfab/events?since=' + hookSeen, { credentials:'include' });
+      if (!resp.ok) return;
+      var data = await resp.json();
+      if (data.version === hookSeq) return;
+
+      hookSeq = data.version;
+      var fresh = data.events || [];
+      if (fresh.length) {
+        hookSeen = fresh[fresh.length - 1].seq;
+        paintHook(fresh);
+
+        var certEvent = fresh.some(function(e){ return /certificate/i.test(e.event); });
+        var job = JOBS[active];
+        var wasHeld = liveCert[job.id] && liveCert[job.id].billingHold;
+
+        // The payload is lean by design, so re-ask the API for the truth.
+        delete liveCert[job.id];
+        await runCertCheck(job);
+
+        var nowClear = liveCert[job.id] && liveCert[job.id].certified;
+        if (certEvent && wasHeld && nowClear) {
+          showToast('Certificate awarded',
+                    'Absorb pushed the award and the billing hold on ' + job.id + ' cleared.');
+        } else if (certEvent) {
+          showToast('Certificate awarded', 'Absorb pushed an update; certification re-checked.');
+        }
+      }
+    } catch (err) {
+      /* a dropped poll is not worth surfacing during a demo */
+    }
   }
 
   /* ── Work order list ─────────────────────── */
