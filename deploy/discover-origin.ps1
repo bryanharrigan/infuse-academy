@@ -1,4 +1,4 @@
-<#
+﻿<#
   discover-origin.ps1
   READ-ONLY probe of the Infuse Academy origin machine (the Windows PC running
   cloudflared + Node on :3000).
@@ -8,7 +8,7 @@
 
   It deliberately does NOT print secrets. Files that hold credentials (.env,
   .infuse-admin-token.json, the tunnel credentials JSON) are reported as
-  present/absent with size and date only — never their contents.
+  present/absent with size and date only - never their contents.
 
   Run from an elevated PowerShell on the ORIGIN machine:
 
@@ -24,7 +24,7 @@ function Section($name) {
     Write-Output "===== $name ====="
 }
 
-Write-Output "Infuse Academy — origin machine discovery"
+Write-Output "Infuse Academy - origin machine discovery"
 Write-Output "Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz')"
 
 # ---------------------------------------------------------------- machine ---
@@ -80,13 +80,13 @@ Write-Output "   (0.0.0.0 or :: means the app is reachable from the LAN, not jus
 $conns | Select-Object LocalAddress, LocalPort, State | Format-Table -AutoSize | Out-String
 
 # --------------------------------------------------------- how it stays up --
-Section "Supervision — services"
+Section "Supervision - services"
 Get-CimInstance Win32_Service |
     Where-Object { $_.Name -match 'infuse|nssm|pm2|cloudflared' -or $_.PathName -match 'node|infuse' } |
     Select-Object Name, State, StartMode, StartName, PathName |
     Format-Table -AutoSize -Wrap | Out-String
 
-Section "Supervision — scheduled tasks"
+Section "Supervision - scheduled tasks"
 Get-ScheduledTask |
     Where-Object {
         $_.Actions.Execute -match 'node|npm|cmd|powershell|infuse' -and
@@ -105,7 +105,7 @@ Get-ScheduledTask |
         }
     } | Format-List | Out-String
 
-Section "Supervision — startup folder / run keys"
+Section "Supervision - startup folder / run keys"
 foreach ($k in @(
     'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run',
     'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
@@ -132,8 +132,8 @@ foreach ($dir in $cfPaths) {
     if (Test-Path $dir) {
         Write-Output "Directory: $dir"
         Get-ChildItem $dir -File | ForEach-Object {
-            # *.json in here is tunnel credentials — list it, never read it.
-            $flag = if ($_.Extension -eq '.json') { '  [CREDENTIALS — not printed]' } else { '' }
+            # *.json in here is tunnel credentials - list it, never read it.
+            $flag = if ($_.Extension -eq '.json') { '  [CREDENTIALS - not printed]' } else { '' }
             Write-Output ("  {0,-28} {1,8} bytes  {2}{3}" -f $_.Name, $_.Length, $_.LastWriteTime, $flag)
         }
         foreach ($cfg in @('config.yml', 'config.yaml')) {
