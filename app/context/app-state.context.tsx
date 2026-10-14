@@ -11,7 +11,9 @@ import React, {
 export type ThemeVariant =
   | "infuse-academy"
   | "experimental"
-  | "psbi";
+  | "psbi"
+  | "mmit"
+  | "silfab";
 const THEME_STORAGE_KEY = "ia:theme-variant";
 
 /**

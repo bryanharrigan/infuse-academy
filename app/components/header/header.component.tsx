@@ -46,8 +46,17 @@ export const Header = () => {
 
   const handleThemeChange = (e: SelectChangeEvent<ThemeVariant>) => {
     const next = e.target.value as ThemeVariant;
-    if (next === "psbi") {
-      window.location.href = "/psbi-dashboard-demo.html";
+    // Static prospect demo portals live in public/ and are not themes of the
+    // Remix app - redirect instead of switching the theme, so the variant is
+    // never persisted to localStorage.
+    const DEMO_PORTALS: Partial<Record<ThemeVariant, string>> = {
+      psbi: "/psbi-dashboard-demo.html",
+      mmit: "/mmit-dashboard-demo.html",
+      silfab: "/silfab-installer-portal.html",
+    };
+    const demoHref = DEMO_PORTALS[next];
+    if (demoHref) {
+      window.location.href = demoHref;
       return;
     }
     setThemeVariant(next);
@@ -113,6 +122,8 @@ export const Header = () => {
         <MenuItem value="infuse-academy">Infuse Academy</MenuItem>
         <MenuItem value="experimental">Experimental</MenuItem>
         <MenuItem value="psbi">PSBI</MenuItem>
+        <MenuItem value="mmit">MMIT iQ</MenuItem>
+        <MenuItem value="silfab">Silfab Solar</MenuItem>
       </Select>
     </FormControl>
   );
