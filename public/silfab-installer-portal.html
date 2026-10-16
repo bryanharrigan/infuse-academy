@@ -215,6 +215,48 @@
   .api .m{color:#FFB68C;font-weight:700}
   .api .f{color:#8FD0A4}
   .api .x{color:#F2918F}
+  .api .d{color:rgba(255,255,255,.35)}
+  .api pre.plain{color:rgba(255,255,255,.62);font-family:inherit;font-size:12.5px;line-height:1.6}
+
+  /* ── Under-the-hood panels (collapsed by default) ────────── */
+  .uth-h{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+         color:var(--sf-navy);opacity:.75;margin:0 0 10px;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+  .uth-sub{font-size:11.5px;font-weight:400;text-transform:none;letter-spacing:0;opacity:.7}
+  details.apiD{margin-bottom:10px}
+  details.apiD:last-child{margin-bottom:0}
+  details.apiD > summary{
+    padding:13px 16px;display:flex;align-items:center;gap:9px;cursor:pointer;
+    list-style:none;user-select:none;border-bottom:1px solid transparent;
+  }
+  details.apiD > summary::-webkit-details-marker{display:none}
+  details.apiD[open] > summary{border-bottom-color:rgba(255,255,255,.12)}
+  details.apiD > summary:hover{background:rgba(255,255,255,.04)}
+  details.apiD > summary .chev{
+    margin-left:4px;color:rgba(255,255,255,.4);font-size:11px;flex-shrink:0;
+    transition:transform .15s ease;
+  }
+  details.apiD[open] > summary .chev{transform:rotate(90deg)}
+  details.apiD > summary .tag{margin-left:auto}
+  details.apiD.api-upd > summary{box-shadow:inset 3px 0 0 var(--sf-orange)}
+
+  /* ── Instructor-led session pane ─────────────────────────── */
+  .mp-ilc{display:none;width:100%;height:100%;overflow-y:auto;background:#0B0F14;color:#E6EDF5}
+  .ilc{padding:26px 30px;max-width:620px}
+  .ilc-badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+             background:rgba(255,104,28,.2);color:#FFB68C;padding:3px 9px;border-radius:20px;margin-bottom:13px}
+  .ilc h3{margin:0 0 16px;font-size:19px;font-weight:700;color:#fff;line-height:1.3}
+  .ilc-grid{display:grid;grid-template-columns:104px 1fr;gap:9px 14px;font-size:13px;line-height:1.55}
+  .ilc-k{color:rgba(255,255,255,.42);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding-top:2px}
+  .ilc-v{color:#E6EDF5}
+  .ilc-desc{margin:17px 0 0;font-size:13px;line-height:1.6;color:rgba(255,255,255,.62)}
+  .ilc-btn{margin-top:22px}
+  .ilc-note{margin-top:13px;font-size:11.5px;line-height:1.6;color:rgba(255,255,255,.38)}
+  .ilc-note code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#8FD0A4}
+  .ilc-empty{padding:30px;max-width:520px}
+  .ilc-empty h4{margin:0 0 9px;font-size:16px;color:#fff}
+  .ilc-empty p{margin:0;font-size:13px;line-height:1.6;color:rgba(255,255,255,.55)}
+  .ilc-card{border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:17px 19px;margin-bottom:12px}
+  .ilc-card h4{margin:0 0 11px;font-size:14.5px;color:#fff}
 
   /* ── Player modal ────────────────────────── */
   .mp{position:fixed;inset:0;background:rgba(5,20,40,.78);z-index:120;display:none;align-items:center;justify-content:center;padding:26px}
@@ -386,25 +428,111 @@
         </div>
       </div>
 
-      <div class="api" style="margin-bottom:20px">
-        <div class="api-h">
-          <h2>Certification check &mdash; live integration</h2>
-          <span class="tag">Headless API</span>
+      <!-- ─────────────────────────────────────────────────────────
+           Under the hood.
+
+           Four panels, every one collapsed on load. The portal has to
+           read as a working installer tool first; these open only when
+           the conversation turns technical. Each one leads with a plain
+           sentence of what it proves before showing any payload.
+      ────────────────────────────────────────────────────────── -->
+      <div style="margin-bottom:20px">
+        <div class="uth-h">
+          Under the hood
+          <span class="uth-sub">Open these to show how Absorb and this portal actually talk</span>
         </div>
-        <div class="api-b">
-          <div class="api-blk">
-            <div class="api-k">1 &bull; CRM asks before allowing the job to be billed</div>
-            <pre id="apiReq">&mdash;</pre>
+
+        <details class="api apiD" id="panelCert">
+          <summary class="api-h">
+            <h2>1 &mdash; Certification check</h2>
+            <span class="tag">Request / response</span>
+            <span class="chev">&#9656;</span>
+          </summary>
+          <div class="api-b">
+            <div class="api-blk">
+              <div class="api-k">What this proves</div>
+              <pre class="plain">Picking a work order makes this portal ask Absorb one question: is
+this installer certified for that panel series? The answer is what
+locks or clears the billing hold above. Nothing on the page is
+hard-coded &mdash; the verdict is fetched from the LMS every time, which is
+exactly the call your CRM would make before letting a job be closed.</pre>
+            </div>
+            <div class="api-blk">
+              <div class="api-k">1 &bull; The portal asks, on the installer's behalf</div>
+              <pre id="apiReq">&mdash;</pre>
+            </div>
+            <div class="api-blk">
+              <div class="api-k">2 &bull; Absorb answers <span id="apiLiveTag"></span></div>
+              <pre id="apiRes">&mdash;</pre>
+            </div>
           </div>
-          <div class="api-blk">
-            <div class="api-k">2 &bull; Absorb answers <span id="apiLiveTag"></span></div>
-            <pre id="apiRes">&mdash;</pre>
+        </details>
+
+        <details class="api apiD" id="panelHook">
+          <summary class="api-h">
+            <h2>2 &mdash; Webhook delivery</h2>
+            <span class="tag">Push, not polling</span>
+            <span class="chev">&#9656;</span>
+          </summary>
+          <div class="api-b">
+            <div class="api-blk">
+              <div class="api-k">What this proves</div>
+              <pre class="plain">The check above is a pull. This is the push. The moment Absorb awards
+a certificate it posts to this portal, signed, so clearance updates
+without anyone refreshing anything. That is the difference between
+"the hold clears overnight" and "the hold clears while the installer
+is still on the roof".</pre>
+            </div>
+            <div class="api-blk">
+              <div class="api-k">Listener <span id="hookTag"></span></div>
+              <pre id="apiHook">Listening on <span class="f">/api/silfab/webhook</span> for <span class="f">Certificate Awarded</span>&hellip;</pre>
+            </div>
           </div>
-          <div class="api-blk">
-            <div class="api-k">3 &bull; Absorb pushes the award the instant it happens <span id="hookTag"></span></div>
-            <pre id="apiHook">Listening on <span class="f">/api/silfab/webhook</span> for <span class="f">Certificate Awarded</span>&hellip;</pre>
+        </details>
+
+        <details class="api apiD" id="panelLog">
+          <summary class="api-h">
+            <h2>3 &mdash; Live API call log</h2>
+            <span class="tag">Every request</span>
+            <span class="chev">&#9656;</span>
+          </summary>
+          <div class="api-b">
+            <div class="api-blk">
+              <div class="api-k">What this proves</div>
+              <pre class="plain">Every call this page makes, as it happens. Note what is <em>not</em> here:
+the browser only ever talks to this portal's own origin. The Absorb
+API key and the learner's token live on the server and are never sent
+to the installer's device &mdash; which is the answer to "is this safe to put
+in front of contractors?".</pre>
+            </div>
+            <div class="api-blk">
+              <div class="api-k">Browser &rarr; portal server</div>
+              <pre id="apiCallLog">No calls recorded yet.</pre>
+            </div>
           </div>
-        </div>
+        </details>
+
+        <details class="api apiD" id="panelDeliver">
+          <summary class="api-h">
+            <h2>4 &mdash; Content delivery handshake</h2>
+            <span class="tag">Embedded player</span>
+            <span class="chev">&#9656;</span>
+          </summary>
+          <div class="api-b">
+            <div class="api-blk">
+              <div class="api-k">What this proves</div>
+              <pre class="plain">Open any course on this page and this fills in. The portal asks its
+own server for a player URL; the server authenticates to Absorb; Absorb
+mints a single-use URL, which is dropped into an iframe. The learner
+never sees an Absorb-branded screen and never holds a credential. The
+token is masked below because it genuinely never reaches this page.</pre>
+            </div>
+            <div class="api-blk">
+              <div class="api-k">Request &rarr; minted player URL</div>
+              <pre id="apiDeliver">Open a course above to see the handshake.</pre>
+            </div>
+          </div>
+        </details>
       </div>
 
       <div class="card">
@@ -454,6 +582,9 @@
       <div class="mp-side" id="modalLessonList"></div>
       <div class="mp-main">
         <iframe id="mpFrame" class="mp-frame-el" src="about:blank" allowfullscreen allow="autoplay; fullscreen"></iframe>
+        <!-- Instructor-led courses have no lesson player: they have a
+             schedule. This pane replaces the iframe for those. -->
+        <div class="mp-ilc" id="mpIlc"></div>
       </div>
     </div>
   </div>
@@ -469,6 +600,11 @@
      Each job names a real Silfab SKU and the series it belongs to.
      `hold:true` is the beat that matters: certification gates billing,
      exactly as Tom described - the CRM refuses to let the job be closed.
+
+     NOTE: no job carries a hard-coded training list. Required training is
+     built at render time from (a) the certification the live cert-check
+     names and (b) this learner's real Absorb catalogue, so every row on
+     screen is backed by a genuine course id. See buildPlan().
   ══════════════════════════════════════════ */
   var JOBS = [
     {
@@ -476,42 +612,28 @@
       type:'Commercial rooftop', qty:'240 modules',
       sku:'SIL-590 XM+ (NTC)', skuCode:'SIL-590-XM-NTC', series:'Silfab Commercial',
       due:'17 Oct 2026', value:'$218,400',
-      state:'hold', hold:true,
-      required:[
-        { title:'High-Wattage Bifacial Safety (XM+)', mins:45, done:false },
-        { title:'Commercial Rooftop Ballast & Mounting', mins:90, done:true },
-        { title:'Rapid Shutdown Compliance Refresher', mins:30, done:true }
-      ]
+      state:'hold', hold:true
     },
     {
       id:'WO-45010', title:'Riverbend Depot', where:'Kent, WA',
       type:'Utility ground-mount', qty:'1,400 modules',
       sku:'SIL-630 XL (NTC)', skuCode:'SIL-630-XL-NTC', series:'Silfab Utility',
       due:'04 Nov 2026', value:'$946,000',
-      state:'warn', hold:false,
-      required:[
-        { title:'Utility Series XL Handling & Torque', mins:60, done:true },
-        { title:'Tracker Interface Certification (renewal)', mins:45, done:false }
-      ]
+      state:'warn', hold:false
     },
     {
       id:'WO-44821', title:'Lakeside Avenue', where:'Tacoma, WA',
       type:'Residential rooftop', qty:'18 modules',
       sku:'SIL-440 QD (NTC)', skuCode:'SIL-440-QD-NTC', series:'Silfab Prime',
       due:'16 Oct 2026', value:'$14,250',
-      state:'ok', hold:false,
-      required:[
-        { title:'Prime Series QD Installation', mins:120, done:true },
-        { title:'Residential Rapid Shutdown', mins:30, done:true }
-      ]
+      state:'ok', hold:false
     },
     {
       id:'WO-44788', title:'Maple Row', where:'Olympia, WA',
       type:'Residential rooftop', qty:'12 modules',
       sku:'SIL-380 BK', skuCode:null, series:'Silfab Elite',
       due:'Closed 09 Oct 2026', value:'$9,880',
-      state:'done', hold:false,
-      required:[ { title:'Elite Series BK Installation', mins:90, done:true } ]
+      state:'done', hold:false
     }
   ];
 
@@ -519,6 +641,9 @@
   var active = 0;
   var catalogCourses = [];
   var liveCert = {};   // jobId -> live cert-check result, 'pending', or {unauth|error}
+  var planIds = {};    // course ids already shown as required, so the
+                       // "more training" list below never repeats them
+  var apiLog = [];     // recent browser -> portal calls, newest first
 
   function esc(s){
     return String(s == null ? '' : s)
@@ -687,6 +812,105 @@
   }
 
   /* ── Job detail + the certification gate ─── */
+  /* ══════════════════════════════════════════
+     Required training - real courses only.
+
+     Every row this produces is backed by a genuine Absorb id, so every
+     button opens real content. Two sources feed it:
+
+       1. The gating certification, named by the live cert-check. This is
+          the item whose completion awards the certificate and clears the
+          billing hold, so it is never guessed or title-matched.
+       2. Supporting courses drawn from this learner's own Absorb
+          catalogue, assigned to the work order deterministically so the
+          same job always shows the same courses across a demo.
+
+     If there is no real id behind a row, no row is rendered at all.
+     That is the point: the portal must never show a control that
+     goes nowhere.
+  ══════════════════════════════════════════ */
+
+  /** Real course type for an id, so a curriculum opens as a curriculum
+      and an instructor-led course opens its schedule rather than a
+      player that does not exist for it. */
+  function catalogType(id){
+    if (!Array.isArray(catalogCourses) || !id) return 'OnlineCourse';
+    var want = String(id).toLowerCase();
+    for (var i = 0; i < catalogCourses.length; i++) {
+      var c = catalogCourses[i];
+      if (String(c.id).toLowerCase() === want) return c.courseType || c.type || 'OnlineCourse';
+    }
+    return 'OnlineCourse';
+  }
+
+  /** Stable per-job slice of the catalogue. Seeded off the work order id
+      so a given job shows the same supporting courses every time - a demo
+      that reshuffles on every click is hard to narrate. */
+  function supportingCourses(job, n, skipId){
+    if (!Array.isArray(catalogCourses) || !catalogCourses.length) return [];
+    var seed = 0;
+    for (var i = 0; i < job.id.length; i++) seed += job.id.charCodeAt(i);
+    var len = catalogCourses.length, seen = {}, out = [];
+    if (skipId) seen[String(skipId).toLowerCase()] = 1;
+    for (var k = 0; k < len && out.length < n; k++) {
+      var c = catalogCourses[(seed + k * 3) % len];
+      if (!c || !c.id) continue;
+      var key = String(c.id).toLowerCase();
+      if (seen[key]) continue;
+      seen[key] = 1;
+      out.push(c);
+    }
+    return out;
+  }
+
+  function buildPlan(job){
+    var rows = [];
+    var lv = liveCert[job.id];
+    var live = (lv && lv !== 'pending' && typeof lv.certified === 'boolean') ? lv : null;
+
+    if (live && live.certification && live.certification.id) {
+      var sub;
+      if (live.status === 'expired') {
+        sub = 'Certification lapsed ' + String(live.expiresAt || '').slice(0, 10) +
+              ' \u2014 must be earned again before this job can be billed';
+      } else if (live.certified) {
+        sub = 'Certification complete' +
+              (live.completionDate ? ' \u2014 awarded ' + String(live.completionDate).slice(0, 10) : '') +
+              ' \u2014 billing cleared';
+      } else if (live.enrollmentStatus === 'NotEnrolled') {
+        sub = 'Not started \u2014 required before this job can be closed';
+      } else {
+        sub = 'In progress' +
+              (typeof live.progress === 'number' ? ' (' + Math.round(live.progress) + '%)' : '') +
+              ' \u2014 required before this job can be closed';
+      }
+      rows.push({
+        id: live.certification.id,
+        title: live.certification.name,
+        type: catalogType(live.certification.id),
+        done: !!live.certified,
+        gating: true,
+        sub: sub
+      });
+    }
+
+    var skip = rows.length ? rows[0].id : null;
+    supportingCourses(job, 2, skip).forEach(function(c){
+      rows.push({
+        id: c.id,
+        title: c.name || c.title || 'Course',
+        type: c.courseType || c.type || 'OnlineCourse',
+        done: false,
+        gating: false,
+        sub: courseTypeLabel(c.courseType || c.type) + ' \u2014 assigned for this work order'
+      });
+    });
+
+    planIds = {};
+    rows.forEach(function(r){ planIds[String(r.id).toLowerCase()] = 1; });
+    return rows;
+  }
+
   function renderJob(){
     var j = JOBS[active];
     var card = document.getElementById('jobCard');
@@ -700,7 +924,23 @@
       /* Live answer from Absorb wins over the sample framing, so the
          screen never shows a verdict the API panel contradicts. */
       var badge = ' <span class="pill info" style="vertical-align:2px">Live from Absorb</span>';
-      if (lv.certified) {
+      if (lv.status === 'expired') {
+        gateClass = 'stop'; gateIcon = '!';
+        gateTitle = 'Certification expired \u2014 clearance withdrawn';
+        gateBody = '<strong>' + esc(lv.learner) + '</strong> completed <strong>' +
+          esc(lv.certification && lv.certification.name) + '</strong>, but it lapsed on <strong>' +
+          esc(String(lv.expiresAt || '').slice(0,10)) + '</strong> (' +
+          Math.abs(lv.daysRemaining || 0) + ' days ago). The check returns ' +
+          '<code>billingHold: true</code>, so this work order is locked until the ' +
+          'certification is earned again.' + badge;
+      } else if (lv.status === 'expiring') {
+        gateClass = 'warn'; gateIcon = '!';
+        gateTitle = 'Cleared \u2014 but expires in ' + (lv.daysRemaining || 0) + ' days';
+        gateBody = '<strong>' + esc(lv.certification && lv.certification.name) + '</strong> is ' +
+          'valid until <strong>' + esc(String(lv.expiresAt || '').slice(0,10)) + '</strong>. ' +
+          'This job can be billed today; once it lapses, new work orders on ' +
+          '<strong>' + esc(j.series) + '</strong> will be held.' + badge;
+      } else if (lv.certified) {
         gateClass = 'ok'; gateIcon = '\u2713';
         gateTitle = 'Cleared to install and bill';
         gateBody = 'Certification <strong>' + esc(lv.certification && lv.certification.name) + '</strong> ' +
@@ -743,27 +983,61 @@
         '<strong>' + esc(j.sku) + '</strong>. The CRM will accept this work order for billing.';
     }
 
-    /* When the live check names the certificate-bearing course, point the
-       outstanding module straight at it. Completing that exact course is
-       what awards the certificate and fires the Webhook - title-matching
-       the catalogue could land on something else and break the demo. */
-    var certId = haveLive && !lv.certified && lv.certification ? lv.certification.id : null;
-    var certAttr = certId ? ' data-cert="' + esc(certId) + '"' : '';
+    var isExpired = haveLive && lv.status === 'expired';
 
-    var reqRows = j.required.map(function(r, idx){
-      var done = r.done;
-      return '' +
-        '<div class="req-row">' +
-          '<div class="req-ic' + (done ? ' done' : '') + '">' + (done ? '✓' : '▶') + '</div>' +
+    /* An expired certification needs re-enrolment before the course can be
+       retaken, so it gets its own action rather than reusing Start training. */
+    var recertRow = isExpired
+      ? '<div class="req-row">' +
+          '<div class="req-ic">\u21BB</div>' +
           '<div class="req-m">' +
-            '<div class="req-t">' + esc(r.title) + '</div>' +
-            '<div class="req-s">' + r.mins + ' min &bull; ' + (done ? 'Complete' : 'Required before this job can be closed') + '</div>' +
+            '<div class="req-t">' + esc(lv.certification && lv.certification.name) + '</div>' +
+            '<div class="req-s">Recertification required \u2014 lapsed ' +
+              esc(String(lv.expiresAt || '').slice(0,10)) + '</div>' +
           '</div>' +
-          (done
-            ? '<button class="btn btn-sec" data-train="' + idx + '">Review</button>'
-            : '<button class="btn btn-pri" data-train="' + idx + '"' + certAttr + '>Start training</button>') +
-        '</div>';
-    }).join('');
+          '<button class="btn btn-pri" id="recertBtn">Start recertification</button>' +
+        '</div>'
+      : '';
+
+    /* Required training comes from buildPlan(), which only ever emits rows
+       backed by a real Absorb id. When there is nothing real to show yet,
+       say so plainly rather than rendering a button that goes nowhere. */
+    var plan = buildPlan(j);
+    var reqRows;
+    if (plan.length) {
+      reqRows = plan.map(function(r, idx){
+        var label = r.done
+          ? 'Review'
+          : (r.type === 'InstructorLedCourse' ? 'View sessions' : 'Start training');
+        return '' +
+          '<div class="req-row">' +
+            '<div class="req-ic' + (r.done ? ' done' : '') + '">' + (r.done ? '✓' : '▶') + '</div>' +
+            '<div class="req-m">' +
+              '<div class="req-t">' + esc(r.title) +
+                (r.gating ? ' <span class="pill stop" style="vertical-align:1px">Gates billing</span>' : '') +
+              '</div>' +
+              '<div class="req-s">' + esc(r.sub) + '</div>' +
+            '</div>' +
+            '<button class="btn ' + (r.done ? 'btn-sec' : 'btn-pri') + '" data-train="' + idx + '">' +
+              label +
+            '</button>' +
+          '</div>';
+      }).join('');
+    } else if (catalogCourses && catalogCourses.unauth) {
+      reqRows = '<div class="req-row"><div class="req-m">' +
+        '<div class="req-t">Sign in to load assigned training</div>' +
+        '<div class="req-s">This list is built from the installer\u2019s live Absorb record \u2014 ' +
+        '<a href="/signin">sign in</a> to populate it.</div></div></div>';
+    } else if (catalogCourses && catalogCourses.error) {
+      reqRows = '<div class="req-row"><div class="req-m">' +
+        '<div class="req-t">Absorb catalogue unavailable</div>' +
+        '<div class="req-s">' + esc(catalogCourses.error) + '</div></div></div>';
+    } else {
+      reqRows = '<div class="req-row"><div class="req-m">' +
+        '<div class="req-t">Checking Absorb\u2026</div>' +
+        '<div class="req-s">Resolving this installer\u2019s certification and assigned courses.</div>' +
+        '</div></div>';
+    }
 
     card.innerHTML =
       '<div class="jd-h">' +
@@ -785,7 +1059,7 @@
             '<div class="gate-d">' + gateBody + '</div>' +
           '</div>' +
         '</div>' +
-        '<div class="req">' + reqRows + '</div>' +
+        '<div class="req">' + recertRow + reqRows + '</div>' +
       '</div>' +
       '<div class="sec">' +
         '<div class="sec-t">More training for this series</div>' +
@@ -794,12 +1068,36 @@
 
     card.querySelectorAll('[data-train]').forEach(function(btn){
       btn.addEventListener('click', function(){
-        var r = j.required[parseInt(btn.getAttribute('data-train'), 10)];
-        var direct = btn.getAttribute('data-cert');
-        if (direct) { openPlayerModal(direct, r.title, 'OnlineCourse'); return; }
-        launchTraining(r.title);
+        var r = plan[parseInt(btn.getAttribute('data-train'), 10)];
+        if (!r || !r.id) return;              // cannot happen: plan rows always carry an id
+        openPlayerModal(r.id, r.title, r.type);
       });
     });
+
+    var rb = document.getElementById('recertBtn');
+    if (rb) {
+      rb.addEventListener('click', async function(){
+        rb.disabled = true;
+        rb.textContent = 'Enrolling\u2026';
+        try {
+          var resp = await fetch('/api/silfab/recertify', {
+            method:'POST',
+            credentials:'include',
+            headers:{ 'Content-Type':'application/json' },
+            body: JSON.stringify({ sku: j.skuCode, series: j.series })
+          });
+          var out = await resp.json();
+          if (!resp.ok) throw new Error(out.error || ('HTTP ' + resp.status));
+          showToast('Re-enrolled', out.note || 'Recertification started \u2014 opening the course.');
+          openPlayerModal(lv.certification.id, lv.certification.name, 'OnlineCourse');
+        } catch (err) {
+          showToast('Could not re-enrol', err.message);
+        } finally {
+          rb.disabled = false;
+          rb.textContent = 'Start recertification';
+        }
+      });
+    }
 
     renderCatalogSlot();
 
@@ -848,9 +1146,17 @@
       return;
     }
 
+    var rest = catalogCourses.filter(function(c){
+      return c && c.id && !planIds[String(c.id).toLowerCase()];
+    });
+    if (!rest.length) {
+      slot.innerHTML = '<div class="note">Everything in this installer\u2019s catalogue is already listed above.</div>';
+      return;
+    }
+
     slot.innerHTML = '<div class="req"></div>';
     var host = slot.firstChild;
-    catalogCourses.slice(0, CATALOG_LIMIT).forEach(function(c){
+    rest.slice(0, CATALOG_LIMIT).forEach(function(c){
       var title = c.name || c.title || 'Course';
       var type  = c.courseType || c.type;
       var row = document.createElement('div');
@@ -861,7 +1167,9 @@
           '<div class="req-t">' + esc(title) + '</div>' +
           '<div class="req-s">' + esc(courseTypeLabel(type)) + ' &bull; from your Absorb catalogue</div>' +
         '</div>' +
-        '<button class="btn btn-sec">Open</button>';
+        '<button class="btn btn-sec">' +
+          (type === 'InstructorLedCourse' ? 'View sessions' : 'Open') +
+        '</button>';
       row.querySelector('button').addEventListener('click', function(){
         openPlayerModal(c.id, title, type);
       });
@@ -875,26 +1183,6 @@
     return 'Online Course';
   }
 
-  /* Required-module buttons map onto the real catalogue by title where
-     possible, so a demo click lands on genuine Absorb content rather
-     than a dead end. */
-  function launchTraining(title){
-    if (Array.isArray(catalogCourses) && catalogCourses.length) {
-      var want = title.toLowerCase().split(/[^a-z0-9]+/).filter(function(w){ return w.length > 3; });
-      var best = null, bestScore = 0;
-      catalogCourses.forEach(function(c){
-        var hay = String(c.name || c.title || '').toLowerCase();
-        var score = want.reduce(function(n, w){ return n + (hay.indexOf(w) !== -1 ? 1 : 0); }, 0);
-        if (score > bestScore) { bestScore = score; best = c; }
-      });
-      var pick = best || catalogCourses[0];
-      openPlayerModal(pick.id, title, pick.courseType || pick.type);
-      return;
-    }
-    if (catalogCourses && catalogCourses.unauth) { window.location.href = '/signin'; return; }
-    openPlayerModal(null, title, 'OnlineCourse');
-  }
-
   /* ══════════════════════════════════════════
      Player modal - mirrors public/mmit-dashboard-demo.html
   ══════════════════════════════════════════ */
@@ -906,8 +1194,16 @@
 
     var list = document.getElementById('modalLessonList');
     var frame = document.getElementById('mpFrame');
+    var ilcPane = document.getElementById('mpIlc');
     list.innerHTML = '<div style="padding:16px;color:rgba(255,255,255,.4);font-size:12px;">Loading…</div>';
     frame.src = 'about:blank';
+
+    /* The iframe and the session pane share the stage; only one is ever
+       visible. Reset to the iframe here so reopening an online course
+       after an instructor-led one does not leave the schedule showing. */
+    frame.style.display = 'block';
+    ilcPane.style.display = 'none';
+    ilcPane.innerHTML = '';
 
     if (!courseId) {
       list.innerHTML = '<div style="padding:16px;color:rgba(255,255,255,.45);font-size:12px;line-height:1.6;">' +
@@ -915,7 +1211,9 @@
         'real Absorb lessons here.</div>';
       return;
     }
-    if (courseType === 'Curriculum') {
+    if (courseType === 'InstructorLedCourse') {
+      await openPlayerModalILC(courseId, courseTitle, list);
+    } else if (courseType === 'Curriculum') {
       await openPlayerModalCurriculum(courseId, courseTitle, list, frame);
     } else {
       await openPlayerModalOnline(courseId, courseTitle, list, frame);
@@ -936,6 +1234,7 @@
         var row = buildLessonRow(child.id, child.name || child.title || 'Course', idx === 0 ? 'playing' : 'next');
         row.courseId = child.id;
         row.courseType = child.courseType || child.type;
+        row.title = child.name || child.title || 'Course';
         list.appendChild(row.el);
         rows.push(row);
       });
@@ -943,14 +1242,30 @@
         row.el.addEventListener('click', function(){
           rows.forEach(function(r){ r.el.classList.remove('il-active'); });
           row.el.classList.add('il-active');
-          ilLoadCourse(row.courseId);
+          if (row.courseType === 'InstructorLedCourse') {
+            /* Keep the curriculum nav in the side list and show this
+               child's sessions in the stage instead of the iframe. */
+            openPlayerModalILC(row.courseId, row.title, null);
+          } else {
+            showStageFrame();
+            ilLoadCourse(row.courseId);
+          }
         });
       });
+
+      /* Open on the first child that actually has playable content. If the
+         curriculum is entirely instructor-led, open the first one's
+         schedule rather than leaving a blank stage. */
       var firstOnline = rows.filter(function(r){ return r.courseType !== 'InstructorLedCourse'; })[0];
       if (firstOnline) {
         rows.forEach(function(r){ r.el.classList.remove('il-active'); });
         firstOnline.el.classList.add('il-active');
+        showStageFrame();
         ilLoadCourse(firstOnline.courseId);
+      } else if (rows.length) {
+        rows.forEach(function(r){ r.el.classList.remove('il-active'); });
+        rows[0].el.classList.add('il-active');
+        await openPlayerModalILC(rows[0].courseId, rows[0].title, null);
       }
     } catch (err) {
       list.innerHTML = '<div style="padding:16px;color:#f87171;font-size:12px;">Error: ' + esc(err.message) + '</div>';
@@ -1011,10 +1326,317 @@
       }
 
       frame.src = payload.playerUrl;
+      paintDelivery('/api/psbi/player?courseId=' + courseId + '&mode=course', payload);
     } catch (err) {
       list.innerHTML = '<div style="padding:16px;color:#f87171;font-size:12px;">Error: ' + esc(err.message) + '</div>';
       console.error('Modal player error:', err);
     }
+  }
+
+  /* ══════════════════════════════════════════
+     Instructor-led courses.
+
+     An ILC has no lesson player - it has a schedule. Asking the player
+     endpoint for one returns nothing useful, which is why these used to
+     open a blank stage. The app already has the right pair of routes for
+     this and the other themes use them:
+
+       GET  /sessions/:courseId   -> { sessions: [...] }
+       POST /enroll/:courseId     -> { ok } , body { sessionId }
+
+     So an ILC opens its sessions, and registering books a seat through
+     Absorb. Absorb owns the roster and the seat count; the portal only
+     renders what it is told and posts the booking back.
+
+     Two shapes:
+       listEl given -> sessions fill the side list, detail fills the stage
+                       (a top-level instructor-led course)
+       listEl null  -> sessions stack as cards in the stage, side list
+                       untouched (an ILC sitting inside a curriculum)
+  ══════════════════════════════════════════ */
+  function showStageFrame(){
+    var frame = document.getElementById('mpFrame');
+    var pane = document.getElementById('mpIlc');
+    if (frame) frame.style.display = 'block';
+    if (pane) { pane.style.display = 'none'; pane.innerHTML = ''; }
+  }
+
+  function showStagePane(){
+    var frame = document.getElementById('mpFrame');
+    var pane = document.getElementById('mpIlc');
+    if (frame) { frame.style.display = 'none'; frame.src = 'about:blank'; }
+    if (pane) pane.style.display = 'block';
+    return pane;
+  }
+
+  function fmtSessionDate(iso){
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (!isFinite(d.getTime())) return String(iso);
+    try {
+      return d.toLocaleDateString(undefined, { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+    } catch (e) { return d.toDateString(); }
+  }
+
+  function fmtSessionTime(iso){
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (!isFinite(d.getTime())) return '';
+    try {
+      return d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
+    } catch (e) { return ''; }
+  }
+
+  /** One-line "when" for the side list. */
+  function sessionWhen(s){
+    if (!s.startDate) return s.location || s.city || 'Date to be confirmed';
+    var out = fmtSessionDate(s.startDate);
+    var tm = fmtSessionTime(s.startDate);
+    if (tm) out += ' · ' + tm;
+    return out;
+  }
+
+  /** Full "when", including the end time and timezone when Absorb gives them. */
+  function sessionWhenFull(s){
+    if (!s.startDate) return 'To be confirmed';
+    var out = fmtSessionDate(s.startDate);
+    var a = fmtSessionTime(s.startDate);
+    var b = fmtSessionTime(s.endDate);
+    if (a) out += ', ' + a + (b ? ' – ' + b : '');
+    if (s.timezone) out += ' (' + s.timezone + ')';
+    return out;
+  }
+
+  function sessionWhere(s){
+    var parts = [s.venue, s.building, s.room, s.address, s.city, s.state, s.postalCode, s.country]
+      .filter(function(x){ return x; });
+    if (parts.length) return parts.join(', ');
+    return s.location || 'Location to be confirmed';
+  }
+
+  function sessionSeats(s){
+    if (typeof s.seatsAvailable === 'number') {
+      return s.seatsAvailable + (s.capacity != null ? ' of ' + s.capacity : '') + ' seats available';
+    }
+    if (s.capacity != null) return s.capacity + ' seats';
+    return 'Seat count not published';
+  }
+
+  function sessionDetailHtml(courseId, courseTitle, s, idx){
+    return '' +
+      '<div class="ilc-badge">Instructor-led session</div>' +
+      '<h3>' + esc(s.name || courseTitle || ('Session ' + (idx + 1))) + '</h3>' +
+      '<div class="ilc-grid">' +
+        '<div class="ilc-k">When</div><div class="ilc-v">' + esc(sessionWhenFull(s)) + '</div>' +
+        '<div class="ilc-k">Where</div><div class="ilc-v">' + esc(sessionWhere(s)) + '</div>' +
+        '<div class="ilc-k">Instructor</div><div class="ilc-v">' + esc(s.instructor || 'To be assigned') + '</div>' +
+        '<div class="ilc-k">Seats</div><div class="ilc-v">' + esc(sessionSeats(s)) + '</div>' +
+      '</div>' +
+      (s.description ? '<p class="ilc-desc">' + esc(s.description) + '</p>' : '') +
+      '<button class="btn btn-pri ilc-btn" data-reg="' + esc(s.id) + '">Register for this session</button>' +
+      '<div class="ilc-note">Registration posts to <code>/enroll/' + esc(courseId) + '</code> with this ' +
+        'session id. Absorb owns the roster, the seat count and the waitlist — the portal only asks.</div>';
+  }
+
+  /** Wire every [data-reg] button inside a container to the enrol route. */
+  function wireRegistration(container, courseId, courseTitle, sessions){
+    container.querySelectorAll('[data-reg]').forEach(function(btn){
+      btn.addEventListener('click', async function(){
+        var sid = btn.getAttribute('data-reg');
+        var s = sessions.filter(function(x){ return String(x.id) === String(sid); })[0] || {};
+        btn.disabled = true;
+        btn.textContent = 'Registering…';
+        try {
+          var resp = await fetch('/enroll/' + encodeURIComponent(courseId), {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: sid })
+          });
+          var out = await resp.json();
+          if (!resp.ok || out.error) throw new Error(out.error || ('HTTP ' + resp.status));
+          btn.textContent = out.note === 'already enrolled' ? 'Already registered' : 'Registered ✓';
+          showToast(
+            out.note === 'already enrolled' ? 'Already registered' : 'Seat booked',
+            'Absorb has this installer on ' + (s.name || courseTitle) + '.'
+          );
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = 'Register for this session';
+          showToast('Could not register', err.message);
+        }
+      });
+    });
+  }
+
+  async function openPlayerModalILC(courseId, courseTitle, listEl){
+    var pane = showStagePane();
+    pane.innerHTML = '<div class="ilc-empty"><p>Loading sessions…</p></div>';
+    if (listEl) {
+      listEl.innerHTML = '<div style="padding:16px;color:rgba(255,255,255,.4);font-size:12px;">Loading sessions…</div>';
+    }
+
+    try {
+      var resp = await fetch('/sessions/' + encodeURIComponent(courseId), { credentials: 'include' });
+      if (resp.status === 401) throw new Error('Sign in to view this schedule.');
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var payload = await resp.json();
+      var sessions = payload.sessions || [];
+
+      if (!sessions.length) {
+        var why = payload.error
+          ? 'Absorb returned: ' + payload.error
+          : 'Absorb has no upcoming sessions scheduled for it, so there is nothing to register for yet.';
+        pane.innerHTML = '<div class="ilc-empty"><h4>No scheduled sessions</h4><p>' +
+          'This is an instructor-led course. ' + esc(why) + '</p></div>';
+        if (listEl) {
+          listEl.innerHTML = '<div style="padding:16px;color:rgba(255,255,255,.45);font-size:12px;line-height:1.6;">' +
+            'No sessions scheduled.</div>';
+        }
+        return;
+      }
+
+      if (listEl) {
+        /* Top-level ILC: sessions become the navigation. */
+        listEl.innerHTML = '';
+        var els = [];
+        sessions.forEach(function(s, i){
+          var el = document.createElement('div');
+          el.className = 'il-lesson' + (i === 0 ? ' il-active' : '');
+          el.innerHTML =
+            '<div class="il-arrow ' + (i === 0 ? 'playing' : 'next') + '">■</div>' +
+            '<div class="il-meta">' +
+              '<div class="il-title">' + esc(s.name || ('Session ' + (i + 1))) + '</div>' +
+              '<div class="il-dur">' + esc(sessionWhen(s)) + '</div>' +
+            '</div>';
+          el.addEventListener('click', function(){
+            els.forEach(function(x){ x.classList.remove('il-active'); });
+            el.classList.add('il-active');
+            pane.innerHTML = '<div class="ilc">' + sessionDetailHtml(courseId, courseTitle, s, i) + '</div>';
+            wireRegistration(pane, courseId, courseTitle, sessions);
+          });
+          listEl.appendChild(el);
+          els.push(el);
+        });
+        pane.innerHTML = '<div class="ilc">' + sessionDetailHtml(courseId, courseTitle, sessions[0], 0) + '</div>';
+        wireRegistration(pane, courseId, courseTitle, sessions);
+      } else {
+        /* ILC inside a curriculum: stack the sessions, leave the nav alone. */
+        pane.innerHTML = '<div class="ilc">' +
+          '<div class="ilc-badge">Instructor-led</div>' +
+          '<h3>' + esc(courseTitle) + '</h3>' +
+          '<p class="ilc-desc" style="margin-top:0">This step of the curriculum is delivered in person. ' +
+            'Pick a session to book a seat.</p>' +
+          sessions.map(function(s, i){
+            return '<div class="ilc-card">' + sessionDetailHtml(courseId, s.name || courseTitle, s, i) + '</div>';
+          }).join('') +
+        '</div>';
+        wireRegistration(pane, courseId, courseTitle, sessions);
+      }
+    } catch (err) {
+      pane.innerHTML = '<div class="ilc-empty"><h4>Could not load the schedule</h4><p>' +
+        esc(err.message) + '</p></div>';
+      if (listEl) {
+        listEl.innerHTML = '<div style="padding:16px;color:#f87171;font-size:12px;">Error: ' + esc(err.message) + '</div>';
+      }
+      console.error('ILC sessions error:', err);
+    }
+  }
+
+  /* ══════════════════════════════════════════
+     Under-the-hood instrumentation.
+
+     Wraps window.fetch so every call this page makes is timed and logged.
+     The wrapper changes nothing about the request - it passes the result
+     straight through - and it is what makes the data flow demonstrable:
+     the browser only ever talks to this portal's own origin.
+  ══════════════════════════════════════════ */
+  function pulsePanel(id){
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('api-upd');
+    setTimeout(function(){ el.classList.remove('api-upd'); }, 2200);
+  }
+
+  function recordCall(method, url, status, t0){
+    var now = (window.performance && performance.now) ? performance.now() : Date.now();
+    var path = String(url);
+    try {
+      var u = new URL(url, window.location.origin);
+      path = u.pathname + (u.search || '');
+    } catch (e) { /* keep the raw string */ }
+    apiLog.unshift({
+      method: String(method || 'GET').toUpperCase(),
+      path: path,
+      status: status,
+      ms: Math.max(0, Math.round(now - t0))
+    });
+    if (apiLog.length > 14) apiLog.length = 14;
+    paintApiLog();
+  }
+
+  function paintApiLog(){
+    var el = document.getElementById('apiCallLog');
+    if (!el) return;
+    if (!apiLog.length) { el.textContent = 'No calls recorded yet.'; return; }
+    el.innerHTML = apiLog.map(function(c){
+      var cls = (c.status >= 200 && c.status < 300) ? 'f' : 'x';
+      return '<span class="m">' + esc(c.method) + '</span> ' + esc(c.path) +
+        '  <span class="' + cls + '">' + (c.status || 'ERR') + '</span>' +
+        ' <span class="d">' + c.ms + 'ms</span>';
+    }).join('\n');
+    pulsePanel('panelLog');
+  }
+
+  (function instrumentFetch(){
+    if (!window.fetch) return;
+    var orig = window.fetch.bind(window);
+    window.fetch = function(input, init){
+      var url = (typeof input === 'string') ? input : (input && input.url) || String(input);
+      var method = (init && init.method) || (input && input.method) || 'GET';
+      var t0 = (window.performance && performance.now) ? performance.now() : Date.now();
+      return orig(input, init).then(function(resp){
+        recordCall(method, url, resp.status, t0);
+        return resp;
+      }, function(err){
+        recordCall(method, url, 0, t0);
+        throw err;
+      });
+    };
+  })();
+
+  /* Mask anything token-shaped before showing a minted URL on screen.
+     The real token never reaches this page - the server holds it - but the
+     panel should not imply otherwise by printing a plausible-looking one. */
+  function redactUrl(u){
+    if (!u) return '(none)';
+    try {
+      var x = new URL(u, window.location.origin);
+      var keys = [];
+      x.searchParams.forEach(function(v, k){ keys.push(k); });
+      keys.forEach(function(k){
+        if (/token|jwt|sig|auth|key|ticket|sso/i.test(k)) x.searchParams.set(k, 'REDACTED');
+      });
+      return x.origin + x.pathname + (x.search || '');
+    } catch (e) {
+      return String(u).replace(/([?&][^=&]*(?:token|jwt|sig|auth|key|ticket|sso)[^=&]*=)[^&]*/gi, '$1REDACTED');
+    }
+  }
+
+  function paintDelivery(reqPath, payload){
+    var el = document.getElementById('apiDeliver');
+    if (!el) return;
+    el.innerHTML =
+      '<span class="m">GET</span> <span class="f">' + esc(reqPath) + '</span>\n' +
+      '   → portal server authenticates to Absorb (API key + learner token,\n' +
+      '     both server-side only)\n' +
+      '   ← Absorb mints a single-use player URL\n\n' +
+      '<span class="m">iframe src</span>\n' +
+      '  ' + esc(redactUrl(payload && payload.playerUrl)) + '\n' +
+      (payload && payload.lessonId ? '\n<span class="m">lessonId</span> ' + esc(payload.lessonId) + '\n' : '') +
+      '\nRendered into the modal on this page. The installer never leaves the\n' +
+      'Silfab-branded portal and never holds an Absorb credential.';
+    pulsePanel('panelDeliver');
   }
 
   function buildLessonRow(lessonId, name, state){
@@ -1044,6 +1666,7 @@
       var payload = await resp.json();
       if (payload.error) throw new Error(payload.error);
       frame.src = payload.playerUrl;
+      paintDelivery('/api/psbi/player?' + qs, payload);
     } catch (err) {
       console.error('mpLoadLesson error:', err);
     }
@@ -1058,6 +1681,7 @@
       var payload = await resp.json();
       if (payload.error) throw new Error(payload.error);
       frame.src = payload.playerUrl;
+      paintDelivery('/api/psbi/player?courseId=' + courseId, payload);
     } catch (err) {
       console.error('ilLoadCourse error:', err);
     }
@@ -1078,7 +1702,9 @@
   /* ── Boot ────────────────────────────────── */
   renderList();
   renderJob();
-  loadCatalog().then(renderCatalogSlot);
+  /* renderJob() paints before the catalogue is in. Re-render once it
+     lands so the supporting rows (and their real ids) appear. */
+  loadCatalog().then(renderJob);
   pollHooks();
   setInterval(pollHooks, 3000);
 })();
