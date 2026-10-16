@@ -258,6 +258,27 @@
   .ilc-card{border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:17px 19px;margin-bottom:12px}
   .ilc-card h4{margin:0 0 11px;font-size:14.5px;color:#fff}
 
+  /* ── Handshake panel inside the player modal ──────────────
+     The page-level panel sits behind the modal, so it is unreadable
+     while a course is open - which is exactly when the handshake is
+     worth looking at. This is the same content, docked to the player. */
+  .mp-uth{flex-shrink:0;border-top:1px solid rgba(255,255,255,.14);background:var(--sf-navy)}
+  .mp-uth > summary{padding:11px 17px;display:flex;align-items:center;gap:9px;cursor:pointer;
+                    list-style:none;user-select:none}
+  .mp-uth > summary::-webkit-details-marker{display:none}
+  .mp-uth > summary:hover{background:rgba(255,255,255,.05)}
+  .mp-uth-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:rgba(255,255,255,.72)}
+  .mp-uth > summary .tag{margin-left:auto;font-size:10px;font-weight:700;text-transform:uppercase;
+                         letter-spacing:.05em;background:rgba(255,104,28,.2);color:#FFB68C;
+                         padding:3px 8px;border-radius:20px}
+  .mp-uth > summary .chev{color:rgba(255,255,255,.4);font-size:11px;transition:transform .15s ease}
+  .mp-uth[open] > summary .chev{transform:rotate(90deg)}
+  .mp-uth-b{padding:0 17px 15px;max-height:34vh;overflow-y:auto;border-top:1px solid rgba(255,255,255,.08)}
+  .mp-uth-b pre{margin:12px 0 0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+                font-size:11.5px;line-height:1.65;color:#C8D6E8;white-space:pre-wrap;word-break:break-word}
+  .mp-uth-b .m{color:#FFB68C;font-weight:700}
+  .mp-uth-b .f{color:#8FD0A4}
+
   /* ── Player modal ────────────────────────── */
   .mp{position:fixed;inset:0;background:rgba(5,20,40,.78);z-index:120;display:none;align-items:center;justify-content:center;padding:26px}
   .mp.open{display:flex}
@@ -587,6 +608,18 @@ token is masked below because it genuinely never reaches this page.</pre>
         <div class="mp-ilc" id="mpIlc"></div>
       </div>
     </div>
+    <!-- Collapsed by default, same as the page-level panels. Open it and it
+         sits alongside the player rather than behind it. -->
+    <details class="mp-uth" id="mpDeliverPanel">
+      <summary>
+        <span class="mp-uth-t">Under the hood &mdash; content delivery handshake</span>
+        <span class="tag">Embedded player</span>
+        <span class="chev">&#9656;</span>
+      </summary>
+      <div class="mp-uth-b">
+        <pre id="mpDeliver">Open a lesson and this fills in.</pre>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -1266,7 +1299,12 @@ token is masked below because it genuinely never reaches this page.</pre>
       list.innerHTML = '';
       var rows = [];
       children.forEach(function(child, idx){
-        var row = buildLessonRow(child.id, child.name || child.title || 'Course', idx === 0 ? 'playing' : 'next');
+        /* Every child starts as 'next'. The old code marked index 0 as
+           'playing', which printed "In progress" against whichever child
+           happened to be first - including containers with no enrollment
+           at all. The active row is set below, after we know which child
+           is actually playable. */
+        var row = buildLessonRow(child.id, child.name || child.title || 'Course', 'next');
         row.courseId = child.id;
         row.courseType = child.courseType || child.type;
         row.title = child.name || child.title || 'Course';
@@ -1277,34 +1315,105 @@ token is masked below because it genuinely never reaches this page.</pre>
         row.el.addEventListener('click', function(){
           rows.forEach(function(r){ r.el.classList.remove('il-active'); });
           row.el.classList.add('il-active');
-          if (row.courseType === 'InstructorLedCourse') {
-            /* Keep the curriculum nav in the side list and show this
-               child's sessions in the stage instead of the iframe. */
-            openPlayerModalILC(row.courseId, row.title, null);
-          } else {
-            showStageFrame();
-            ilLoadCourse(row.courseId);
-          }
+          openCurriculumChild(row.courseId, row.title, row.courseType);
         });
       });
 
-      /* Open on the first child that actually has playable content. If the
-         curriculum is entirely instructor-led, open the first one's
-         schedule rather than leaving a blank stage. */
-      var firstOnline = rows.filter(function(r){ return r.courseType !== 'InstructorLedCourse'; })[0];
-      if (firstOnline) {
+      /* Open on the first child that actually HAS a player. Neither an
+         instructor-led course nor a nested curriculum does - asking the
+         player endpoint for either returns nothing renderable, which is
+         what put a blocked-page icon in the stage. */
+      var playable = rows.filter(function(r){
+        return r.courseType !== 'InstructorLedCourse' && r.courseType !== 'Curriculum';
+      })[0];
+      if (playable) {
         rows.forEach(function(r){ r.el.classList.remove('il-active'); });
-        firstOnline.el.classList.add('il-active');
+        playable.el.classList.add('il-active');
         showStageFrame();
-        ilLoadCourse(firstOnline.courseId);
+        ilLoadCourse(playable.courseId);
       } else if (rows.length) {
         rows.forEach(function(r){ r.el.classList.remove('il-active'); });
         rows[0].el.classList.add('il-active');
-        await openPlayerModalILC(rows[0].courseId, rows[0].title, null);
+        await openCurriculumChild(rows[0].courseId, rows[0].title, rows[0].courseType);
       }
     } catch (err) {
       list.innerHTML = '<div style="padding:16px;color:#f87171;font-size:12px;">Error: ' + esc(err.message) + '</div>';
       console.error('Curriculum player error:', err);
+    }
+  }
+
+  /**
+   * One place that decides what a curriculum child opens into. Absorb lets a
+   * curriculum hold online courses, instructor-led courses AND further
+   * curricula, and only the first of those has a lesson player.
+   */
+  async function openCurriculumChild(childId, childTitle, childType){
+    if (childType === 'InstructorLedCourse') {
+      /* Sessions in the stage; the curriculum nav stays in the side list. */
+      await openPlayerModalILC(childId, childTitle, null);
+      return;
+    }
+    if (childType === 'Curriculum') {
+      await openNestedCurriculum(childId, childTitle);
+      return;
+    }
+    showStageFrame();
+    await ilLoadCourse(childId);
+  }
+
+  /**
+   * A curriculum inside a curriculum. There is no single player for one, so
+   * the stage lists what it contains and each item opens through the same
+   * router. The parent's navigation is left untouched in the side list.
+   */
+  async function openNestedCurriculum(curriculumId, curriculumTitle){
+    var pane = showStagePane();
+    pane.innerHTML = '<div class="ilc-empty"><p>Loading curriculum\u2026</p></div>';
+    try {
+      var resp = await fetch('/api/psbi/curriculum/' + encodeURIComponent(curriculumId), { credentials:'include' });
+      if (resp.status === 401) throw new Error('Sign in to open this curriculum.');
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+
+      var kids = payload.courses || [];
+      if (!kids.length) {
+        pane.innerHTML = '<div class="ilc-empty"><h4>Empty curriculum</h4>' +
+          '<p>Absorb returned no child items for this curriculum.</p></div>';
+        return;
+      }
+
+      pane.innerHTML = '<div class="ilc">' +
+        '<div class="ilc-badge">Curriculum inside a curriculum</div>' +
+        '<h3>' + esc(curriculumTitle) + '</h3>' +
+        '<p class="ilc-desc" style="margin-top:0">A curriculum has no player of its own \u2014 it is a ' +
+          'container. This one holds ' + kids.length + ' item' + (kids.length === 1 ? '' : 's') +
+          '. Pick one to open it.</p>' +
+        kids.map(function(c, i){
+          var ty = c.courseType || c.type;
+          return '<div class="ilc-card">' +
+            '<h4>' + esc(c.name || c.title || 'Course') + '</h4>' +
+            '<div class="ilc-grid">' +
+              '<div class="ilc-k">Type</div><div class="ilc-v">' + esc(courseTypeLabel(ty)) + '</div>' +
+            '</div>' +
+            '<button class="btn btn-pri ilc-btn" data-kid="' + i + '">' +
+              (ty === 'InstructorLedCourse' ? 'View sessions' : 'Open') +
+            '</button>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+
+      pane.querySelectorAll('[data-kid]').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var c = kids[parseInt(btn.getAttribute('data-kid'), 10)];
+          if (!c || !c.id) return;
+          openCurriculumChild(c.id, c.name || c.title || 'Course', c.courseType || c.type);
+        });
+      });
+    } catch (err) {
+      pane.innerHTML = '<div class="ilc-empty"><h4>Could not open the curriculum</h4><p>' +
+        esc(err.message) + '</p></div>';
+      console.error('Nested curriculum error:', err);
     }
   }
 
@@ -1659,9 +1768,7 @@ token is masked below because it genuinely never reaches this page.</pre>
   }
 
   function paintDelivery(reqPath, payload){
-    var el = document.getElementById('apiDeliver');
-    if (!el) return;
-    el.innerHTML =
+    var html =
       '<span class="m">GET</span> <span class="f">' + esc(reqPath) + '</span>\n' +
       '   → portal server authenticates to Absorb (API key + learner token,\n' +
       '     both server-side only)\n' +
@@ -1671,6 +1778,14 @@ token is masked below because it genuinely never reaches this page.</pre>
       (payload && payload.lessonId ? '\n<span class="m">lessonId</span> ' + esc(payload.lessonId) + '\n' : '') +
       '\nRendered into the modal on this page. The installer never leaves the\n' +
       'Silfab-branded portal and never holds an Absorb credential.';
+
+    /* Two homes for the same text: the page panel, and the panel docked
+       inside the player modal. The page one is behind the modal while a
+       course is open, which is precisely when this is worth reading. */
+    var page = document.getElementById('apiDeliver');
+    if (page) page.innerHTML = html;
+    var modal = document.getElementById('mpDeliver');
+    if (modal) modal.innerHTML = html;
     pulsePanel('panelDeliver');
   }
 

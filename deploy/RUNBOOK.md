@@ -207,6 +207,57 @@ setup grants a low-privilege account `SERVICE_START`/`SERVICE_STOP` on just
   in seconds rather than minutes.
 - **Force-push detection.** Logs loudly if `origin/main` isn't a fast-forward.
 
+## Checking what is actually deployed
+
+`GET /deploy-status.json` on the live site reports what the app is really
+serving. Written by the daemon after every outcome, so it distinguishes the
+three states a browser otherwise cannot tell apart: deployed, failed and
+rolled back, and never attempted.
+
+```
+https://infuse.bryanharrigan.dev/deploy-status.json
+```
+
+Success:
+
+```json
+{ "status": "ok",
+  "serving":   { "short": "9196582", "subject": "...", "committedAt": "..." },
+  "attempted": null,
+  "note": "Build, restart and health check all passed. This is the running code." }
+```
+
+Failure, having rolled back:
+
+```json
+{ "status": "failed",
+  "serving":   { "short": "aa44f2a" },   <- what the site is running
+  "attempted": { "short": "c856fa0" },   <- what failed to build
+  "error": "npm run build failed" }
+```
+
+`serving.short` is the field that matters. If it does not match the tip of
+`origin/main`, the last deploy did not take. `status: "rollback-failed"` means
+the site is down and needs a person.
+
+**Why this file exists.** From 14 to 16 October 2026, `main` carried a route
+importing `app/.server/silfab-certifications.ts`, which had never been
+committed. Every build failed, every rollback succeeded, and the site served a
+two-day-old build while looking perfectly healthy. Rollback worked exactly as
+designed, and that was the problem: a failed deploy and no deploy were
+indistinguishable from outside, so nobody read the log, because nothing
+suggested there was a log worth reading.
+
+Two notes on reading it:
+
+- It is a static file under `build/client`, deliberately. An app route could
+  not report on a deploy that stopped the app from having that route.
+- Cloudflare may serve a cached copy. Append a cache-buster
+  (`/deploy-status.json?t=1`) if the timestamp looks stale.
+
+Absolute paths are stripped from `error` before it is written, since the file
+is public.
+
 ## What it deliberately does not do
 
 - No secret management. Env vars stay in the service definition or `.env`,

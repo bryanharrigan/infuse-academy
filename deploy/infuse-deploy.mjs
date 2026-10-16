@@ -42,7 +42,7 @@
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { readFileSync, existsSync, mkdirSync, appendFileSync, rmSync, renameSync, cpSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync, rmSync, renameSync, cpSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 const exec = promisify(execFile);
@@ -96,6 +96,78 @@ cfg.logPath ??= join(dirname(CONFIG_PATH), "deploy.log");
 
 const BUILD_DIR = join(cfg.repoPath, "build");
 const BACKUP_DIR = join(cfg.repoPath, ".build-prev");
+
+/**
+ * Deploy status, served to the browser.
+ *
+ * ┌─ Why this file exists ────────────────────────────────────┐
+ * │ Rollback worked exactly as designed and that was the problem.    │
+ * │ From 14 to 16 Oct 2026, main carried a route importing a module  │
+ * │ that was never committed. Every build failed, every rollback     │
+ * │ succeeded, and the site kept serving a two-day-old build while   │
+ * │ looking completely healthy. A failed deploy and no deploy at all │
+ * │ were indistinguishable from a browser, so nobody looked at the   │
+ * │ log, because nothing suggested there was anything to look at.    │
+ * │                                                                  │
+ * │ So: after every outcome, write what is ACTUALLY being served. A  │
+ * │ silent rollback is now a visible one.                            │
+ * └──────────────────────────────────────────────────────┘
+ *
+ * build/client is the static root remix-serve publishes, so this lands at
+ * GET /deploy-status.json with no app route and no app code - which matters,
+ * because an app route could not report on a deploy that stopped the app
+ * from having that route.
+ */
+const STATUS_FILE = join(BUILD_DIR, "client", "deploy-status.json");
+
+/** Absolute paths and multi-line stack noise do not belong on a public URL. */
+function publicError(msg) {
+  return String(msg ?? "")
+    .split("\n")[0]
+    // Segments split on backslash; a segment may contain spaces (C:\Program
+    // Files\...), so stopping at the first space would leave half the path
+    // exposed. Over-redacts trailing prose, which is the safe direction.
+    .replace(/[A-Za-z]:(?:\\[^\\\n"']*)+/g, "<path>")
+    .slice(0, 300);
+}
+
+/** Describe a commit for the status file; never throws. */
+async function describe(sha) {
+  if (!sha) return null;
+  const safe = async (fmt) => {
+    try {
+      return await gitOut("log", "-1", `--format=${fmt}`, sha);
+    } catch {
+      return null;
+    }
+  };
+  return {
+    sha,
+    short: sha.slice(0, 8),
+    subject: await safe("%s"),
+    committedAt: await safe("%cI"),
+  };
+}
+
+/**
+ * Write the status file. Called AFTER the build settles - including after a
+ * rollback, because restoreBuild() copies the previous build back over
+ * build/ and would otherwise restore the previous status file along with
+ * it, reporting the failure as a success.
+ */
+function writeStatus(payload) {
+  try {
+    mkdirSync(dirname(STATUS_FILE), { recursive: true });
+    writeFileSync(
+      STATUS_FILE,
+      JSON.stringify({ ...payload, at: new Date().toISOString() }, null, 2) + "\n"
+    );
+    info(`status written -> ${STATUS_FILE}`);
+  } catch (e) {
+    // Never let status reporting break a deploy that otherwise worked.
+    warn(`could not write status file: ${e.message}`);
+  }
+}
 
 // ------------------------------------------------------------------ logging
 
@@ -349,9 +421,20 @@ async function deploy(fromSha, toSha) {
 
     const secs = ((Date.now() - started) / 1000).toFixed(1);
     info(`DEPLOY OK — now serving ${toSha.slice(0, 8)} (${secs}s)`);
+    writeStatus({
+      status: "ok",
+      serving: await describe(toSha),
+      attempted: null,
+      error: null,
+      tookSeconds: Number(secs),
+      note: "Build, restart and health check all passed. This is the running code.",
+    });
   } catch (e) {
     error(`DEPLOY FAILED: ${e.message}`);
     error("rolling back...");
+
+    let outcome = "rollback-failed";
+    let rollbackError = null;
     try {
       await git("reset", "--hard", fromSha);
       restoreBuild();
@@ -359,12 +442,30 @@ async function deploy(fromSha, toSha) {
       const ok = await waitForHealthy();
       if (ok) {
         warn(`ROLLBACK OK — back on ${fromSha.slice(0, 8)}`);
+        outcome = "failed";
       } else {
         error("ROLLBACK FAILED — THE SITE IS DOWN AND NEEDS A HUMAN");
+        rollbackError = "app did not become healthy after rollback";
       }
     } catch (rb) {
       error(`ROLLBACK THREW: ${rb.message} — THE SITE IS DOWN AND NEEDS A HUMAN`);
+      rollbackError = publicError(rb.message);
     }
+
+    // Written last, after restoreBuild() has put the old build/ back - the
+    // restore would otherwise overwrite this file with the previous build's
+    // copy and report a failed deploy as a success.
+    writeStatus({
+      status: outcome,
+      serving: await describe(fromSha),
+      attempted: await describe(toSha),
+      error: publicError(e.message),
+      rollbackError,
+      note:
+        outcome === "failed"
+          ? "This commit FAILED to deploy. The site is serving the previous build, which is older than origin/main."
+          : "Deploy failed AND rollback failed. The site needs a human.",
+    });
   } finally {
     deploying = false;
     info("=".repeat(70));
