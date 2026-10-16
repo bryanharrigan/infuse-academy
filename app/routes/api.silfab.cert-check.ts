@@ -4,8 +4,13 @@ import {
   getMyCourseEnrollment,
   getUserProfile,
   getAllAvailableCatalog,
+  getMyCourses,
 } from "~/.server/infuse-api";
-import { lookupCertificateExpiry } from "~/.server/silfab-absorb";
+import {
+  lookupCertificateExpiry,
+  getEnrollmentRaw,
+  nameFromEnrollment,
+} from "~/.server/silfab-absorb";
 import {
   CERTIFICATIONS,
   findCertification,
@@ -43,45 +48,99 @@ import {
 
 /**
  * Resolve a certification's display title from Absorb, so renaming the
- * course or curriculum in the LMS is reflected in the portal immediately
- * with no code change. Falls back to the configured name if the catalogue
- * cannot be read or the item is not in it.
+ * course or curriculum in the LMS shows up in the portal with no code
+ * change.
  *
- * The catalogue is cached briefly in-process: a learner clicking between
- * work orders would otherwise re-fetch it on every check.
+ * ┌─ Why this is three lookups and not one ─────────────────────────┐
+ * │ The first version read /my-catalog only, which is the list of     │
+ * │ things the learner can ENROL IN. A certification the learner has  │
+ * │ already completed is normally not in it - it has moved to         │
+ * │ /my-courses. So for exactly the learner this demo is about, the    │
+ * │ lookup missed every time and the route quietly served a           │
+ * │ hard-coded title instead. That is the bug this replaces.          │
+ * └────────────────────────────────────────────────────────┘
+ *
+ * Order, cheapest and most specific first:
+ *   1. the enrollment record for this exact course, if it carries a name
+ *   2. /my-courses  - where enrolled and completed items live
+ *   3. /my-catalog  - where not-yet-enrolled items live
+ *
+ * If all three miss, the answer is `null` with source "unresolved". The
+ * route does NOT substitute a plausible title: the portal renders the
+ * failure instead, because an invented course name that reads like a real
+ * one is worse than an obvious gap.
+ *
+ * The two list lookups are cached briefly in-process - clicking between
+ * work orders would otherwise re-walk the catalogue on every check.
  */
-type TitleCache = { at: number; byId: Map<string, string> };
+type TitleCache = {
+  at: number;
+  /** Titles from /my-courses - enrolled and completed. */
+  mine: Map<string, string>;
+  /** Titles from /my-catalog - still enrollable. */
+  catalog: Map<string, string>;
+};
 let titleCache: TitleCache | null = null;
 const TITLE_TTL_MS = 60_000;
 
+/** Fold an Absorb course list into id -> name. */
+function indexCourses(payload: unknown, into: Map<string, string>): void {
+  const courses =
+    ((payload as { _embedded?: { courses?: unknown[] } })?._embedded?.courses as
+      | Array<Record<string, unknown>>
+      | undefined) ?? [];
+  for (const c of courses) {
+    const cid = typeof c.id === "string" ? c.id : undefined;
+    const nm =
+      (typeof c.name === "string" && c.name) ||
+      (typeof c.title === "string" && c.title) ||
+      undefined;
+    if (cid && nm) into.set(cid.toLowerCase(), nm);
+  }
+}
+
+export type NameSource = "enrollment" | "my-courses" | "catalog" | "unresolved";
+
 async function resolveTitle(
   token: string,
-  id: string,
-  fallback: string
-): Promise<{ name: string; source: "absorb" | "fallback" }> {
-  try {
-    if (!titleCache || Date.now() - titleCache.at > TITLE_TTL_MS) {
-      const catalog = await getAllAvailableCatalog(token);
-      const courses =
-        ((catalog as unknown as { _embedded?: { courses?: unknown[] } })._embedded
-          ?.courses as Array<Record<string, unknown>> | undefined) ?? [];
-      const byId = new Map<string, string>();
-      for (const c of courses) {
-        const cid = typeof c.id === "string" ? c.id : undefined;
-        const nm =
-          (typeof c.name === "string" && c.name) ||
-          (typeof c.title === "string" && c.title) ||
-          undefined;
-        if (cid && nm) byId.set(cid.toLowerCase(), nm);
-      }
-      titleCache = { at: Date.now(), byId };
+  id: string
+): Promise<{ name: string | null; source: NameSource }> {
+  // 1. The enrollment record for this course, if Absorb puts a name on it.
+  const fromEnrollment = nameFromEnrollment(await getEnrollmentRaw(token, id));
+  if (fromEnrollment) return { name: fromEnrollment, source: "enrollment" };
+
+  // 2 + 3. The learner's own course lists, built once and cached.
+  // Kept as two maps so the response can say which list answered.
+  if (!titleCache || Date.now() - titleCache.at > TITLE_TTL_MS) {
+    const mine = new Map<string, string>();
+    const catalog = new Map<string, string>();
+
+    // Enrolled and completed items. showCompleted matters: the whole point
+    // is to find a certification the learner has already finished.
+    try {
+      indexCourses(await getMyCourses(token, { limit: 30, showCompleted: true }), mine);
+    } catch {
+      /* non-fatal - fall through to the catalogue */
     }
-    const hit = titleCache.byId.get(id.toLowerCase());
-    if (hit) return { name: hit, source: "absorb" };
-  } catch {
-    /* fall through to the configured name */
+
+    // Everything still enrollable.
+    try {
+      indexCourses(await getAllAvailableCatalog(token), catalog);
+    } catch {
+      /* non-fatal - a miss becomes "unresolved", which is reported */
+    }
+
+    titleCache = { at: Date.now(), mine, catalog };
   }
-  return { name: fallback, source: "fallback" };
+
+  const key = id.toLowerCase();
+  const inMine = titleCache.mine.get(key);
+  if (inMine) return { name: inMine, source: "my-courses" };
+
+  const inCatalog = titleCache.catalog.get(key);
+  if (inCatalog) return { name: inCatalog, source: "catalog" };
+
+  return { name: null, source: "unresolved" };
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -107,7 +166,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   // Title straight from Absorb, so LMS renames show up here automatically.
-  const title = await resolveTitle(token, cert.id, cert.fallbackName);
+  // `name` is null when Absorb could not be asked or did not know - the
+  // portal renders that as a visible gap rather than a made-up title.
+  const title = await resolveTitle(token, cert.id);
 
   // Learner identity is nice-to-have for the demo panel, never fatal.
   let learner = "Unknown learner";
@@ -165,9 +226,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   let absorbExpiry: string | null = null;
   let expiryNote: string | undefined;
   if (completed) {
-    const look = await lookupCertificateExpiry(token, title.name);
-    absorbExpiry = look.expiry;
-    if (!look.expiry) expiryNote = look.reason;
+    if (title.name) {
+      const look = await lookupCertificateExpiry(token, title.name);
+      absorbExpiry = look.expiry;
+      if (!look.expiry) expiryNote = look.reason;
+    } else {
+      // The certificates collection is matched on courseName, so with no
+      // resolved title there is nothing to match against. Say that, rather
+      // than reporting a lookup that never ran.
+      expiryNote =
+        "Certificate expiry not checked: the course title could not be read from Absorb, and the certificates collection is matched on course name.";
+    }
   }
 
   const expiry = resolveExpiry(cert, completionDate, absorbExpiry);
@@ -179,7 +248,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       learner,
       sku: sku ?? null,
       series: cert.series,
-      certification: { id: cert.id, name: title.name, nameSource: title.source },
+      certification: {
+        id: cert.id,
+        name: title.name,
+        nameSource: title.source,
+        ...(title.name
+          ? {}
+          : {
+              nameNote:
+                "Absorb did not return a title for this course or curriculum id. The portal shows this as unresolved rather than substituting one.",
+            }),
+      },
       certified,
       billingHold: !certified,
       status: !completed ? "incomplete" : expiry.status,

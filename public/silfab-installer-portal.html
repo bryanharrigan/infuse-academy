@@ -651,6 +651,41 @@ token is masked below because it genuinely never reaches this page.</pre>
       .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
+  /* ══════════════════════════════════════════
+     Certification title.
+
+     cert-check resolves the title from Absorb and returns `name: null`
+     with `nameSource: "unresolved"` when it cannot. There is deliberately
+     no hard-coded fallback on the server, so there must not be one here
+     either: an unresolved title is shown AS unresolved.
+
+     This is the same rule as the training rows. The portal may only
+     display what Absorb actually said.
+  ══════════════════════════════════════════ */
+  function certName(lv){
+    var n = lv && lv.certification && lv.certification.name;
+    return (typeof n === 'string' && n) ? n : null;
+  }
+
+  /** HTML for a certification title, honest about an unresolved one. */
+  function certNameHtml(lv){
+    var n = certName(lv);
+    if (n) return '<strong>' + esc(n) + '</strong>';
+    var id = (lv && lv.certification && lv.certification.id) || '';
+    return '<strong>this certification</strong> ' +
+      '<span class="pill warn" style="vertical-align:1px">title unresolved</span>' +
+      (id ? '<br><span style="font-size:11.5px;opacity:.65">Absorb returned no title for id <code>' +
+            esc(id) + '</code> \u2014 shown unresolved rather than substituted.</span>' : '');
+  }
+
+  /** Plain-text title for places that cannot take markup. */
+  function certNameText(lv){
+    var n = certName(lv);
+    if (n) return n;
+    var id = (lv && lv.certification && lv.certification.id) || '';
+    return 'Certification ' + (id ? id.slice(0, 8) : '') + ' \u2014 title unresolved in Absorb';
+  }
+
   function pillFor(j){
     var lv = liveCert[j.id];
     if (lv && lv !== 'pending' && typeof lv.certified === 'boolean') {
@@ -886,7 +921,7 @@ token is masked below because it genuinely never reaches this page.</pre>
       }
       rows.push({
         id: live.certification.id,
-        title: live.certification.name,
+        title: certNameText(live),
         type: catalogType(live.certification.id),
         done: !!live.certified,
         gating: true,
@@ -927,8 +962,8 @@ token is masked below because it genuinely never reaches this page.</pre>
       if (lv.status === 'expired') {
         gateClass = 'stop'; gateIcon = '!';
         gateTitle = 'Certification expired \u2014 clearance withdrawn';
-        gateBody = '<strong>' + esc(lv.learner) + '</strong> completed <strong>' +
-          esc(lv.certification && lv.certification.name) + '</strong>, but it lapsed on <strong>' +
+        gateBody = '<strong>' + esc(lv.learner) + '</strong> completed ' +
+          certNameHtml(lv) + ', but it lapsed on <strong>' +
           esc(String(lv.expiresAt || '').slice(0,10)) + '</strong> (' +
           Math.abs(lv.daysRemaining || 0) + ' days ago). The check returns ' +
           '<code>billingHold: true</code>, so this work order is locked until the ' +
@@ -936,14 +971,14 @@ token is masked below because it genuinely never reaches this page.</pre>
       } else if (lv.status === 'expiring') {
         gateClass = 'warn'; gateIcon = '!';
         gateTitle = 'Cleared \u2014 but expires in ' + (lv.daysRemaining || 0) + ' days';
-        gateBody = '<strong>' + esc(lv.certification && lv.certification.name) + '</strong> is ' +
+        gateBody = certNameHtml(lv) + ' is ' +
           'valid until <strong>' + esc(String(lv.expiresAt || '').slice(0,10)) + '</strong>. ' +
           'This job can be billed today; once it lapses, new work orders on ' +
           '<strong>' + esc(j.series) + '</strong> will be held.' + badge;
       } else if (lv.certified) {
         gateClass = 'ok'; gateIcon = '\u2713';
         gateTitle = 'Cleared to install and bill';
-        gateBody = 'Certification <strong>' + esc(lv.certification && lv.certification.name) + '</strong> ' +
+        gateBody = 'Certification ' + certNameHtml(lv) + ' ' +
           'is complete for <strong>' + esc(lv.learner) + '</strong>' +
           (lv.completionDate ? ' (awarded ' + esc(String(lv.completionDate).slice(0,10)) + ')' : '') +
           ', so <code>billingHold: false</code> and the CRM will accept this work order.' + badge;
@@ -952,8 +987,8 @@ token is masked below because it genuinely never reaches this page.</pre>
         gateTitle = 'Billing locked \u2014 certification required';
         gateBody = 'This job uses <strong>' + esc(j.sku) + '</strong> (' + esc(j.series) + '). ' +
           'Absorb reports <strong>' + esc(lv.learner) + '</strong> as <code>' +
-          esc(lv.enrollmentStatus || 'incomplete') + '</code> on <strong>' +
-          esc(lv.certification && lv.certification.name) + '</strong>, so the check returns ' +
+          esc(lv.enrollmentStatus || 'incomplete') + '</code> on ' +
+          certNameHtml(lv) + ', so the check returns ' +
           '<code>billingHold: true</code> and the work order cannot be closed. Complete it and the ' +
           'hold clears automatically.' + badge;
       }
@@ -991,7 +1026,7 @@ token is masked below because it genuinely never reaches this page.</pre>
       ? '<div class="req-row">' +
           '<div class="req-ic">\u21BB</div>' +
           '<div class="req-m">' +
-            '<div class="req-t">' + esc(lv.certification && lv.certification.name) + '</div>' +
+            '<div class="req-t">' + esc(certNameText(lv)) + '</div>' +
             '<div class="req-s">Recertification required \u2014 lapsed ' +
               esc(String(lv.expiresAt || '').slice(0,10)) + '</div>' +
           '</div>' +
@@ -1089,7 +1124,7 @@ token is masked below because it genuinely never reaches this page.</pre>
           var out = await resp.json();
           if (!resp.ok) throw new Error(out.error || ('HTTP ' + resp.status));
           showToast('Re-enrolled', out.note || 'Recertification started \u2014 opening the course.');
-          openPlayerModal(lv.certification.id, lv.certification.name, 'OnlineCourse');
+          openPlayerModal(lv.certification.id, certNameText(lv), catalogType(lv.certification.id));
         } catch (err) {
           showToast('Could not re-enrol', err.message);
         } finally {

@@ -75,6 +75,69 @@ export async function getLearnerId(token: string): Promise<string | null> {
 }
 
 /**
+ * The raw `my-course-enrollments/{id}` record, read wide.
+ *
+ * ── Why this exists ─────────────────────────────────────────
+ * `getMyCourseEnrollment` in infuse-api.ts narrows the response to four
+ * fields (progress, enrollmentStatus, enrollmentDate, completionDate), so
+ * anything else Absorb sends is discarded before a caller can see it.
+ *
+ * This is the one call the cert-check already makes for exactly the course
+ * whose title it needs, which makes it the best place to look for that
+ * title - IF Absorb puts one there. Nothing in this codebase asserts that
+ * it does, so this reads the object and checks rather than assuming a
+ * field name. Finding no name is a normal outcome, not an error.
+ */
+export async function getEnrollmentRaw(
+  token: string,
+  courseId: string
+): Promise<Record<string, unknown> | null> {
+  try {
+    const base = InfuseBaseUrl.endsWith("/") ? InfuseBaseUrl : InfuseBaseUrl + "/";
+    const r = await fetch(
+      new URL("my-course-enrollments/" + encodeURIComponent(courseId), base).href,
+      {
+        headers: {
+          "X-Absorb-API-Key": ApiKey,
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    if (r.status !== 200) return null;
+    return (await r.json()) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Pull a course title out of an enrollment record if one is present.
+ * Checks the plausible spellings rather than betting on one, and returns
+ * null when none of them carry a non-empty string.
+ */
+export function nameFromEnrollment(
+  rec: Record<string, unknown> | null
+): string | null {
+  if (!rec) return null;
+  const keys = ["courseName", "CourseName", "name", "Name", "title", "Title", "courseTitle"];
+  for (const k of keys) {
+    const v = rec[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  // Some shapes nest the course: { course: { name: "..." } }
+  const nested = rec.course ?? rec.Course;
+  if (nested && typeof nested === "object") {
+    const n = nested as Record<string, unknown>;
+    for (const k of ["name", "Name", "title", "Title"]) {
+      const v = n[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+  }
+  return null;
+}
+
+/**
  * Certificates held by a learner. Tries key-only auth first (as the published
  * spec shows), then retries with the learner Bearer token, because this
  * codebase's other calls need it. Returns null if neither shape works.
