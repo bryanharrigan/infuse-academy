@@ -139,6 +139,9 @@
   .gate-in.warn .gate-t{color:var(--sf-warn)}
   .gate-d{font-size:13.5px;line-height:1.5;opacity:.85}
   .gate-d code{background:rgba(0,0,0,.06);padding:1px 5px;border-radius:4px;font-size:12.5px}
+  .gate-chk{margin-top:9px;font-size:11.5px;opacity:.55;display:flex;align-items:center;gap:6px}
+  .gate-chk .dot{width:6px;height:6px;border-radius:50%;background:var(--sf-ok);flex-shrink:0}
+  .gate-chk.stale .dot{background:var(--sf-warn)}
 
   /* ── Required training ───────────────────── */
   .req{margin-top:14px;background:#fff;border:1px solid var(--sf-line);border-radius:8px;overflow:hidden}
@@ -678,6 +681,25 @@ token is masked below because it genuinely never reaches this page.</pre>
                        // "more training" list below never repeats them
   var apiLog = [];     // recent browser -> portal calls, newest first
 
+  /* ══════════════════════════════════════════
+     Keeping clearance live.
+
+     A webhook covers one direction: Absorb AWARDS a certificate and pushes
+     it, so a hold clears within seconds. Nothing pushes the other way. An
+     admin expiring a certificate by hand is a data edit, not a learner
+     event, and the enrollment does not change when they do it - so there
+     is no event to listen for.
+
+     The only reliable way to see a withdrawal is to ask again. The portal
+     re-runs the check on a short interval, and immediately when the tab is
+     brought back to the front, so a certificate expired in the Absorb admin
+     UI shows up here within one interval rather than on next page load.
+     The gate prints when it last asked, so the answer is never silently
+     stale.
+  ══════════════════════════════════════════ */
+  var CERT_REVALIDATE_MS = 15000;
+  var lastCertCheckAt = 0;
+
   function esc(s){
     return String(s == null ? '' : s)
       .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
@@ -721,8 +743,9 @@ token is masked below because it genuinely never reaches this page.</pre>
 
   function pillFor(j){
     var lv = liveCert[j.id];
-    if (lv && lv !== 'pending' && typeof lv.certified === 'boolean') {
-      return lv.certified
+    if (lv && lv !== 'pending' && lv.clearance) {
+      if (lv.clearance === 'unknown') return '<span class="pill warn">Clearance unknown</span>';
+      return lv.clearance === 'cleared'
         ? '<span class="pill ok">Cleared</span>'
         : '<span class="pill stop">Billing hold</span>';
     }
@@ -768,6 +791,7 @@ token is masked below because it genuinely never reaches this page.</pre>
                '<span style="color:rgba(255,255,255,.3)">not mapped</span>');
       return;
     }
+    lastCertCheckAt = Date.now();
     var url = '/api/silfab/cert-check?sku=' + encodeURIComponent(job.skuCode);
     paintApi('<span class="m">GET</span> ' + url.replace('?', '\n    ?'), 'Checking Absorb&hellip;', '');
     try {
@@ -850,7 +874,7 @@ token is masked below because it genuinely never reaches this page.</pre>
         delete liveCert[job.id];
         await runCertCheck(job);
 
-        var nowClear = liveCert[job.id] && liveCert[job.id].certified;
+        var nowClear = liveCert[job.id] && liveCert[job.id].clearance === 'cleared';
         if (certEvent && wasHeld && nowClear) {
           showToast('Certificate awarded',
                     'Absorb pushed the award and the billing hold on ' + job.id + ' cleared.');
@@ -934,29 +958,39 @@ token is masked below because it genuinely never reaches this page.</pre>
   function buildPlan(job){
     var rows = [];
     var lv = liveCert[job.id];
-    var live = (lv && lv !== 'pending' && typeof lv.certified === 'boolean') ? lv : null;
+    var live = (lv && lv !== 'pending' && lv.clearance) ? lv : null;
 
     if (live && live.certification && live.certification.id) {
+      /* The subtitle describes the CERTIFICATE, because that is what the
+         gate is decided on. Course progress is context, shown only while
+         there is no valid certificate to talk about instead. */
+      var crt = live.certificate;
+      var enr = live.enrollment || {};
       var sub;
-      if (live.status === 'expired') {
-        sub = 'Certification lapsed ' + String(live.expiresAt || '').slice(0, 10) +
-              ' \u2014 must be earned again before this job can be billed';
-      } else if (live.certified) {
-        sub = 'Certification complete' +
-              (live.completionDate ? ' \u2014 awarded ' + String(live.completionDate).slice(0, 10) : '') +
+      if (live.clearance === 'unknown') {
+        sub = 'Clearance could not be checked \u2014 Absorb was not reachable';
+      } else if (live.status === 'expired') {
+        sub = (crt && crt.revoked)
+          ? 'Certificate revoked \u2014 must be earned again before this job can be billed'
+          : 'Certificate expired ' + String((crt && crt.expiresAt) || '').slice(0, 10) +
+            ' \u2014 must be earned again before this job can be billed';
+      } else if (live.clearance === 'cleared') {
+        sub = 'Certificate valid' +
+              (crt && crt.neverExpires ? ' \u2014 no expiry' :
+               crt && crt.expiresAt ? ' until ' + String(crt.expiresAt).slice(0, 10) : '') +
               ' \u2014 billing cleared';
-      } else if (live.enrollmentStatus === 'NotEnrolled') {
-        sub = 'Not started \u2014 required before this job can be closed';
+      } else if (!enr.status || enr.status === 'NotEnrolled') {
+        sub = 'No certificate held \u2014 required before this job can be closed';
       } else {
-        sub = 'In progress' +
-              (typeof live.progress === 'number' ? ' (' + Math.round(live.progress) + '%)' : '') +
-              ' \u2014 required before this job can be closed';
+        sub = 'No certificate yet \u2014 course ' + String(enr.status).toLowerCase() +
+              (typeof enr.progress === 'number' ? ' (' + Math.round(enr.progress) + '%)' : '') +
+              ', required before this job can be closed';
       }
       rows.push({
         id: live.certification.id,
         title: certNameText(live),
         type: catalogType(live.certification.id),
-        done: !!live.certified,
+        done: live.clearance === 'cleared',
         gating: true,
         sub: sub
       });
@@ -986,44 +1020,87 @@ token is masked below because it genuinely never reaches this page.</pre>
     var gateClass, gateIcon, gateTitle, gateBody;
     var lv = liveCert[j.id];
     if (lv === 'pending') lv = null;
-    var haveLive = lv && typeof lv.certified === 'boolean';
+    var haveLive = lv && typeof lv.clearance === 'string';
 
     if (haveLive) {
-      /* Live answer from Absorb wins over the sample framing, so the
-         screen never shows a verdict the API panel contradicts. */
+      /* ══════════════════════════════════════════
+         Clearance is decided on the CERTIFICATE.
+
+         Not on course completion. Completing the course mints a
+         certificate; the certificate is the credential. A learner can
+         hold several for one course, and an admin can expire any of
+         them by hand without the enrollment changing at all - which is
+         why none of this reads the enrollment to decide the verdict.
+      ══════════════════════════════════════════ */
       var badge = ' <span class="pill info" style="vertical-align:2px">Live from Absorb</span>';
-      if (lv.status === 'expired') {
+      var crt = lv.certificate;
+      var enr = lv.enrollment || {};
+      var certRef = (crt && crt.id)
+        ? ' <span style="opacity:.6;font-size:12px">(certificate <code>' +
+            esc(String(crt.id).slice(0, 8)) + '</code>)</span>'
+        : '';
+
+      if (lv.clearance === 'unknown') {
+        /* Fail closed, but never call an installer uncertified because an
+           API call failed. That is a different sentence entirely. */
+        gateClass = 'warn'; gateIcon = '?';
+        gateTitle = 'Clearance could not be verified';
+        gateBody = 'The portal could not read <strong>' + esc(lv.learner) + '</strong>\u2019s ' +
+          'certificates from Absorb, so it cannot confirm clearance for ' +
+          '<strong>' + esc(j.series) + '</strong>. Billing stays held until it can \u2014 ' +
+          'an unanswered check is never treated as a pass.' +
+          (lv.unknownReason ? '<br><span style="font-size:12px;opacity:.7">' +
+            esc(lv.unknownReason) + '</span>' : '') + badge;
+      } else if (lv.status === 'expired') {
         gateClass = 'stop'; gateIcon = '!';
-        gateTitle = 'Certification expired \u2014 clearance withdrawn';
-        gateBody = '<strong>' + esc(lv.learner) + '</strong> completed ' +
-          certNameHtml(lv) + ', but it lapsed on <strong>' +
-          esc(String(lv.expiresAt || '').slice(0,10)) + '</strong> (' +
-          Math.abs(lv.daysRemaining || 0) + ' days ago). The check returns ' +
-          '<code>billingHold: true</code>, so this work order is locked until the ' +
-          'certification is earned again.' + badge;
+        gateTitle = (crt && crt.revoked)
+          ? 'Certificate revoked \u2014 clearance withdrawn'
+          : 'Certificate expired \u2014 clearance withdrawn';
+        gateBody = '<strong>' + esc(lv.learner) + '</strong> holds ' +
+          ((crt && crt.heldForCourse > 1) ? crt.heldForCourse + ' certificates' : 'a certificate') +
+          ' for ' + certNameHtml(lv) + ', but ' +
+          ((crt && crt.revoked)
+            ? 'none of them is still live \u2014 they have been revoked in Absorb'
+            : 'the longest-dated one lapsed on <strong>' +
+              esc(String((crt && crt.expiresAt) || '').slice(0,10)) + '</strong>' +
+              (crt && typeof crt.daysRemaining === 'number'
+                ? ' (' + Math.abs(crt.daysRemaining) + ' days ago)' : '')) +
+          '. The check returns <code>billingHold: true</code>, so this work order is ' +
+          'locked until a new certificate is earned.' + certRef + badge;
       } else if (lv.status === 'expiring') {
         gateClass = 'warn'; gateIcon = '!';
-        gateTitle = 'Cleared \u2014 but expires in ' + (lv.daysRemaining || 0) + ' days';
-        gateBody = certNameHtml(lv) + ' is ' +
-          'valid until <strong>' + esc(String(lv.expiresAt || '').slice(0,10)) + '</strong>. ' +
+        gateTitle = 'Cleared \u2014 certificate expires in ' +
+          ((crt && crt.daysRemaining) || 0) + ' days';
+        gateBody = 'The certificate for ' + certNameHtml(lv) + ' is valid until <strong>' +
+          esc(String((crt && crt.expiresAt) || '').slice(0,10)) + '</strong>. ' +
           'This job can be billed today; once it lapses, new work orders on ' +
-          '<strong>' + esc(j.series) + '</strong> will be held.' + badge;
-      } else if (lv.certified) {
+          '<strong>' + esc(j.series) + '</strong> will be held.' + certRef + badge;
+      } else if (lv.clearance === 'cleared') {
         gateClass = 'ok'; gateIcon = '\u2713';
         gateTitle = 'Cleared to install and bill';
-        gateBody = 'Certification ' + certNameHtml(lv) + ' ' +
-          'is complete for <strong>' + esc(lv.learner) + '</strong>' +
-          (lv.completionDate ? ' (awarded ' + esc(String(lv.completionDate).slice(0,10)) + ')' : '') +
-          ', so <code>billingHold: false</code> and the CRM will accept this work order.' + badge;
+        gateBody = '<strong>' + esc(lv.learner) + '</strong> holds a valid certificate for ' +
+          certNameHtml(lv) +
+          (crt && crt.acquiredAt ? ', awarded <strong>' +
+            esc(String(crt.acquiredAt).slice(0,10)) + '</strong>' : '') +
+          (crt && crt.neverExpires
+            ? ' with no expiry'
+            : (crt && crt.expiresAt ? ' and valid until <strong>' +
+                esc(String(crt.expiresAt).slice(0,10)) + '</strong>' : '')) +
+          ', so <code>billingHold: false</code> and the CRM will accept this work order.' +
+          certRef + badge;
       } else {
         gateClass = 'stop'; gateIcon = '!';
-        gateTitle = 'Billing locked \u2014 certification required';
+        gateTitle = 'Billing locked \u2014 no valid certificate';
         gateBody = 'This job uses <strong>' + esc(j.sku) + '</strong> (' + esc(j.series) + '). ' +
-          'Absorb reports <strong>' + esc(lv.learner) + '</strong> as <code>' +
-          esc(lv.enrollmentStatus || 'incomplete') + '</code> on ' +
-          certNameHtml(lv) + ', so the check returns ' +
-          '<code>billingHold: true</code> and the work order cannot be closed. Complete it and the ' +
-          'hold clears automatically.' + badge;
+          '<strong>' + esc(lv.learner) + '</strong> holds no valid certificate for ' +
+          certNameHtml(lv) +
+          (enr.status && enr.status !== 'NotEnrolled'
+            ? ' \u2014 the course is <code>' + esc(String(enr.status)) + '</code>' +
+              (typeof enr.progress === 'number' ? ' at ' + Math.round(enr.progress) + '%' : '')
+            : '') +
+          '. The check returns <code>billingHold: true</code> and the work order cannot be ' +
+          'closed. Completing the course awards a certificate, and the hold clears ' +
+          'automatically.' + badge;
       }
     } else if (j.hold) {
       gateClass = 'stop'; gateIcon = '!';
@@ -1052,6 +1129,7 @@ token is masked below because it genuinely never reaches this page.</pre>
     }
 
     var isExpired = haveLive && lv.status === 'expired';
+    var expiredOn = isExpired && lv.certificate ? String(lv.certificate.expiresAt || '') : '';
 
     /* An expired certification needs re-enrolment before the course can be
        retaken, so it gets its own action rather than reusing Start training. */
@@ -1060,8 +1138,10 @@ token is masked below because it genuinely never reaches this page.</pre>
           '<div class="req-ic">\u21BB</div>' +
           '<div class="req-m">' +
             '<div class="req-t">' + esc(certNameText(lv)) + '</div>' +
-            '<div class="req-s">Recertification required \u2014 lapsed ' +
-              esc(String(lv.expiresAt || '').slice(0,10)) + '</div>' +
+            '<div class="req-s">Recertification required \u2014 ' +
+              ((lv.certificate && lv.certificate.revoked)
+                ? 'certificate revoked'
+                : 'certificate lapsed ' + esc(expiredOn.slice(0,10))) + '</div>' +
           '</div>' +
           '<button class="btn btn-pri" id="recertBtn">Start recertification</button>' +
         '</div>'
@@ -1124,7 +1204,13 @@ token is masked below because it genuinely never reaches this page.</pre>
           '<div class="gate-ic">' + gateIcon + '</div>' +
           '<div>' +
             '<div class="gate-t">' + esc(gateTitle) + '</div>' +
-            '<div class="gate-d">' + gateBody + '</div>' +
+            '<div class="gate-d">' + gateBody +
+              (haveLive
+                ? '<div class="gate-chk"><span class="dot"></span>' +
+                  'Checked against Absorb ' + esc(agoText(lv.checkedAt)) +
+                  ' \u00b7 re-checked every ' + Math.round(CERT_REVALIDATE_MS / 1000) + 's</div>'
+                : '') +
+            '</div>' +
           '</div>' +
         '</div>' +
         '<div class="req">' + recertRow + reqRows + '</div>' +
@@ -1243,6 +1329,19 @@ token is masked below because it genuinely never reaches this page.</pre>
       });
       host.appendChild(row);
     });
+  }
+
+  /** "just now" / "12s ago" - so a stale verdict is visibly stale. */
+  function agoText(iso){
+    if (!iso) return 'just now';
+    var ms = Date.now() - new Date(iso).getTime();
+    if (!isFinite(ms) || ms < 0) return 'just now';
+    var s = Math.round(ms / 1000);
+    if (s < 5) return 'just now';
+    if (s < 90) return s + 's ago';
+    var m = Math.round(s / 60);
+    if (m < 60) return m + ' min ago';
+    return Math.round(m / 60) + 'h ago';
   }
 
   function courseTypeLabel(type){
@@ -1857,6 +1956,26 @@ token is masked below because it genuinely never reaches this page.</pre>
   loadCatalog().then(renderJob);
   pollHooks();
   setInterval(pollHooks, 3000);
+
+  /* Re-ask for clearance on a short interval. This is what catches a
+     certificate expired or revoked by an admin, which fires no webhook. */
+  function revalidateClearance(){
+    var j = JOBS[active];
+    if (!j || !j.skuCode) return;
+    runCertCheck(j);
+  }
+
+  setInterval(function(){
+    if (document.hidden) return;   // a background tab need not poll
+    revalidateClearance();
+  }, CERT_REVALIDATE_MS);
+
+  /* Coming back to the tab is the moment a stale verdict is most likely
+     and most visible, so check immediately rather than waiting out the
+     interval - but not if we just checked. */
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden && Date.now() - lastCertCheckAt > 5000) revalidateClearance();
+  });
 })();
 </script>
 </body>
