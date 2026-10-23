@@ -12,7 +12,7 @@
  * request is a module that breaks for some learner somewhere.
  */
 import * as esbuild from "esbuild";
-import { cp, mkdir, rm, readFile } from "fs/promises";
+import { cp, mkdir, rm, readFile, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -39,6 +39,39 @@ const result = await esbuild.build({
 await cp(path.join(src, "index.html"), path.join(out, "index.html"));
 await cp(path.join(src, "course.css"), path.join(out, "assets", "course.css"));
 await cp(path.join(src, "imsmanifest.xml"), path.join(out, "imsmanifest.xml"));
+
+// The heart geometry travels inside the package. It is the same asset the
+// main site serves from public/anatomy, copied rather than duplicated so the
+// two can never drift, and fetched relatively at runtime — a SCORM package
+// runs from whatever origin the LMS unpacks it to, and may run with no
+// network at all.
+const anatomyDir = path.join(here, "..", "..", "public", "anatomy");
+const heartBin = path.join(anatomyDir, "heart.bin");
+if (!existsSync(heartBin)) {
+  throw new Error(
+    `missing ${heartBin} — run the anatomy pipeline (bp3d/pipeline/build.py) first`
+  );
+}
+await cp(heartBin, path.join(out, "assets", "heart.bin"));
+
+// Only the heart's entry, so the package does not carry a manifest listing
+// ten structures it has no files for.
+const full = JSON.parse(await readFile(path.join(anatomyDir, "manifest.json"), "utf8"));
+if (!full.structures?.heart) {
+  throw new Error("anatomy manifest has no heart structure");
+}
+await writeFile(
+  path.join(out, "assets", "anatomy.json"),
+  JSON.stringify(
+    { ...full, structures: { heart: full.structures.heart } },
+    null,
+    1
+  )
+);
+await cp(
+  path.join(anatomyDir, "ATTRIBUTION.txt"),
+  path.join(out, "assets", "ATTRIBUTION.txt")
+);
 
 // Guard the self-contained promise: fail the build rather than ship a
 // package that silently reaches out to the network.

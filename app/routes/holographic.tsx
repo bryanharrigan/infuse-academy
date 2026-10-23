@@ -166,8 +166,12 @@ export default function Holographic() {
         handleRef.current?.resetView();
       }
       // 1–6 jump straight to an organ, which is how this gets demoed on stage.
-      const n = Number(e.key);
-      if (n >= 1 && n <= ORGANS.length) setActiveOrgan(ORGANS[n - 1].id);
+      // 1-9 pick the first nine disciplines; 0 picks the tenth, the way a
+      // numbered list on a keyboard normally wraps.
+      if (/^[0-9]$/.test(e.key)) {
+        const n = e.key === "0" ? 10 : Number(e.key);
+        if (n <= ORGANS.length) setActiveOrgan(ORGANS[n - 1].id);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -272,7 +276,7 @@ export default function Holographic() {
                   onMouseLeave={() => setHoverOrgan(null)}
                   onClick={() => setActiveOrgan((c) => (c === o.id ? null : o.id))}
                 >
-                  <span className="holo-organ__key">{i + 1}</span>
+                  <span className="holo-organ__key">{i === 9 ? 0 : i + 1}</span>
                   <span className="holo-organ__sym">{o.symbol}</span>
                   <span className="holo-organ__text">
                     <b>{o.label}</b>

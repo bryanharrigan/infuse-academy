@@ -15,6 +15,14 @@ import { courseSymbol, type MatchedCourse, type Organ } from "./organ-catalog";
 
 export type TableLayout = "table" | "sphere" | "helix" | "grid";
 
+/**
+ * Opening arrangement. The helix reads as a path wrapped around the body —
+ * it shows the whole sequence at once and drifts on its own, which is what
+ * makes the panel feel alive the moment an organ is picked. TABLE is one
+ * click away for anyone who just wants to read the list.
+ */
+export const DEFAULT_LAYOUT: TableLayout = "helix";
+
 const LAYOUTS: { id: TableLayout; label: string }[] = [
   { id: "table", label: "TABLE" },
   { id: "sphere", label: "SPHERE" },
@@ -109,7 +117,7 @@ type Props = {
 };
 
 export default function CourseTable({ organ, courses, onLaunch, onClose }: Props) {
-  const [layout, setLayout] = useState<TableLayout>("table");
+  const [layout, setLayout] = useState<TableLayout>(DEFAULT_LAYOUT);
   const [focus, setFocus] = useState<number | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
 
@@ -128,8 +136,8 @@ export default function CourseTable({ organ, courses, onLaunch, onClose }: Props
   const billboard = `rotateY(${(-rot.y).toFixed(2)}deg) rotateX(${(-rot.x).toFixed(2)}deg)`;
 
   useEffect(() => {
-    // A new organ should always open on the readable layout.
-    setLayout("table");
+    // A new organ reopens on the default arrangement.
+    setLayout(DEFAULT_LAYOUT);
     setRot({ x: -6, y: 0 });
     setFocus(null);
   }, [organ.id]);
@@ -189,7 +197,11 @@ export default function CourseTable({ organ, courses, onLaunch, onClose }: Props
             <p>
               {organ.specialty} · {courses.length} module
               {courses.length === 1 ? "" : "s"}
-              {courses[0]?.isDemo ? " · sample content" : " · live catalog"}
+              {!courses[0]?.isDemo
+                ? " · live catalog"
+                : courses.some((c) => c.resolution === "named-match")
+                  ? " · sample titles, matched in portal"
+                  : " · sample content, plays default course"}
             </p>
           </div>
         </div>

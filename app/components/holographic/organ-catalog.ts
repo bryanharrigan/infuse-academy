@@ -8,12 +8,18 @@
  * and any test can all share it.
  */
 
+import type { StructureId } from "./anatomy";
+
 export type OrganId =
   | "brain"
   | "heart"
   | "lungs"
   | "liver"
   | "kidneys"
+  | "digestive"
+  | "vascular"
+  | "muscular"
+  | "eyes"
   | "skeleton";
 
 /** Shape returned by GET /api/psbi/catalog — see app/.server/my-courses.resource.ts. */
@@ -28,6 +34,18 @@ export type CatalogCourse = {
 
 export type Organ = {
   id: OrganId;
+  /**
+   * Which mesh in public/anatomy the particle cloud is scattered over. Almost
+   * always the organ's own id; kept explicit so a discipline can point at a
+   * structure that is named differently in the anatomical source.
+   */
+  structure: StructureId;
+  /**
+   * True for organs that come as a left and a right. They get a hit sphere
+   * each, because a single sphere over the pair puts its centre in the gap
+   * between them and a click down the midline selects nothing.
+   */
+  paired: boolean;
   /** Short label on the 3D anchor. */
   label: string;
   /** Clinical discipline, shown under the label. */
@@ -65,6 +83,8 @@ export type Organ = {
 export const ORGANS: Organ[] = [
   {
     id: "brain",
+    structure: "brain",
+    paired: false,
     label: "Cerebrum",
     specialty: "Neuroimaging",
     symbol: "Nr",
@@ -88,6 +108,8 @@ export const ORGANS: Organ[] = [
   },
   {
     id: "heart",
+    structure: "heart",
+    paired: false,
     label: "Myocardium",
     specialty: "Cardiac Diagnostics",
     symbol: "Cd",
@@ -112,6 +134,8 @@ export const ORGANS: Organ[] = [
   },
   {
     id: "lungs",
+    structure: "lungs",
+    paired: true,
     label: "Pulmonary",
     specialty: "Thoracic Imaging",
     symbol: "Pu",
@@ -135,6 +159,8 @@ export const ORGANS: Organ[] = [
   },
   {
     id: "liver",
+    structure: "liver",
+    paired: false,
     label: "Hepatic",
     specialty: "Abdominal Imaging",
     symbol: "Hp",
@@ -157,6 +183,8 @@ export const ORGANS: Organ[] = [
   },
   {
     id: "kidneys",
+    structure: "kidneys",
+    paired: true,
     label: "Renal",
     specialty: "Genitourinary",
     symbol: "Rn",
@@ -178,7 +206,109 @@ export const ORGANS: Organ[] = [
     labelSide: "left",
   },
   {
+    id: "digestive",
+    structure: "digestive",
+    paired: false,
+    label: "Digestive",
+    specialty: "Abdominal Imaging",
+    symbol: "Gi",
+    blurb:
+      "Luminal contrast studies, bowel wall assessment and the abdominal series that separates obstruction from ileus.",
+    accent: "#f2a65a",
+    keywords: [
+      /gastro|gastric|stomach|bowel|intestin|colon|duoden|oesophag|esophag|pancrea|biliary|gallbladder|rectal/i,
+      /(barium|contrast|fluoroscop|endoscop)[\s\w-]*(swallow|meal|enema|study|gi)|abdominal (series|radiograph|ultrasound|\bct\b)/i,
+      /obstruction|perforation|\bileus\b|coeliac|celiac|crohn|colitis|diverticul/i,
+    ],
+    demoCourses: [
+      { name: "The Acute Abdominal Series", description: "Erect, supine and decubitus films, and the free-air sign that changes the plan.", duration: "45 min" },
+      { name: "Barium Swallow & Meal Technique", description: "Patient positioning, timing and the mucosal phase that makes or breaks the study.", duration: "55 min" },
+      { name: "Bowel Obstruction vs Ileus", description: "Calibre, valvulae and transition points under time pressure.", duration: "40 min" },
+      { name: "Hepatobiliary Ultrasound", description: "Gallbladder wall, duct calibre and the sonographic Murphy sign.", duration: "50 min" },
+      { name: "CT Enterography Protocols", description: "Neutral oral contrast, phase timing and dose in young patients with Crohn's.", duration: "45 min" },
+    ],
+    framing: "organ",
+    labelSide: "right",
+  },
+  {
+    id: "vascular",
+    structure: "vascular",
+    paired: false,
+    label: "Vascular",
+    specialty: "Vascular Ultrasound",
+    symbol: "Va",
+    blurb:
+      "Duplex technique, waveform analysis and the stenosis criteria behind an arterial or venous report.",
+    accent: "#ff6fa5",
+    keywords: [
+      /vascular|vein|venous|arter|aneurysm|stenosis|thrombo|\bdvt\b|varicose|carotid|aortic/i,
+      /duplex|colour flow|color flow|waveform|\babi\b|ankle.?brachial|venous reflux|peripheral arterial/i,
+      /embol|ischaem|ischem|claudicat|angioplast|\bstent\b/i,
+    ],
+    demoCourses: [
+      { name: "Carotid Duplex Technique", description: "Window, angle correction and the velocity criteria for grading stenosis.", duration: "60 min" },
+      { name: "Lower Limb Venous Reflux", description: "Augmentation manoeuvres, reflux timing and mapping before intervention.", duration: "50 min" },
+      { name: "DVT Scanning Protocol", description: "Compression sequence from femoral to calf, and the pitfalls that cause misses.", duration: "45 min" },
+      { name: "Arterial Waveform Analysis", description: "Triphasic to monophasic, and what the change localises.", duration: "40 min" },
+      { name: "AAA Surveillance Measurement", description: "Reproducible calibre measurement and the thresholds that trigger referral.", duration: "35 min" },
+    ],
+    framing: "body",
+    labelSide: "left",
+  },
+  {
+    id: "muscular",
+    structure: "muscular",
+    paired: false,
+    label: "Musculoskeletal",
+    specialty: "MSK Imaging",
+    symbol: "Ms",
+    blurb:
+      "Soft-tissue sonography, tendon and muscle injury grading, and the MR sequences that show oedema.",
+    accent: "#7ee787",
+    keywords: [
+      /muscul|muscle|tendon|ligament|soft.?tissue|\bmsk\b|sports injur|rotator cuff|achilles/i,
+      /(ultrasound|\bmri\b|\bmr\b)[\s\w-]*(shoulder|knee|hip|ankle|tendon|muscle|msk)/i,
+      /strain|tear|tendinop|bursit|myositis|rehabilitat/i,
+    ],
+    demoCourses: [
+      { name: "Rotator Cuff Ultrasound", description: "Dynamic assessment, anisotropy artefact and grading a partial tear.", duration: "55 min" },
+      { name: "Muscle Injury Grading on MR", description: "Fluid-sensitive sequences and the grade that changes return-to-play.", duration: "45 min" },
+      { name: "Achilles & Patellar Tendon Imaging", description: "Neovascularity on power Doppler and correlating it with symptoms.", duration: "40 min" },
+      { name: "Soft-Tissue Mass Characterisation", description: "When the imaging features are enough and when they are not.", duration: "50 min" },
+      { name: "Positioning for MSK Radiography", description: "Standard and stress views across the major joints.", duration: "35 min" },
+    ],
+    framing: "body",
+    labelSide: "right",
+  },
+  {
+    id: "eyes",
+    structure: "eyes",
+    paired: true,
+    label: "Ocular",
+    specialty: "Ophthalmic Imaging",
+    symbol: "Oc",
+    blurb:
+      "B-scan ultrasound, orbital cross-sectional anatomy and the retinal imaging behind an ophthalmic report.",
+    accent: "#ffd166",
+    keywords: [
+      /ophthalm|ocular|orbit|retina|cornea|vitreous|intraocular|\buveal\b|macula|glaucoma/i,
+      /(\bb.?scan\b|\boct\b|fundus|fluorescein)[\s\w-]*(eye|retina|orbit|ocular)?|optical coherence/i,
+      /detachment|foreign body in eye|papilloedema|papilledema|optic nerve/i,
+    ],
+    demoCourses: [
+      { name: "Ocular B-Scan Ultrasound", description: "Probe technique, gain settings and distinguishing detachment from haemorrhage.", duration: "50 min" },
+      { name: "Orbital Cross-Sectional Anatomy", description: "Cones, muscles and the apex, on CT and MR.", duration: "45 min" },
+      { name: "OCT Interpretation Basics", description: "Retinal layers, thickness maps and common artefacts.", duration: "40 min" },
+      { name: "Intraocular Foreign Body Protocol", description: "Imaging sequence, MR safety screening and reporting priorities.", duration: "35 min" },
+      { name: "Fundus Photography Technique", description: "Field definitions, focus and getting a usable image through a small pupil.", duration: "30 min" },
+    ],
+    framing: "organ",
+    labelSide: "left",
+  },
+  {
     id: "skeleton",
+    structure: "skeleton",
+    paired: false,
     label: "Skeletal",
     specialty: "Musculoskeletal Radiography",
     symbol: "Ms",
@@ -216,9 +346,97 @@ export const organIndex = (id: OrganId): number =>
 export type MatchedCourse = CatalogCourse & {
   /** Higher is a better match. Used for ordering within an organ. */
   score: number;
-  /** True when this came from the organ's demoCourses, not the live catalog. */
+  /** True when the card's title came from demoCourses rather than the catalog. */
   isDemo: boolean;
+  /**
+   * The course the player should actually open. For a live catalog match this
+   * is the course's own id. For a sample module it is whatever the portal
+   * turned out to have under that title, and failing that the fallback below —
+   * so every card on the page launches something real.
+   */
+  playableId: string;
+  /** Where playableId came from, for the badge on the card. */
+  resolution: CourseResolution;
+  /** Course type of whatever playableId points at. */
+  playableType: CatalogCourse["courseType"];
+  /** Enrollment status of whatever playableId points at. */
+  playableEnrollment: string | null;
 };
+
+export type CourseResolution =
+  /** The card is a live catalog course; it opens itself. */
+  | "catalog"
+  /** A sample title that turned out to exist in the portal by name. */
+  | "named-match"
+  /** Nothing in the portal matched, so the card opens the default course. */
+  | "fallback";
+
+/**
+ * Opened by any card whose title has no counterpart in the portal.
+ *
+ * A demo in front of a prospect should never present a card that does
+ * nothing, so the sample modules resolve against the live catalog by title
+ * and land here when that finds nothing.
+ */
+export const FALLBACK_COURSE_ID = "05357410-0272-496e-9937-7507abed53dd";
+
+/** Title comparison key: case, punctuation and filler words all discarded. */
+function titleKey(name: string): string {
+  return (name ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\b(the|and|for|of|in|to|a|an|with|on|intro|introduction)\b/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+/** Significant tokens of a title, for the near-match pass. */
+function titleTokens(name: string): Set<string> {
+  return new Set(titleKey(name).split(" ").filter((t) => t.length > 2));
+}
+
+/**
+ * Finds the catalog entry that goes by a given title.
+ *
+ * Two passes. An exact match on the normalised key is taken outright. Beyond
+ * that, titles are compared by how much of their significant vocabulary they
+ * share (Sørensen–Dice over the token sets), which tolerates the wording
+ * drift real portals have — "Echocardiographic Windows" against "Echo-
+ * cardiographic Windows & Views" — without letting two unrelated clinical
+ * titles collapse onto each other. 0.7 is deliberately strict: a wrong course
+ * opening is worse in a demo than a sample module opening the default.
+ */
+export function findCourseByName(
+  name: string,
+  catalog: CatalogCourse[],
+  threshold = 0.7
+): CatalogCourse | null {
+  const key = titleKey(name);
+  if (!key) return null;
+
+  const exact = catalog.find((c) => titleKey(c.name) === key);
+  if (exact) return exact;
+
+  const want = titleTokens(name);
+  if (want.size === 0) return null;
+
+  let best: CatalogCourse | null = null;
+  let bestScore = threshold;
+  for (const c of catalog) {
+    const have = titleTokens(c.name);
+    if (have.size === 0) continue;
+    let shared = 0;
+    for (const t of want) if (have.has(t)) shared++;
+    const dice = (2 * shared) / (want.size + have.size);
+    // Curricula edge out plain courses on an otherwise equal title.
+    const score = dice + (c.courseType === "Curriculum" ? 0.01 : 0);
+    if (score > bestScore) {
+      bestScore = score;
+      best = c;
+    }
+  }
+  return best;
+}
 
 /**
  * Scores one course against one organ.
@@ -277,9 +495,21 @@ export function matchCatalogToOrgans(
     }
 
     if (bestOrgan && bestScore >= minScore) {
-      result[bestOrgan.id].push({ ...course, score: bestScore, isDemo: false });
+      result[bestOrgan.id].push({
+        ...course,
+        score: bestScore,
+        isDemo: false,
+        playableId: course.id,
+        resolution: "catalog",
+        playableType: course.courseType,
+        playableEnrollment: course.enrollmentStatus,
+      });
     }
   }
+
+  // The default course, if the learner can see it. Looking it up here means a
+  // fallback card carries the portal's own title and type rather than a guess.
+  const fallback = courses.find((c) => c.id === FALLBACK_COURSE_ID) ?? null;
 
   for (const organ of ORGANS) {
     const matched = result[organ.id];
@@ -287,16 +517,27 @@ export function matchCatalogToOrgans(
     result[organ.id] = matched.slice(0, maxPerOrgan);
 
     if (result[organ.id].length === 0) {
-      result[organ.id] = organ.demoCourses.map((d, i) => ({
-        id: `demo:${organ.id}:${i}`,
-        name: d.name,
-        description: `${d.description} · ${d.duration}`,
-        imageUrl: "",
-        courseType: "OnlineCourse" as const,
-        enrollmentStatus: i === 0 ? "In Progress" : null,
-        score: 0,
-        isDemo: true,
-      }));
+      result[organ.id] = organ.demoCourses.map((d, i) => {
+        // A sample title may well exist in the portal under the same name —
+        // look across the whole catalog, not just this organ's matches, since
+        // the keyword pass is what failed us here in the first place.
+        const live = findCourseByName(d.name, courses);
+        const target = live ?? fallback;
+        return {
+          id: `demo:${organ.id}:${i}`,
+          name: d.name,
+          description: `${d.description} · ${d.duration}`,
+          imageUrl: live?.imageUrl ?? "",
+          courseType: "OnlineCourse" as const,
+          enrollmentStatus: live?.enrollmentStatus ?? (i === 0 ? "In Progress" : null),
+          score: 0,
+          isDemo: true,
+          playableId: target?.id ?? FALLBACK_COURSE_ID,
+          resolution: live ? ("named-match" as const) : ("fallback" as const),
+          playableType: target?.courseType ?? ("OnlineCourse" as const),
+          playableEnrollment: target?.enrollmentStatus ?? null,
+        };
+      });
     }
   }
 

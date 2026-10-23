@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   isDemoCourseId,
+  FALLBACK_COURSE_ID,
   type CatalogCourse,
   type MatchedCourse,
   type Organ,
@@ -83,9 +84,22 @@ export default function HoloPlayer({ course, organ, onClose }: Props) {
     watchdog.current = null;
   };
 
+  // Lets openCourse retry itself against the default course without the
+  // circular reference a self-referencing useCallback would need.
+  const openCourseRef = useRef<
+    | ((
+        t: { id: string; name: string; enrollmentStatus: string | null },
+        retried?: boolean
+      ) => Promise<void>)
+    | null
+  >(null);
+
   /** Enrol if needed, then mint a player URL and load the chapter tree. */
   const openCourse = useCallback(
-    async (target: { id: string; name: string; enrollmentStatus: string | null }) => {
+    async (
+      target: { id: string; name: string; enrollmentStatus: string | null },
+      retried = false
+    ) => {
       abortRef.current?.abort();
       const ac = new AbortController();
       abortRef.current = ac;
@@ -126,6 +140,18 @@ export default function HoloPlayer({ course, organ, onClose }: Props) {
         if (ac.signal.aborted) return;
 
         if (!res.ok || payload.error) {
+          // One retry against the default course. A card that resolved to a
+          // portal course the learner turns out not to be able to open should
+          // still show a working player rather than a stack trace.
+          if (target.id !== FALLBACK_COURSE_ID && !retried) {
+            // eslint-disable-next-line no-console
+            console.warn("[holographic] falling back from", target.id, payload.error);
+            await openCourseRef.current?.(
+              { id: FALLBACK_COURSE_ID, name: target.name, enrollmentStatus: null },
+              true
+            );
+            return;
+          }
           setError(payload.error || `Player request failed (HTTP ${res.status})`);
           setPhase("error");
           return;
@@ -149,22 +175,30 @@ export default function HoloPlayer({ course, organ, onClose }: Props) {
     []
   );
 
+  openCourseRef.current = openCourse;
+
   /* Decide what kind of thing we were handed, and open it. */
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
-      if (isDemoCourseId(course.id)) {
+      // What the card says and what the portal can actually play are two
+      // different things: a sample module resolves by title to a real course
+      // where the portal has one, and to the default course where it does not.
+      const targetId = course.playableId || course.id;
+      const targetType = course.playableType ?? course.courseType;
+
+      if (isDemoCourseId(targetId)) {
         setPhase("demo");
         setStatus("SAMPLE MODULE");
         return;
       }
 
-      if (course.courseType === "Curriculum") {
+      if (targetType === "Curriculum") {
         setPhase("loading");
         setStatus("EXPANDING CURRICULUM");
         try {
-          const res = await fetch(`/curriculum/${course.id}`, {
+          const res = await fetch(`/curriculum/${targetId}`, {
             headers: { Accept: "application/json" },
           });
           const data = (await res.json()) as { courses?: CatalogCourse[]; error?: string };
@@ -181,16 +215,16 @@ export default function HoloPlayer({ course, organ, onClose }: Props) {
         return;
       }
 
-      if (course.courseType === "InstructorLedCourse") {
+      if (targetType === "InstructorLedCourse") {
         setPhase("ilt");
         setStatus("SESSION-BASED");
         return;
       }
 
       await openCourse({
-        id: course.id,
+        id: targetId,
         name: course.name,
-        enrollmentStatus: course.enrollmentStatus,
+        enrollmentStatus: course.playableEnrollment ?? course.enrollmentStatus,
       });
     })();
 

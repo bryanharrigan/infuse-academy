@@ -1,0 +1,17 @@
+Anatomical geometry in this directory is derived from BodyParts3D.
+
+  BodyParts3D, (c) The Database Center for Life Science,
+  licensed under CC Attribution-Share Alike 2.1 Japan.
+  http://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html
+
+Source release: BodyParts3D 4.0, part_of build, 99% polygon reduction
+(partof_BP3D_4.0_obj_99). Processed by bp3d/pipeline/build.py: leaf meshes
+grouped into display structures by their English names, converted from
+millimetres / Z-up to metres / Y-up, decimated by vertex clustering and
+quantised to int16.
+
+Note on licence terms: the BodyParts3D website currently states CC BY 4.0,
+while the headers embedded in the distributed OBJ files state CC BY-SA 2.1
+Japan. The stricter of the two is reproduced above. Share-alike propagates
+to derived geometry, so settle which applies before these assets are used
+in anything commercial or distributed outside this project.

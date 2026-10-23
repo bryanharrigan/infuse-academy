@@ -24,12 +24,79 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 
 import {
-  HEART_CENTRE,
   HEART_REGION,
-  buildCloud,
-  heartParts,
+  centreOf,
+  loadMesh,
   makeRng,
+  sampleMesh,
+  type Manifest,
 } from "../../../app/components/holographic/anatomy";
+
+/**
+ * Where the packaged geometry sits, relative to index.html. SCORM content is
+ * served from wherever the LMS unpacks it, so every asset reference has to be
+ * relative — an absolute path would resolve against the LMS root.
+ */
+const ASSET_BASE = "./assets";
+
+/**
+ * World radius of one particle, in metres.
+ *
+ * Much finer than the figure on the main site uses, because the heart is
+ * viewed from 30 cm rather than 3 m. A particle is drawn at a size in pixels
+ * proportional to radius / distance, so carrying the figure's 3.4 mm points
+ * in this close puts every one of them at the 10-pixel clamp and the organ
+ * dissolves into fog. At 1.1 mm the chamber walls and valve leaflets stay
+ * resolvable.
+ */
+const PARTICLE_RADIUS = 0.0011;
+
+/** The figure's particle radius, which the brightness model is tuned around. */
+const REFERENCE_RADIUS = 0.0034;
+
+/** Points per square metre the brightness model treats as normal. */
+const REFERENCE_DENSITY = 25000;
+
+/** Points scattered over the heart. */
+const HEART_POINTS = 42000;
+
+/** Centre of mass of one tagged region of a cloud. */
+function centroidOfRegion(
+  cloud: { positions: Float32Array; regions: Float32Array; count: number },
+  region: number
+): THREE.Vector3 {
+  const v = new THREE.Vector3();
+  let n = 0;
+  for (let i = 0; i < cloud.count; i++) {
+    if (cloud.regions[i] !== region) continue;
+    v.x += cloud.positions[i * 3];
+    v.y += cloud.positions[i * 3 + 1];
+    v.z += cloud.positions[i * 3 + 2];
+    n++;
+  }
+  return n ? v.multiplyScalar(1 / n) : v;
+}
+
+/** The point of a tagged region lying furthest from a reference point. */
+function furthestInRegion(
+  cloud: { positions: Float32Array; regions: Float32Array; count: number },
+  region: number,
+  from: THREE.Vector3
+): THREE.Vector3 {
+  const best = new THREE.Vector3();
+  let bestD = -1;
+  const p = new THREE.Vector3();
+  for (let i = 0; i < cloud.count; i++) {
+    if (cloud.regions[i] !== region) continue;
+    p.set(cloud.positions[i * 3], cloud.positions[i * 3 + 1], cloud.positions[i * 3 + 2]);
+    const d = p.distanceToSquared(from);
+    if (d > bestD) {
+      bestD = d;
+      best.copy(p);
+    }
+  }
+  return best;
+}
 
 /* ------------------------------------------------------------------ */
 /* Views                                                                */
@@ -444,7 +511,7 @@ export class HeartEngine {
     );
     this.composer.addPass(new OutputPass());
 
-    this.buildHeart();
+    await this.buildHeart();
     this.buildSector();
 
     this.attach();
@@ -465,25 +532,41 @@ export class HeartEngine {
     };
   }
 
-  /** Builds the point cloud, recentred so the heart sits on the origin. */
-  private buildHeart() {
-    // Density, not count, is what drives additive brightness: 52k points on
-    // a heart's ~0.12 m2 of surface is seventeen times the figure's density
-    // on the main site, and clips to white however the alpha is tuned.
-    const cloud = buildCloud(heartParts(), 24000, makeRng(0x4ea71), {
-      interior: 0.10,
-      shell: 0.0026,
+  /**
+   * Builds the point cloud, recentred so the heart sits on the origin.
+   *
+   * The geometry is the same BodyParts3D heart the main site uses, shipped
+   * inside the package rather than fetched from the host: a SCORM course has
+   * to run from whatever origin the LMS unpacks it to, including offline
+   * players, so a relative fetch of its own assets is the only safe source.
+   */
+  private async buildHeart() {
+    const manifest = (await fetch(`${ASSET_BASE}/anatomy.json`).then((r) => {
+      if (!r.ok) throw new Error(`heart manifest: HTTP ${r.status}`);
+      return r.json();
+    })) as Manifest;
+
+    const mesh = await loadMesh("heart", manifest, ASSET_BASE);
+
+    // Density, not count, drives additive brightness: the heart's ~0.15 m2
+    // of surface takes a fraction of the figure's budget before it clips to
+    // white however the alpha is tuned.
+    const cloud = sampleMesh(mesh, HEART_POINTS, makeRng(0x4ea71), {
+      interior: 0.1,
+      interiorDepth: 0.01,
+      shell: 0.0011,
       sizeMin: 0.6,
       sizeMax: 1.5,
-      yOffset: HEART_CENTRE[1],
     });
 
-    // buildCloud only recentres Y; shift X and Z so the heart orbits about
-    // itself rather than about the body's midline.
+    // Recentre on the organ so it orbits about itself rather than about the
+    // body's midline, where it was authored.
+    const centre = centreOf(mesh.meta);
     const pos = cloud.positions;
     for (let i = 0; i < cloud.count; i++) {
-      pos[i * 3] -= HEART_CENTRE[0];
-      pos[i * 3 + 2] -= HEART_CENTRE[2];
+      pos[i * 3] -= centre[0];
+      pos[i * 3 + 1] -= centre[1];
+      pos[i * 3 + 2] -= centre[2];
     }
 
     const geo = new THREE.BufferGeometry();
@@ -493,9 +576,13 @@ export class HeartEngine {
     geo.setAttribute("aRegion", new THREE.BufferAttribute(cloud.regions, 1));
     geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1.5);
 
-    // LV base and apex, in the same recentred frame, drive the contraction.
-    const base = new THREE.Vector3(0.004, 0.050, -0.004);
-    const apex = new THREE.Vector3(-0.046, -0.070, 0.030);
+    // The contraction runs base to apex. Both ends are measured from the
+    // cloud rather than written down: the atrial centroid is the base, and
+    // the ventricular point furthest from it is the apex. Hard-coded
+    // coordinates were correct for one version of the geometry and silently
+    // wrong for the next.
+    const base = centroidOfRegion(cloud, HEART_REGION.ATRIUM);
+    const apex = furthestInRegion(cloud, HEART_REGION.VENTRICLE, base);
     const axis = apex.clone().sub(base).normalize();
 
     this.material = new THREE.ShaderMaterial({
@@ -510,7 +597,7 @@ export class HeartEngine {
         uRaCentre: { value: new THREE.Vector3(0.046, 0.048, -0.002) },
         uPixelRatio: { value: this.dpr() },
         uScale: { value: 1000 },
-        uRadius: { value: 0.0027 },
+        uRadius: { value: PARTICLE_RADIUS },
         uDensity: { value: 1 },
         uPlaneFade: { value: 0 },
         uPlaneNormal: { value: new THREE.Vector3(0, 0, 1) },
@@ -530,11 +617,22 @@ export class HeartEngine {
       depthTest: false,
     });
 
-    // Match the figure's points-per-square-metre so the heart reads at the
-    // same brightness here as it does on the main site.
+    // Hold the heart to the same apparent brightness as the figure on the
+    // main site.
+    //
+    // Light reaching a pixel under additive blending goes as
+    // alpha x radius^2 x points-per-square-metre. Camera distance drops out
+    // of it: moving closer spreads the same points over more pixels and
+    // enlarges each one in exact proportion. So two terms set the alpha —
+    // how much denser this cloud is than the reference, and how much smaller
+    // its particles are. Leaving the radius term out is what made an earlier
+    // build render the heart as a grey cloud: the points had been shrunk to
+    // keep them from merging, and nothing put the lost light back.
+    const density = (cloud.area > 0 ? cloud.count / cloud.area : REFERENCE_DENSITY);
+    const radiusGain = (REFERENCE_RADIUS / PARTICLE_RADIUS) ** 2;
     this.material.uniforms.uDensity.value = Math.min(
       2,
-      Math.max(0.08, (25000 * cloud.area) / Math.max(cloud.count, 1))
+      Math.max(0.08, (REFERENCE_DENSITY / density) * radiusGain)
     );
 
     this.points = new THREE.Points(geo, this.material);

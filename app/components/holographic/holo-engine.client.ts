@@ -48,18 +48,19 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 
 import {
+  ANATOMY_BASE,
   BODY_Y_OFFSET,
-  bodyParts,
-  brainParts,
-  buildCloud,
-  heartParts,
-  kidneyParts,
-  liverParts,
-  lungParts,
+  centreOf,
+  extentOf,
+  hitSpheres,
+  loadManifest,
+  radiusOf,
+  loadMesh,
   makeRng,
-  skeletonParts,
+  sampleMesh,
   type Cloud,
-  type Part,
+  type Manifest,
+  type StructureId,
 } from "./anatomy";
 import { ORGANS, type OrganId } from "./organ-catalog";
 
@@ -71,20 +72,16 @@ type HitSphere = { center: [number, number, number]; radius: number };
 
 type OrganConfig = {
   id: OrganId;
-  parts: () => Part[];
-  /**
-   * Particle count at medium quality, scaled by ORGAN_SCALE.
-   *
-   * Absolute rather than a share of one budget: only one organ is ever
-   * visible, so they do not actually compete for fill rate, and a share
-   * meant the whole-body skeleton starved the six compact organs (or, at
-   * its own correct size, starved them worse).
-   */
+  /** The mesh in public/anatomy this organ's cloud is scattered over. */
+  structure: StructureId;
+  /** Centre of the structure's bounding box, in body-centred coordinates. */
+  centre: [number, number, number];
   count: number;
   /** Clickable volumes, in body-centred coordinates. */
   hits: HitSphere[];
   /** Where the camera sits when this organ is focused, relative to its centre. */
   viewDir: [number, number, number];
+  /** Resolved camera distance in metres. */
   viewDist: number;
   /** Where the HTML label is pinned, in body-centred coordinates. */
   labelAt: [number, number, number];
@@ -99,95 +96,107 @@ type OrganConfig = {
   framing: "organ" | "body";
 };
 
-/** All coordinates below are already body-centred (floor Y − BODY_Y_OFFSET). */
-const ORGAN_CONFIG: OrganConfig[] = [
-  {
-    id: "brain",
-    parts: brainParts,
-    count: 15000,
-    hits: [{ center: [0, 0.662, 0.004], radius: 0.105 }],
-    viewDir: [0.38, 0.22, 1],
-    viewDist: 0.86,
-    labelAt: [0.20, 0.70, 0.02],
-    accent: 0x8ab4ff,
-    labelSide: "right",
-    framing: "organ",
-  },
-  {
-    id: "heart",
-    parts: heartParts,
-    count: 12000,
-    hits: [{ center: [-0.03, 0.245, 0.028], radius: 0.082 }],
-    viewDir: [0.34, 0.14, 1],
-    viewDist: 0.82,
-    labelAt: [-0.26, 0.27, 0.06],
-    accent: 0xff8a7a,
-    labelSide: "left",
-    framing: "organ",
-  },
-  {
-    id: "lungs",
-    parts: lungParts,
-    count: 23000,
-    hits: [
-      { center: [-0.108, 0.26, -0.005], radius: 0.078 },
-      { center: [0.108, 0.26, -0.005], radius: 0.078 },
-    ],
-    viewDir: [0.18, 0.1, 1],
-    viewDist: 1.08,
-    labelAt: [0.30, 0.38, 0.0],
-    accent: 0x6fe8d0,
-    labelSide: "right",
-    framing: "organ",
-  },
-  {
-    id: "liver",
-    parts: liverParts,
-    count: 10000,
-    hits: [{ center: [0.062, 0.108, 0.015], radius: 0.092 }],
-    viewDir: [0.5, 0.12, 1],
-    viewDist: 0.88,
-    labelAt: [0.32, 0.10, 0.04],
-    accent: 0xffc46b,
-    labelSide: "right",
-    framing: "organ",
-  },
-  {
-    id: "kidneys",
-    parts: kidneyParts,
-    count: 8000,
-    hits: [
-      { center: [-0.074, 0.045, -0.062], radius: 0.05 },
-      { center: [0.074, 0.045, -0.062], radius: 0.05 },
-    ],
-    // Retroperitoneal — the teaching view is from behind.
-    viewDir: [0.3, 0.18, -1],
-    viewDist: 0.76,
-    labelAt: [-0.30, 0.01, -0.07],
-    accent: 0xb79bff,
-    labelSide: "left",
-    framing: "organ",
-  },
-  {
-    id: "skeleton",
-    parts: skeletonParts,
-    count: 40000,
-    // No central hit volume — it would swallow every other organ. The limbs
-    // are the only places the skeleton is the obvious thing under the cursor.
+/**
+ * Art direction per discipline: particle budget, where the camera sits, and
+ * where the floating label is pinned.
+ *
+ * Everything geometric — hit volumes, organ centres, label anchors — is
+ * derived from the anatomy manifest at load time instead of being listed
+ * here. Hand-tuned coordinates were right for the generated figure they were
+ * measured against and wrong the moment the geometry changed; reading the
+ * bounding boxes means the labels and click targets follow the meshes.
+ */
+type ViewHint = {
+  /**
+   * Particle count at medium quality, scaled by the tier's organScale.
+   *
+   * Absolute rather than a share of one budget: only one organ is ever
+   * visible, so they do not compete for fill rate, and a share meant the
+   * whole-body structures starved the compact organs.
+   */
+  count: number;
+  /** Camera direction from the organ's centre. */
+  viewDir: [number, number, number];
+  /**
+   * How far back to sit, as a multiple of the structure's bounding radius.
+   *
+   * Relative rather than absolute. A fixed distance per organ was measured
+   * against whatever the geometry happened to be at the time, and it left
+   * the heart as a thumbnail in the middle of a torso while the kidneys
+   * overflowed the frame. Scaling by the structure's own size frames every
+   * organ the same way, and keeps doing so when the meshes change.
+   */
+  fill?: number;
+  /** Absolute camera distance, for whole-body structures. */
+  viewDist?: number;
+  /**
+   * Overrides the derived hit spheres. Used where the bounding box is a bad
+   * click target — the skeleton's would swallow every other organ, so it is
+   * picked up at the limbs instead.
+   */
+  hits?: HitSphere[];
+  /** Overrides the derived label anchor. */
+  labelAt?: [number, number, number];
+};
+
+const VIEW_HINTS: Record<OrganId, ViewHint> = {
+  brain: { count: 20000, viewDir: [0.38, 0.22, 1], fill: 4.6 },
+  heart: { count: 17000, viewDir: [0.34, 0.14, 1], fill: 4.6 },
+  lungs: { count: 36000, viewDir: [0.18, 0.1, 1], fill: 4.6 },
+  liver: { count: 26000, viewDir: [0.5, 0.12, 1], fill: 4.6 },
+  // Retroperitoneal — the teaching view is from behind.
+  kidneys: { count: 17000, viewDir: [0.3, 0.18, -1], fill: 4.6 },
+  digestive: { count: 38000, viewDir: [0.26, 0.1, 1], fill: 4.6 },
+  vascular: { count: 34000, viewDir: [0.3, 0.1, 1], viewDist: 3.0 },
+  muscular: { count: 30000, viewDir: [0.3, 0.12, 1], viewDist: 2.9 },
+  eyes: { count: 11000, viewDir: [0.1, 0.05, 1], fill: 4.6 },
+  skeleton: {
+    count: 42000,
+    viewDir: [0.3, 0.1, 1],
+    viewDist: 3.05,
+    // No central volume — it would swallow every other organ. The limbs are
+    // the only places the skeleton is the obvious thing under the cursor.
     hits: [
       { center: [-0.095, -0.3, 0], radius: 0.1 },
       { center: [0.095, -0.3, 0], radius: 0.1 },
       { center: [-0.28, 0.0, 0.02], radius: 0.07 },
       { center: [0.28, 0.0, 0.02], radius: 0.07 },
     ],
-    viewDir: [0.3, 0.1, 1],
-    viewDist: 3.05,
     labelAt: [0.38, -0.34, 0.04],
-    accent: 0x9fd8ff,
-    labelSide: "right",
-    framing: "body",
   },
-];
+};
+
+/**
+ * Builds the runtime organ table by joining the catalog's metadata to the
+ * geometry the manifest reports.
+ */
+function organConfigs(manifest: Manifest): OrganConfig[] {
+  const out: OrganConfig[] = [];
+  for (const organ of ORGANS) {
+    const meta = manifest.structures[organ.structure];
+    if (!meta) continue; // structure absent from this asset build
+    const hint = VIEW_HINTS[organ.id];
+    const hits = hint.hits ?? hitSpheres(meta, organ.paired);
+    const c = centreOf(meta);
+    const ext = extentOf(meta);
+    // Park the label clear of the organ, on the side the catalog asked for.
+    const lateral = (organ.labelSide === "left" ? -1 : 1) * (ext[0] / 2 + 0.17);
+    out.push({
+      id: organ.id,
+      structure: organ.structure,
+      count: hint.count,
+      hits,
+      viewDir: hint.viewDir,
+      viewDist: hint.viewDist ?? radiusOf(meta) * (hint.fill ?? 2.7),
+      labelAt: hint.labelAt ?? [c[0] + lateral, c[1] + ext[1] * 0.18, c[2] + 0.04],
+      accent: parseInt(organ.accent.replace("#", ""), 16),
+      labelSide: organ.labelSide,
+      framing: organ.framing,
+      centre: c,
+    });
+  }
+  return out;
+}
 
 /**
  * World-space radius of a single particle, in metres. At ~3mm a 1.76m figure
@@ -237,12 +246,73 @@ const BUDGETS: Record<QualityTier, { body: number; dust: number; organScale: num
  */
 const REFERENCE_DENSITY = 25000;
 
-/** Density compensation for one cloud, clamped against pathological inputs. */
-const densityCompensation = (cloud: Cloud) =>
+/**
+ * Particle radius for a structure, from how big that structure is.
+ *
+ * A particle is drawn at a pixel size proportional to radius / distance, so
+ * carrying the figure's 3.4 mm points into a close-up of the heart puts
+ * every one of them several pixels across and the organ dissolves into a
+ * glowing ball — which is exactly what it did. Scaling the radius with the
+ * square root of the structure's size keeps roughly the same number of
+ * particles across its silhouette whatever is being looked at, so a heart
+ * resolves its chambers the way the figure resolves its limbs.
+ *
+ * Light lost to the smaller sprites is put back in densityCompensation; the
+ * two have to be read together.
+ */
+const radiusFor = (extent: number, bodyExtent: number) =>
   THREE.MathUtils.clamp(
-    (REFERENCE_DENSITY * cloud.area) / Math.max(cloud.count, 1),
-    0.08,
-    2
+    PARTICLE_RADIUS * Math.sqrt(extent / Math.max(bodyExtent, 0.001)),
+    0.0009,
+    PARTICLE_RADIUS
+  );
+
+/**
+ * Per-particle alpha scale for one cloud.
+ *
+ * Two corrections, both needed.
+ *
+ * The first is density: a small organ given a usable point count ends up
+ * with several times the figure's points per square metre, so its particles
+ * are dimmed in proportion.
+ *
+ * The second is depth complexity, and leaving it out is what made the heart
+ * render as a white blob inside a dim blue body. Additive blending sums
+ * every surface along a view ray, and spreading points by surface area alone
+ * assumes there is only one. That holds for the skin. It does not hold for a
+ * heart, whose chamber cavities, walls, valve leaflets and vessel stubs
+ * stack three or four deep, nor for a brain with its folded cortex and
+ * internal nuclei. The pipeline measures each structure's depth against a
+ * simple closed shape and the manifest carries it; dividing by it relative
+ * to the figure's own depth leaves the body exactly as it was and pulls the
+ * nested organs back into the same exposure.
+ */
+/**
+ * Extra trim on the focused organ, beyond what the depth measurement gives.
+ *
+ * depth_complexity is a mean over the whole structure, and the places that
+ * clip are the thickest parts — the middle of a heart has well over its
+ * average number of surfaces stacked along the ray, and additive blending
+ * has no shoulder below the tone curve to absorb it. Correcting to the mean
+ * leaves the centre of a compact organ white while its edges are right.
+ * Half a stop down puts the peak back under the knee.
+ */
+const ORGAN_EXPOSURE = 0.85;
+
+const densityCompensation = (
+  cloud: Cloud,
+  depth: number,
+  bodyDepth: number,
+  radius: number,
+  trim = 1
+) =>
+  THREE.MathUtils.clamp(
+    ((REFERENCE_DENSITY * cloud.area) / Math.max(cloud.count, 1) / 
+      Math.max(depth / Math.max(bodyDepth, 0.001), 0.25)) *
+      (PARTICLE_RADIUS / radius) ** 2 *
+      trim,
+    0.05,
+    6
   );
 
 /* ------------------------------------------------------------------ */
@@ -254,7 +324,8 @@ const PARTICLE_VERT = /* glsl */ `
   attribute float aSize;
   attribute float aSeed;
   attribute float aOrgan;
-  attribute float aDensity;   // reference count / actual count
+  attribute float aDensity;
+  attribute float aRadius;   // world radius, per structure
 
   uniform float uTime;
   uniform float uForm;        // 0 = scattered cloud, 1 = assembled body
@@ -269,7 +340,7 @@ const PARTICLE_VERT = /* glsl */ `
   uniform float uScanStrength;
   uniform float uPixelRatio;
   uniform float uSize;
-  uniform float uRadius;      // particle radius in world metres
+  uniform float uRadius;      // figure's particle radius, in world metres
   uniform float uScale;       // (viewportHeightCss / 2) / tan(fov / 2)
   uniform float uDrift;
 
@@ -323,7 +394,7 @@ const PARTICLE_VERT = /* glsl */ `
     // projected size is radius * (viewportScale / distance). Deriving it
     // rather than tuning a constant keeps the figure looking identical at
     // every viewport size and field of view.
-    float size = aSize * uRadius * uSize * uScale * uPixelRatio / max(-mv.z, 0.05);
+    float size = aSize * aRadius * uSize * uScale * uPixelRatio / max(-mv.z, 0.05);
     size *= (1.0 + scan * 1.4) * mix(1.0, 1.25, isActive);
     size = clamp(size, 0.4, 9.0 * uPixelRatio);
     gl_PointSize = size;
@@ -490,6 +561,13 @@ export class HoloEngine {
   private reticle!: Group;
   private hitMeshes: Mesh[] = [];
 
+  /** Geometry description for this asset build, fetched during init. */
+  private manifest!: Manifest;
+  /** Runtime organ table, joined from the catalog and the manifest. */
+  private organs: OrganConfig[] = [];
+  /** Cancels in-flight asset fetches when the engine is disposed mid-load. */
+  private abort = new AbortController();
+
   private raycaster = new THREE.Raycaster();
   private pointer = new THREE.Vector2();
   private pointerInside = false;
@@ -569,33 +647,60 @@ export class HoloEngine {
     const budget = BUDGETS[this.quality];
     const rng = makeRng(0xc0ffee);
 
-    this.callbacks.onProgress?.(0.05, "INITIALISING VOLUME");
-    await nextFrame();
+    this.callbacks.onProgress?.(0.04, "LOCATING ANATOMY");
+    const manifest = await loadManifest(ANATOMY_BASE);
+    this.manifest = manifest;
+    this.organs = organConfigs(manifest);
 
-    // Body first so something is on screen immediately.
-    const bodyCloud = buildCloud(bodyParts(), budget.body, rng, {
-      interior: 0.10,
+    // The skin is the figure, so it is fetched first and alone: the
+    // silhouette should be resolving while the organs are still arriving.
+    this.callbacks.onProgress?.(0.08, "RESOLVING SURFACE MESH");
+    const skin = await loadMesh("skin", manifest, ANATOMY_BASE, this.abort.signal);
+
+    // Everything else goes out at once. Ten structures fetched one after the
+    // other spend most of the boot sequence waiting on round trips rather
+    // than on anything the user can see happening; in parallel the browser
+    // pipelines them over a single connection and the wait collapses to
+    // roughly the slowest one.
+    const pending = this.organs.map((cfg) =>
+      loadMesh(cfg.structure, manifest, ANATOMY_BASE, this.abort.signal)
+    );
+
+    const bodyCloud = sampleMesh(skin, budget.body, rng, {
+      interior: 0.1,
+      interiorDepth: 0.03,
       shell: 0.0034,
       sizeMin: 0.55,
       sizeMax: 1.35,
     });
-    this.callbacks.onProgress?.(0.3, "RESOLVING SURFACE MESH");
+    this.callbacks.onProgress?.(0.24, "SURFACE RESOLVED");
     await nextFrame();
 
+    const meshes = await Promise.all(pending);
     const organClouds: { id: OrganId; cloud: Cloud }[] = [];
 
-    for (let i = 0; i < ORGAN_CONFIG.length; i++) {
-      const cfg = ORGAN_CONFIG[i];
+    // Sampling stays one organ per frame. It is only a few milliseconds
+    // each, but doing all ten between two frames is a visible hitch in the
+    // boot animation at exactly the moment the user is watching it.
+    for (let i = 0; i < this.organs.length; i++) {
+      const cfg = this.organs[i];
       const count = Math.round(cfg.count * budget.organScale);
-      const cloud = buildCloud(cfg.parts(), count, rng, {
-        interior: 0.10,
-        shell: 0.0028,
-        sizeMin: 0.6,
-        sizeMax: 1.6,
+      organClouds.push({
+        id: cfg.id,
+        // Tight to the surface. The inward scatter that gives the figure
+        // its sense of volume only muddies a compact organ, where every
+        // stray point lands inside the silhouette rather than against open
+        // space.
+        cloud: sampleMesh(meshes[i], count, rng, {
+          interior: 0.05,
+          interiorDepth: 0.006,
+          shell: 0.0012,
+          sizeMin: 0.55,
+          sizeMax: 1.45,
+        }),
       });
-      organClouds.push({ id: cfg.id, cloud });
       this.callbacks.onProgress?.(
-        0.3 + ((i + 1) / ORGAN_CONFIG.length) * 0.6,
+        0.24 + ((i + 1) / this.organs.length) * 0.66,
         `MAPPING ${cfg.id.toUpperCase()}`
       );
       await nextFrame();
@@ -702,6 +807,11 @@ export class HoloEngine {
     organs: { id: OrganId; cloud: Cloud }[],
     rng: () => number
   ) {
+    // The figure is the reference every other structure is measured against,
+    // for both exposure and particle size.
+    const skin = this.manifest.structures.skin;
+    const bodyDepth = skin?.depth ?? 1;
+    const bodyExtent = skin ? Math.max(...extentOf(skin)) : 1.76;
     const total =
       body.count + organs.reduce((sum, o) => sum + o.cloud.count, 0);
 
@@ -711,15 +821,17 @@ export class HoloEngine {
     const seeds = new Float32Array(total);
     const organAttr = new Float32Array(total);
     const density = new Float32Array(total);
+    const radii = new Float32Array(total);
 
     let cursor = 0;
-    const append = (cloud: Cloud, organIdx: number, comp: number) => {
+    const append = (cloud: Cloud, organIdx: number, comp: number, radius: number) => {
       positions.set(cloud.positions, cursor * 3);
       sizes.set(cloud.sizes, cursor);
       seeds.set(cloud.seeds, cursor);
       for (let i = 0; i < cloud.count; i++) {
         organAttr[cursor + i] = organIdx;
         density[cursor + i] = comp;
+        radii[cursor + i] = radius;
       }
 
       // Scatter origin: a shell well outside the body, biased along the
@@ -739,14 +851,26 @@ export class HoloEngine {
       cursor += cloud.count;
     };
 
-    append(body, -1, densityCompensation(body));
+    append(body, -1, densityCompensation(body, bodyDepth, bodyDepth, PARTICLE_RADIUS), PARTICLE_RADIUS);
     for (const { id, cloud } of organs) {
-      append(cloud, ORGANS.findIndex((o) => o.id === id), densityCompensation(cloud));
+      const organ = ORGANS.find((o) => o.id === id)!;
+      const meta = this.manifest.structures[organ.structure];
+      const depth = meta?.depth ?? bodyDepth;
+      const radius = meta
+        ? radiusFor(Math.max(...extentOf(meta)), bodyExtent)
+        : PARTICLE_RADIUS;
+      append(
+        cloud,
+        ORGANS.findIndex((o) => o.id === id),
+        densityCompensation(cloud, depth, bodyDepth, radius, ORGAN_EXPOSURE),
+        radius
+      );
     }
 
     const geometry: BufferGeometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute("aScatter", new THREE.BufferAttribute(scatter, 3));
+    geometry.setAttribute("aRadius", new THREE.BufferAttribute(radii, 1));
     geometry.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
     geometry.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
     geometry.setAttribute("aOrgan", new THREE.BufferAttribute(organAttr, 1));
@@ -923,7 +1047,7 @@ export class HoloEngine {
       colorWrite: false,
     });
 
-    for (const cfg of ORGAN_CONFIG) {
+    for (const cfg of this.organs) {
       for (const hit of cfg.hits) {
         const mesh = new THREE.Mesh(
           new THREE.SphereGeometry(hit.radius, 12, 10),
@@ -1022,7 +1146,7 @@ export class HoloEngine {
     s.glitch = 1; // decays in the loop; drives the tear in the grade pass
 
     if (id) {
-      const cfg = ORGAN_CONFIG.find((o) => o.id === id) as OrganConfig;
+      const cfg = this.organs.find((o) => o.id === id) as OrganConfig;
       const idx = ORGANS.findIndex((o) => o.id === id);
       this.material.uniforms.uActive.value = idx;
       (this.material.uniforms.uOrganCenter.value as Vector3).set(
@@ -1035,7 +1159,9 @@ export class HoloEngine {
       // A body-framed structure fills the frame with many small points at
       // once, so it needs less per-particle alpha than a compact organ.
       s.revealTarget = cfg.framing === "body" ? 0.85 : 1.0;
-      s.bodyAlphaTarget = cfg.framing === "body" ? 0.1 : 0.14;
+      // Low enough that the shell stays as a locating outline without
+      // laying a blue haze over the organ behind it.
+      s.bodyAlphaTarget = cfg.framing === "body" ? 0.1 : 0.045;
       s.ghostTarget = this.xray ? 0.12 : 0.03;
       s.organScaleTarget = cfg.framing === "body" ? 1 : 1.25;
       s.accentMixTarget = 0.55;
@@ -1232,7 +1358,7 @@ export class HoloEngine {
     const out = this.labelScratch;
     out.length = 0;
 
-    for (const cfg of ORGAN_CONFIG) {
+    for (const cfg of this.organs) {
       this.tmpVec.set(cfg.labelAt[0], cfg.labelAt[1], cfg.labelAt[2]);
       const world = this.tmpVec.clone();
       this.tmpVec.project(this.camera);
@@ -1321,6 +1447,9 @@ export class HoloEngine {
     this.disposed = true;
     this.running = false;
     cancelAnimationFrame(this.frame);
+    // Asset fetches outlive a fast unmount otherwise, and their decode work
+    // lands on a scene that no longer exists.
+    this.abort.abort();
 
     this.canvas.removeEventListener("pointermove", this.onPointerMove);
     this.canvas.removeEventListener("pointerleave", this.onPointerLeave);
