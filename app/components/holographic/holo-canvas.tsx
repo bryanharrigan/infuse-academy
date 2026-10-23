@@ -1,11 +1,22 @@
 /**
- * app/components/holographic/holo-canvas.client.tsx
+ * app/components/holographic/holo-canvas.tsx
  *
  * React wrapper around HoloEngine. Owns the canvas element and the engine
  * lifecycle; everything else on the page is plain HTML layered on top.
  *
  * The engine is pulled in with a dynamic import inside the mount effect, so
  * three.js never touches the server render and lands in its own chunk.
+ *
+ * NOT named `.client.tsx`, deliberately. Remix's Vite plugin replaces any
+ * `.client.*` module with an EMPTY module in the server build, so a route
+ * importing this one would receive `undefined` and throw "Element type is
+ * invalid" on every server render — a 500 that neither `tsc` nor
+ * `remix vite:build` can catch, because neither server-renders a route.
+ *
+ * This component is safe to render on the server: it emits a bare <canvas>
+ * and does every bit of WebGL work inside an effect, which never runs there.
+ * The client-only boundary belongs one level down, on the engine itself,
+ * which is `.client.ts` AND reached only through a dynamic import.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";

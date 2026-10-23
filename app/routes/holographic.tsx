@@ -38,7 +38,7 @@ import { infuseJwtCookie } from "~/constants/infuse-cookie.server";
 
 import HoloCanvas, {
   type HoloCanvasHandle,
-} from "~/components/holographic/holo-canvas.client";
+} from "~/components/holographic/holo-canvas";
 import CourseTable from "~/components/holographic/course-table";
 import HoloPlayer from "~/components/holographic/holo-player";
 import {
