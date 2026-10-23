@@ -13,7 +13,10 @@ export type ThemeVariant =
   | "experimental"
   | "psbi"
   | "mmit"
-  | "silfab";
+  | "silfab"
+  // Not a theme of the IA chrome — a destination. The header's variant
+  // select navigates to /holographic rather than persisting this value.
+  | "holographic";
 const THEME_STORAGE_KEY = "ia:theme-variant";
 
 /**

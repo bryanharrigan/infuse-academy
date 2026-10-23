@@ -46,13 +46,16 @@ export const Header = () => {
 
   const handleThemeChange = (e: SelectChangeEvent<ThemeVariant>) => {
     const next = e.target.value as ThemeVariant;
-    // Static prospect demo portals live in public/ and are not themes of the
-    // Remix app - redirect instead of switching the theme, so the variant is
-    // never persisted to localStorage.
+    // Some entries in this select are destinations rather than themes of the
+    // IA chrome: the static prospect portals in public/, and /holographic,
+    // which is a Remix route rendering its own full-bleed shell. Redirect
+    // instead of switching the theme, so the variant is never persisted to
+    // localStorage.
     const DEMO_PORTALS: Partial<Record<ThemeVariant, string>> = {
       psbi: "/psbi-dashboard-demo.html",
       mmit: "/mmit-dashboard-demo.html",
       silfab: "/silfab-installer-portal.html",
+      holographic: "/holographic",
     };
     const demoHref = DEMO_PORTALS[next];
     if (demoHref) {
@@ -124,6 +127,7 @@ export const Header = () => {
         <MenuItem value="psbi">PSBI</MenuItem>
         <MenuItem value="mmit">MMIT iQ</MenuItem>
         <MenuItem value="silfab">Silfab Solar</MenuItem>
+        <MenuItem value="holographic">Holographic</MenuItem>
       </Select>
     </FormControl>
   );

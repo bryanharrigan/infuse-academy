@@ -117,10 +117,17 @@ export default function App() {
   const path = location.pathname;
   const isEmbed = path === "/embed" || path.startsWith("/embed/");
 
+  // /holographic is a full-bleed WebGL canvas pinned to the viewport. The app
+  // header would float on top of the 3D scene, and the MUI theme shell has
+  // nothing to contribute to a page that ships its own stylesheet. Render it
+  // bare for the same reason as the embed. It stays behind the root loader's
+  // auth redirect, so the learner's token is still available to its loader.
+  const isHolographic = path === "/holographic";
+
   // The embed is framed inside someone else's page, where our header, theme
   // shell and global chrome are noise at best and a layout fight at worst.
   // Render it bare — it brings its own self-contained styling.
-  if (isEmbed) {
+  if (isEmbed || isHolographic) {
     return (
       <Document>
         <Outlet />
