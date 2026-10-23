@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Echocardiographic Windows</title>
+<!--
+  Fully self-contained: no external fonts, scripts or images. A SCORM package
+  may be opened from a file path, an intranet or an offline LMS, so anything
+  fetched from a CDN is a broken module waiting to happen.
+-->
+<link rel="stylesheet" href="assets/course.css">
+</head>
+<body>
+<div class="ec-app">
+
+  <header class="ec-top">
+    <div class="ec-brand">
+      <span class="ec-brand__mark" aria-hidden="true"></span>
+      <div>
+        <h1>Echocardiographic Windows</h1>
+        <p>Parasternal, apical and subcostal views &mdash; and how to recover a poor window</p>
+      </div>
+    </div>
+    <div class="ec-top__meta">
+      <span class="ec-pill" id="ec-lms">Checking LMS&hellip;</span>
+    </div>
+  </header>
+
+  <div class="ec-body">
+
+    <nav class="ec-sidebar" aria-label="Module sections">
+      <div class="ec-progress">
+        <div class="ec-progress__bar"><span id="ec-progress-fill"></span></div>
+        <p id="ec-progress-text">0 of 8 complete</p>
+      </div>
+      <div class="ec-navlist" id="ec-nav"></div>
+    </nav>
+
+    <main class="ec-main">
+
+      <section class="ec-stage" id="ec-stage">
+        <div class="ec-stage__canvas">
+          <canvas id="ec-canvas" aria-label="Interactive 3D model of a beating heart with the ultrasound imaging plane for the selected window."></canvas>
+          <div class="ec-labels-layer" id="ec-labels-layer" aria-hidden="true"></div>
+          <span class="ec-corner ec-corner--tl"></span>
+          <span class="ec-corner ec-corner--tr"></span>
+          <span class="ec-corner ec-corner--bl"></span>
+          <span class="ec-corner ec-corner--br"></span>
+          <p class="ec-stage__error" id="ec-stage-error"></p>
+        </div>
+
+        <div class="ec-stage__bar">
+          <div class="ec-views" role="group" aria-label="Echo window">
+            <button class="ec-chip" data-view="free">Free</button>
+            <button class="ec-chip" data-view="plax">PLAX</button>
+            <button class="ec-chip" data-view="psax">PSAX</button>
+            <button class="ec-chip" data-view="a4c">A4C</button>
+            <button class="ec-chip" data-view="a5c">A5C</button>
+            <button class="ec-chip" data-view="subcostal">Subcostal</button>
+          </div>
+          <span class="ec-viewname" id="ec-viewname">Free rotation</span>
+        </div>
+
+        <div class="ec-transport">
+          <button class="ec-btn ec-btn--sm" id="ec-play" aria-pressed="false">Pause</button>
+          <input type="range" id="ec-scrub" min="-1" max="999" value="-1" aria-label="Scrub the cardiac cycle">
+          <span class="ec-phase" id="ec-phase">&mdash;</span>
+          <label class="ec-rate">
+            <input type="range" id="ec-rate" min="40" max="140" value="68" aria-label="Heart rate">
+            <span id="ec-rate-value">68 bpm</span>
+          </label>
+          <label class="ec-toggle">
+            <input type="checkbox" id="ec-labels" checked>
+            <span>Labels</span>
+          </label>
+        </div>
+
+        <div class="ec-meters" aria-hidden="true">
+          <div class="ec-meter"><span>Ventricle</span><i><b id="ec-vent"></b></i></div>
+          <div class="ec-meter"><span>Atrium</span><i><b id="ec-atr"></b></i></div>
+        </div>
+      </section>
+
+      <section class="ec-reading">
+        <div class="ec-scroll" id="ec-scroll">
+          <div id="ec-sections"></div>
+        </div>
+        <div class="ec-pager">
+          <button class="ec-btn" id="ec-prev">Previous</button>
+          <button class="ec-btn ec-btn--primary" id="ec-next">Next</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+<script src="assets/course.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+# Build output — regenerate with `node build.mjs --zip`
+package/
+*.zip
+test/shots/

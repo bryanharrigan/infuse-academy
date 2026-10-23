@@ -1,0 +1,23 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Stub LMS</title></head>
+<body style="margin:0;background:#000">
+<script>
+/*
+  Minimal SCORM 1.2 LMS stub. The SCO discovers this via window.parent.API,
+  exactly as it would in a real LMS frameset. Every call is recorded so the
+  test can assert on the run-time conversation rather than just on pixels.
+*/
+window.__calls = [];
+window.__store = { "cmi.core.lesson_status": "not attempted", "cmi.core.student_name": "Test, Learner" };
+window.API = {
+  LMSInitialize: function () { window.__calls.push(["LMSInitialize"]); return "true"; },
+  LMSFinish: function () { window.__calls.push(["LMSFinish"]); return "true"; },
+  LMSGetValue: function (k) { window.__calls.push(["get", k]); return window.__store[k] || ""; },
+  LMSSetValue: function (k, v) { window.__calls.push(["set", k, v]); window.__store[k] = v; return "true"; },
+  LMSCommit: function () { window.__calls.push(["commit"]); return "true"; },
+  LMSGetLastError: function () { return "0"; },
+  LMSGetErrorString: function () { return ""; },
+  LMSGetDiagnostic: function () { return ""; }
+};
+</script>
+<iframe id="sco" src="index.html" style="border:0;width:100vw;height:100vh"></iframe>
+</body></html>
