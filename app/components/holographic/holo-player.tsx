@@ -62,10 +62,34 @@ type Phase =
   | "ilt"
   | "error";
 
+/**
+ * True when a keystroke belongs to a text field rather than to the page.
+ *
+ * The lesson itself runs in an iframe and its key events never reach us, but
+ * this component can gain its own controls later, and a bare "F" shortcut
+ * that eats a character out of an input is a nasty thing to debug.
+ */
+function isTyping(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el || !el.tagName) return false;
+  return (
+    el.isContentEditable ||
+    ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName.toUpperCase())
+  );
+}
+
 export default function HoloPlayer({ course, organ, onClose }: Props) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
+
+  /**
+   * Expanded drops every piece of holographic chrome so the lesson has the
+   * whole viewport. Three frames nest here — this overlay, the course's own
+   * header and nav, then the content — and on a laptop that left the actual
+   * teaching copy with about a third of the screen.
+   */
+  const [expanded, setExpanded] = useState(false);
   const [children, setChildren] = useState<CatalogCourse[]>([]);
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
@@ -268,17 +292,42 @@ export default function HoloPlayer({ course, organ, onClose }: Props) {
   // Escape always closes, from anywhere in the overlay.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      // Escape steps back out one level at a time: expanded -> framed ->
+      // closed. Closing straight out of full screen loses the learner's
+      // place for what reads like a smaller action.
+      if (e.key === "Escape") {
+        if (expanded) setExpanded(false);
+        else onClose();
+      }
+      if (e.key.toLowerCase() === "f" && !isTyping(e.target)) {
+        setExpanded((v) => !v);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, expanded]);
 
   const lessons = chapters.flatMap((c) =>
     (c._embedded?.lessons ?? []).map((l) => ({ ...l, chapter: c.name ?? c.title ?? "" }))
   );
 
   const busy = phase === "loading" || phase === "enrolling";
+
+  /**
+   * Whether the left rail has anything worth 286px of the lesson's width.
+   *
+   * A list of one lesson is not navigation, and a single-lesson SCORM package
+   * is the common case here — the course draws its own contents sidebar
+   * inside the frame, so ours was costing a fifth of the width to duplicate
+   * a list the learner could already see.
+   */
+  const railWorthShowing =
+    phase === "curriculum" ||
+    lessons.length > 1 ||
+    phase === "demo" ||
+    phase === "ilt";
+
+  const bare = expanded || !railWorthShowing;
 
   return (
     <div
@@ -290,11 +339,15 @@ export default function HoloPlayer({ course, organ, onClose }: Props) {
     >
       <div className="holo-player__scrim" onClick={onClose} />
 
-      <div className="holo-player__frame">
-        <span className="holo-corner holo-corner--tl" />
-        <span className="holo-corner holo-corner--tr" />
-        <span className="holo-corner holo-corner--bl" />
-        <span className="holo-corner holo-corner--br" />
+      <div className={`holo-player__frame ${expanded ? "is-expanded" : ""}`}>
+        {!expanded && (
+          <>
+            <span className="holo-corner holo-corner--tl" />
+            <span className="holo-corner holo-corner--tr" />
+            <span className="holo-corner holo-corner--bl" />
+            <span className="holo-corner holo-corner--br" />
+          </>
+        )}
 
         <header className="holo-player__head">
           <div className="holo-player__title">
@@ -308,13 +361,34 @@ export default function HoloPlayer({ course, organ, onClose }: Props) {
               </p>
             </div>
           </div>
-          <button type="button" className="holo-chip holo-chip--close" onClick={onClose}>
-            CLOSE
-          </button>
+          <div className="holo-player__controls">
+            {/* Telemetry lives in the rail normally; without a rail it moves
+                up here rather than disappearing, so the panel keeps its
+                character at full width. */}
+            {bare && (
+              <div className="holo-player__telemetry holo-player__telemetry--inline" aria-hidden="true">
+                <Telemetry label="SIGNAL" value={phase === "ready" ? 0.92 : 0.4} />
+                <Telemetry label="BUFFER" value={iframeLoaded ? 1 : 0.35} />
+              </div>
+            )}
+            <button
+              type="button"
+              className={`holo-chip ${expanded ? "is-on" : ""}`}
+              aria-pressed={expanded}
+              title="Toggle full screen (F)"
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {expanded ? "RESTORE" : "EXPAND"}
+            </button>
+            <button type="button" className="holo-chip holo-chip--close" onClick={onClose}>
+              CLOSE
+            </button>
+          </div>
         </header>
 
-        <div className="holo-player__body">
+        <div className={`holo-player__body ${bare ? "is-bare" : ""}`}>
           {/* ---- left rail: lessons, curriculum children, or description ---- */}
+          {!bare && (
           <aside className="holo-player__rail">
             {phase === "curriculum" && (
               <>
@@ -394,6 +468,7 @@ export default function HoloPlayer({ course, organ, onClose }: Props) {
               <Telemetry label="SYNC" value={busy ? 0.55 : 0.88} />
             </div>
           </aside>
+          )}
 
           {/* ---- stage ---- */}
           <div className="holo-player__stage">

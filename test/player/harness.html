@@ -1,0 +1,71 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>player layout harness</title>
+<link rel="stylesheet" href="/app/styles/holographic.css">
+<style>html,body{margin:0;height:100%;background:#03060e}</style>
+</head><body>
+<div class="holo">
+  <div class="holo-player" style="--organ-accent:#ff8a7a" role="dialog">
+    <div class="holo-player__scrim"></div>
+    <div class="holo-player__frame" id="frame">
+      <span class="holo-corner holo-corner--tl" id="c1"></span>
+      <span class="holo-corner holo-corner--tr" id="c2"></span>
+      <span class="holo-corner holo-corner--bl" id="c3"></span>
+      <span class="holo-corner holo-corner--br" id="c4"></span>
+      <header class="holo-player__head">
+        <div class="holo-player__title">
+          <span class="holo-player__badge">Cd</span>
+          <div>
+            <h2>Echocardiographic Windows</h2>
+            <p><span class="holo-dot"></span>STREAMING</p>
+          </div>
+        </div>
+        <div class="holo-player__controls">
+          <div class="holo-player__telemetry holo-player__telemetry--inline" id="tel">
+            <div class="holo-telemetry">SIGNAL<i><b style="width:92%"></b></i></div>
+            <div class="holo-telemetry">BUFFER<i><b style="width:100%"></b></i></div>
+          </div>
+          <button class="holo-chip" id="expand">EXPAND</button>
+          <button class="holo-chip holo-chip--close">CLOSE</button>
+        </div>
+      </header>
+      <div class="holo-player__body" id="body">
+        <aside class="holo-player__rail" id="rail">
+          <h3>Lessons</h3>
+          <ul class="holo-lessons">
+            <li><button class="holo-lesson is-active"><span class="holo-lesson__n">01</span><span class="holo-lesson__name">Echocardiographic Windows</span></button></li>
+          </ul>
+          <div class="holo-player__telemetry">
+            <div class="holo-telemetry">SIGNAL<i><b style="width:92%"></b></i></div>
+            <div class="holo-telemetry">BUFFER<i><b style="width:100%"></b></i></div>
+            <div class="holo-telemetry">SYNC<i><b style="width:88%"></b></i></div>
+          </div>
+        </aside>
+        <div class="holo-player__stage">
+          <div class="holo-player__screen">
+            <span class="holo-player__scan"></span>
+            <iframe src="/scorm/echocardiographic-windows/package/index.html"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  // Mirrors the three states the component can be in.
+  window.setState = (s) => {
+    const frame = document.getElementById('frame');
+    const body  = document.getElementById('body');
+    const rail  = document.getElementById('rail');
+    const tel   = document.getElementById('tel');
+    const corners = ['c1','c2','c3','c4'].map(i => document.getElementById(i));
+    const bare = s !== 'railed';
+    frame.classList.toggle('is-expanded', s === 'expanded');
+    body.classList.toggle('is-bare', bare);
+    rail.style.display = bare ? 'none' : '';
+    tel.style.display  = bare ? '' : 'none';
+    corners.forEach(c => c.style.display = s === 'expanded' ? 'none' : '');
+    document.getElementById('expand').textContent = s === 'expanded' ? 'RESTORE' : 'EXPAND';
+  };
+  setState('bare');
+</script>
+</body></html>

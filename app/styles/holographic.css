@@ -927,8 +927,12 @@
 
 .holo-player__frame {
   position: relative;
-  width: min(1340px, 94vw);
-  height: min(860px, 90vh);
+  /* Three frames nest inside each other here — this panel, the course's own
+     header and nav, then the lesson. Every pixel the outer one keeps for
+     decoration is taken off the innermost. The caps exist only so the panel
+     does not stretch absurdly on an ultrawide. */
+  width: min(1840px, 96vw);
+  height: min(1120px, 95vh);
   display: flex;
   flex-direction: column;
   background: linear-gradient(180deg, rgba(5, 12, 24, 0.97), rgba(3, 8, 18, 0.97));
@@ -958,8 +962,15 @@
   gap: 16px;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--line-soft);
+}
+
+.holo-player__controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
 }
 
 .holo-player__title {
@@ -973,8 +984,8 @@
   flex: none;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   border: 1px solid var(--organ-accent);
   font-family: var(--mono);
   font-size: 13px;
@@ -1008,6 +1019,13 @@
   display: grid;
   grid-template-columns: 286px 1fr;
   min-height: 0;
+}
+
+/* No rail: a single-lesson course, or the learner has expanded the player.
+   A list of one lesson is not navigation, and the course draws its own
+   contents sidebar inside the frame anyway. */
+.holo-player__body.is-bare {
+  grid-template-columns: 1fr;
 }
 
 .holo-player__rail {
@@ -1147,8 +1165,44 @@
   position: relative;
   display: grid;
   place-items: center;
-  padding: 18px;
+  padding: 10px;
   min-width: 0;
+}
+
+/* ---- Expanded: every piece of chrome stands down ---- */
+
+.holo-player__frame.is-expanded {
+  width: 100vw;
+  height: 100vh;
+  border: none;
+  box-shadow: none;
+  background: #02060e;
+}
+
+.holo-player__frame.is-expanded .holo-player__stage {
+  padding: 0;
+}
+
+.holo-player__frame.is-expanded .holo-player__screen {
+  border: none;
+}
+
+/* The travelling highlight is charm at panel size and a distraction across
+   a full screen of text the learner is trying to read. */
+.holo-player__frame.is-expanded .holo-player__scan {
+  display: none;
+}
+
+/* Telemetry moved into the header, where there is no column to stack in. */
+.holo-player__telemetry--inline {
+  margin: 0;
+  padding: 0;
+  flex-direction: row;
+  gap: 14px;
+}
+
+.holo-player__telemetry--inline .holo-telemetry {
+  grid-template-columns: 44px 54px;
 }
 
 .holo-player__screen {
@@ -1341,6 +1395,14 @@
   .holo-player__body {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;
+  }
+
+  .holo-player__body.is-bare {
+    grid-template-rows: 1fr;
+  }
+
+  .holo-player__telemetry--inline {
+    display: none;
   }
 
   .holo-player__rail {
