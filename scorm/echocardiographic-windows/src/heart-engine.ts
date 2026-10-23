@@ -232,6 +232,7 @@ const VERT = /* glsl */ `
   uniform float uPixelRatio;
   uniform float uScale;
   uniform float uRadius;
+  uniform float uDensity;     // reference density / actual, see the engine
   uniform float uPlaneFade;   // dims particles far from the imaging plane
   uniform vec3  uPlaneNormal;
   uniform vec3  uPlanePoint;
@@ -290,7 +291,7 @@ const VERT = /* glsl */ `
 
     p = mix(p * 2.2, p, uForm);
 
-    vAlpha = mix(0.70, mix(0.13, 0.92, vNearPlane), uPlaneFade);
+    vAlpha = mix(0.70, mix(0.13, 0.92, vNearPlane), uPlaneFade) * uDensity;
 
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
@@ -302,7 +303,12 @@ const VERT = /* glsl */ `
 
     // Conserve light per particle as the sprite grows, or flying the camera
     // in clips the whole organ to white.
-    vAlpha *= clamp((2.1 * uPixelRatio) / max(size, 0.5), 0.26, 1.0);
+    // Light per pixel works out as alpha x radius^2 x (points per unit
+    // surface area) — the camera distance cancels, because moving closer
+    // grows each sprite by exactly as much as it thins the points across the
+    // screen. So density compensation alone sets the brightness, and this
+    // only has to stop a sprite from smearing at extreme close range.
+    vAlpha *= clamp((6.0 * uPixelRatio) / max(size, 1.0), 0.35, 1.0);
   }
 `;
 
@@ -461,10 +467,12 @@ export class HeartEngine {
 
   /** Builds the point cloud, recentred so the heart sits on the origin. */
   private buildHeart() {
-    const cloud = buildCloud(heartParts(), 52000, makeRng(0x4ea71), {
-      interior: 0.14,
+    // Density, not count, is what drives additive brightness: 52k points on
+    // a heart's ~0.12 m2 of surface is seventeen times the figure's density
+    // on the main site, and clips to white however the alpha is tuned.
+    const cloud = buildCloud(heartParts(), 24000, makeRng(0x4ea71), {
+      interior: 0.10,
       shell: 0.0026,
-      margin: 0.0028,
       sizeMin: 0.6,
       sizeMax: 1.5,
       yOffset: HEART_CENTRE[1],
@@ -503,6 +511,7 @@ export class HeartEngine {
         uPixelRatio: { value: this.dpr() },
         uScale: { value: 1000 },
         uRadius: { value: 0.0027 },
+        uDensity: { value: 1 },
         uPlaneFade: { value: 0 },
         uPlaneNormal: { value: new THREE.Vector3(0, 0, 1) },
         uPlanePoint: { value: new THREE.Vector3() },
@@ -520,6 +529,13 @@ export class HeartEngine {
       depthWrite: false,
       depthTest: false,
     });
+
+    // Match the figure's points-per-square-metre so the heart reads at the
+    // same brightness here as it does on the main site.
+    this.material.uniforms.uDensity.value = Math.min(
+      2,
+      Math.max(0.08, (25000 * cloud.area) / Math.max(cloud.count, 1))
+    );
 
     this.points = new THREE.Points(geo, this.material);
     this.points.frustumCulled = false;

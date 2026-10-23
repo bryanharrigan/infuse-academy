@@ -222,6 +222,29 @@ const BUDGETS: Record<QualityTier, { body: number; dust: number; organScale: num
   high: { body: 86000, dust: 3000, organScale: 1.5 },
 };
 
+/**
+ * Points per square metre of sampled surface that the look is tuned against —
+ * the figure's density at the medium tier.
+ *
+ * Under additive blending, brightness follows points per unit area, and that
+ * varies wildly between subjects: measured against this model, the kidneys
+ * pack 5.5x the figure's density and the heart 3.9x, because a small organ
+ * gets a comparable point count over a fraction of the surface. Scaling each
+ * particle's alpha by reference/actual density makes every subject, at every
+ * quality tier, deposit the same light per unit of surface — so a higher tier
+ * resolves more detail instead of glowing more, and a small organ stops
+ * clipping to white.
+ */
+const REFERENCE_DENSITY = 25000;
+
+/** Density compensation for one cloud, clamped against pathological inputs. */
+const densityCompensation = (cloud: Cloud) =>
+  THREE.MathUtils.clamp(
+    (REFERENCE_DENSITY * cloud.area) / Math.max(cloud.count, 1),
+    0.08,
+    2
+  );
+
 /* ------------------------------------------------------------------ */
 /* Shaders                                                              */
 /* ------------------------------------------------------------------ */
@@ -231,6 +254,7 @@ const PARTICLE_VERT = /* glsl */ `
   attribute float aSize;
   attribute float aSeed;
   attribute float aOrgan;
+  attribute float aDensity;   // reference count / actual count
 
   uniform float uTime;
   uniform float uForm;        // 0 = scattered cloud, 1 = assembled body
@@ -259,7 +283,7 @@ const PARTICLE_VERT = /* glsl */ `
     float isActive = (1.0 - step(0.5, abs(aOrgan - uActive))) * (1.0 - isBody);
     float isOther  = (1.0 - isBody) * (1.0 - isActive);
 
-    vAlpha = isBody * uBodyAlpha + isActive * uReveal + isOther * uGhost;
+    vAlpha = (isBody * uBodyAlpha + isActive * uReveal + isOther * uGhost) * aDensity;
     vActive = isActive;
     vSeed = aSeed;
 
@@ -304,13 +328,12 @@ const PARTICLE_VERT = /* glsl */ `
     size = clamp(size, 0.4, 9.0 * uPixelRatio);
     gl_PointSize = size;
 
-    // Additive blending means a particle's contribution scales with its area,
-    // so flying the camera into an organ would otherwise multiply the light
-    // by ~25x and clip to white. Fading alpha as the sprite grows keeps each
-    // particle's emitted light roughly constant, which is what lets the same
-    // material read correctly at both 3m and 0.3m.
-    float sizeFade = clamp((2.2 * uPixelRatio) / max(size, 0.4), 0.3, 1.0);
-    vAlpha *= sizeFade;
+    // Light per pixel works out as alpha x radius^2 x (points per unit
+    // surface area) — the camera distance cancels, because moving closer
+    // grows each sprite by exactly as much as it thins the points across the
+    // screen. So density compensation alone sets the brightness, and this
+    // only has to stop a sprite from smearing at extreme close range.
+    vAlpha *= clamp((6.0 * uPixelRatio) / max(size, 1.0), 0.35, 1.0);
   }
 `;
 
@@ -484,8 +507,8 @@ export class HoloEngine {
   private state = {
     form: 0,
     formTarget: 1,
-    bodyAlpha: 1,
-    bodyAlphaTarget: 1,
+    bodyAlpha: 1.0,
+    bodyAlphaTarget: 1.0,
     reveal: 0,
     revealTarget: 0,
     ghost: 0,
@@ -496,8 +519,8 @@ export class HoloEngine {
     accentMixTarget: 0,
     glitch: 0,
     scanY: -1.2,
-    bloomStrength: 0.5,
-    bloomTarget: 0.5,
+    bloomStrength: 0.38,
+    bloomTarget: 0.38,
   };
 
   private active: OrganId | null = null;
@@ -551,7 +574,8 @@ export class HoloEngine {
 
     // Body first so something is on screen immediately.
     const bodyCloud = buildCloud(bodyParts(), budget.body, rng, {
-      interior: 0.2,
+      interior: 0.10,
+      shell: 0.0034,
       sizeMin: 0.55,
       sizeMax: 1.35,
     });
@@ -564,13 +588,8 @@ export class HoloEngine {
       const cfg = ORGAN_CONFIG[i];
       const count = Math.round(cfg.count * budget.organScale);
       const cloud = buildCloud(cfg.parts(), count, rng, {
-        // Few interior points: where primitives overlap heavily (the pelvis,
-        // the skull, the bulbous ends of long bones) interior points pile up
-        // and additive blending turns the region into a white blob. The
-        // surface shell is what carries the anatomy anyway.
-        interior: 0.12,
-        shell: 0.003,
-        margin: 0.003,
+        interior: 0.10,
+        shell: 0.0028,
         sizeMin: 0.6,
         sizeMax: 1.6,
       });
@@ -633,7 +652,7 @@ export class HoloEngine {
 
     this.bloom = new UnrealBloomPass(
       new THREE.Vector2(width, height),
-      0.5, // strength — eased at runtime
+      0.38, // strength — eased at runtime
       0.5, // radius
       0.22 // threshold: only the brighter cores bloom, so the body keeps form
     );
@@ -691,13 +710,17 @@ export class HoloEngine {
     const sizes = new Float32Array(total);
     const seeds = new Float32Array(total);
     const organAttr = new Float32Array(total);
+    const density = new Float32Array(total);
 
     let cursor = 0;
-    const append = (cloud: Cloud, organIdx: number) => {
+    const append = (cloud: Cloud, organIdx: number, comp: number) => {
       positions.set(cloud.positions, cursor * 3);
       sizes.set(cloud.sizes, cursor);
       seeds.set(cloud.seeds, cursor);
-      for (let i = 0; i < cloud.count; i++) organAttr[cursor + i] = organIdx;
+      for (let i = 0; i < cloud.count; i++) {
+        organAttr[cursor + i] = organIdx;
+        density[cursor + i] = comp;
+      }
 
       // Scatter origin: a shell well outside the body, biased along the
       // particle's own direction so the assembly looks like an implosion
@@ -716,9 +739,9 @@ export class HoloEngine {
       cursor += cloud.count;
     };
 
-    append(body, -1);
+    append(body, -1, densityCompensation(body));
     for (const { id, cloud } of organs) {
-      append(cloud, ORGANS.findIndex((o) => o.id === id));
+      append(cloud, ORGANS.findIndex((o) => o.id === id), densityCompensation(cloud));
     }
 
     const geometry: BufferGeometry = new THREE.BufferGeometry();
@@ -727,6 +750,7 @@ export class HoloEngine {
     geometry.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
     geometry.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
     geometry.setAttribute("aOrgan", new THREE.BufferAttribute(organAttr, 1));
+    geometry.setAttribute("aDensity", new THREE.BufferAttribute(density, 1));
     // The shader moves points well outside their rest positions during the
     // boot implosion, so a computed bounding sphere would cull them.
     geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 6);
@@ -735,7 +759,7 @@ export class HoloEngine {
       uniforms: {
         uTime: { value: 0 },
         uForm: { value: 0 },
-        uBodyAlpha: { value: 1 },
+        uBodyAlpha: { value: 1.0 },
         uActive: { value: -1 },
         uReveal: { value: 0 },
         uGhost: { value: 0 },
@@ -776,6 +800,7 @@ export class HoloEngine {
     const seeds = new Float32Array(count);
     const scatter = new Float32Array(count * 3);
     const organAttr = new Float32Array(count).fill(-1);
+    const densityAttr = new Float32Array(count).fill(1);
 
     for (let i = 0; i < count; i++) {
       const r = 2.6 + rng() * 5.5;
@@ -798,6 +823,7 @@ export class HoloEngine {
     geo.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
     geo.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
     geo.setAttribute("aOrgan", new THREE.BufferAttribute(organAttr, 1));
+    geo.setAttribute("aDensity", new THREE.BufferAttribute(densityAttr, 1));
     geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 12);
 
     const mat = this.material.clone();
@@ -1008,12 +1034,12 @@ export class HoloEngine {
 
       // A body-framed structure fills the frame with many small points at
       // once, so it needs less per-particle alpha than a compact organ.
-      s.revealTarget = cfg.framing === "body" ? 0.72 : 0.85;
+      s.revealTarget = cfg.framing === "body" ? 0.85 : 1.0;
       s.bodyAlphaTarget = cfg.framing === "body" ? 0.1 : 0.14;
       s.ghostTarget = this.xray ? 0.12 : 0.03;
       s.organScaleTarget = cfg.framing === "body" ? 1 : 1.25;
       s.accentMixTarget = 0.55;
-      s.bloomTarget = 0.6;
+      s.bloomTarget = 0.48;
 
       const centre = new THREE.Vector3(...cfg.hits[0].center);
       const target = cfg.framing === "body" ? HOME_TARGET.clone() : centre;
@@ -1033,11 +1059,11 @@ export class HoloEngine {
       }
     } else {
       s.revealTarget = 0;
-      s.bodyAlphaTarget = 1;
+      s.bodyAlphaTarget = 1.0;
       s.ghostTarget = this.xray ? 0.18 : 0;
       s.organScaleTarget = 1;
       s.accentMixTarget = 0;
-      s.bloomTarget = 0.5;
+      s.bloomTarget = 0.38;
       this.reticle.visible = false;
       this.flyTo(HOME_POSITION.clone(), HOME_TARGET.clone(), 1.2);
     }

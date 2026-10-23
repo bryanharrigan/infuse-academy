@@ -41,6 +41,12 @@ type Props = {
   onProgress: (fraction: number, stage: string) => void;
   onHandle?: (handle: HoloCanvasHandle | null) => void;
   onError: (message: string) => void;
+  /**
+   * Forces a particle budget instead of detecting one. Mainly so the visual
+   * tests can render the tier real hardware gets — every defect in the first
+   * pass shipped because screenshots were taken at the low tier.
+   */
+  quality?: "low" | "medium" | "high";
 };
 
 export default function HoloCanvas({
@@ -53,6 +59,7 @@ export default function HoloCanvas({
   onProgress,
   onHandle,
   onError,
+  quality,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<HoloEngine | null>(null);
@@ -97,7 +104,7 @@ export default function HoloCanvas({
             onReady: () => cbRef.current.onReady(),
             onProgress: (f, s) => cbRef.current.onProgress(f, s),
           },
-          { quality: mod.detectQuality(), reducedMotion }
+          { quality: quality ?? mod.detectQuality(), reducedMotion }
         );
 
         engineRef.current = engine;
