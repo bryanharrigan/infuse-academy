@@ -203,7 +203,16 @@ function organConfigs(manifest: Manifest): OrganConfig[] {
  * resolves as a dense cloud of discrete points rather than either a solid
  * sheet or a sparse dusting.
  */
-const PARTICLE_RADIUS = 0.0034;
+/**
+ * World radius of a figure particle, in metres.
+ *
+ * At the resting camera this projects to roughly one CSS pixel, so the
+ * figure's apparent resolution is set by how many particles there are rather
+ * than by how big each one is — which is why the quality tiers move counts
+ * and leave this alone. Slightly finer than the 3.4 mm it was tuned at, to
+ * sharpen the silhouette; the exposure model raises alpha to match.
+ */
+const PARTICLE_RADIUS = 0.0029;
 
 /**
  * Resting camera. The figure spans y -1.0 to 0.77, so the target sits a
@@ -226,79 +235,78 @@ const FOCUS_FRACTION = { rest: 0.58, organ: 0.3, narrow: 0.5 };
 export type QualityTier = "low" | "medium" | "high";
 
 const BUDGETS: Record<QualityTier, { body: number; dust: number; organScale: number }> = {
-  low: { body: 34000, dust: 900, organScale: 0.55 },
-  medium: { body: 56000, dust: 1800, organScale: 1 },
-  high: { body: 86000, dust: 3000, organScale: 1.5 },
+  low: { body: 48000, dust: 1000, organScale: 0.7 },
+  medium: { body: 92000, dust: 2000, organScale: 1.25 },
+  high: { body: 160000, dust: 3200, organScale: 1.9 },
 };
 
 /**
- * Points per square metre of sampled surface that the look is tuned against —
- * the figure's density at the medium tier.
+ * Target light per unit of surface, in the additive sum the shader builds up.
  *
- * Under additive blending, brightness follows points per unit area, and that
- * varies wildly between subjects: measured against this model, the kidneys
- * pack 5.5x the figure's density and the heart 3.9x, because a small organ
- * gets a comparable point count over a fraction of the surface. Scaling each
- * particle's alpha by reference/actual density makes every subject, at every
- * quality tier, deposit the same light per unit of surface — so a higher tier
- * resolves more detail instead of glowing more, and a small organ stops
- * clipping to white.
+ * Everything about particle brightness reduces to one identity. Under
+ * additive blending the light reaching a pixel is
+ *
+ *     alpha x radius^2 x (points per m^2 of surface) x (surfaces crossed)
+ *
+ * and camera distance cancels out of it, because closing in enlarges every
+ * sprite by exactly as much as it thins the points across the screen.
+ *
+ * So rather than tune alpha and then re-tune it every time a particle count
+ * or radius moves, the engine fixes the product and solves for alpha. Raising
+ * a quality tier's budget then buys finer grain at the same exposure instead
+ * of a brighter figure — which is the whole point of a quality tier — and
+ * this constant is the single dial for how hard the subject reads against
+ * the background.
+ *
+ * The value is the figure's old hand-tuned look — 25 000 points/m2 of 3.4 mm
+ * particles — lifted by 1.75. A quarter of that makes up for the tighter
+ * sprite falloff below, whose integral over the disc goes as 1/(n+1) and so
+ * drops a fifth going from 2.2 to 3.0. The rest is the contrast the subject
+ * needed against the background.
  */
-const REFERENCE_DENSITY = 25000;
+const EXPOSURE = 25000 * 0.0034 ** 2 * 1.75;
 
 /**
  * Particle radius for a structure, from how big that structure is.
  *
  * A particle is drawn at a pixel size proportional to radius / distance, so
- * carrying the figure's 3.4 mm points into a close-up of the heart puts
- * every one of them several pixels across and the organ dissolves into a
- * glowing ball — which is exactly what it did. Scaling the radius with the
- * square root of the structure's size keeps roughly the same number of
- * particles across its silhouette whatever is being looked at, so a heart
- * resolves its chambers the way the figure resolves its limbs.
+ * carrying the figure's particles into a close-up of the heart puts every one
+ * of them several pixels across and the organ dissolves into a glowing ball —
+ * which is exactly what it did. Scaling the radius with the square root of
+ * the structure's size keeps roughly the same number of particles across its
+ * silhouette whatever is being looked at, so a heart resolves its chambers
+ * the way the figure resolves its limbs.
  *
- * Light lost to the smaller sprites is put back in densityCompensation; the
- * two have to be read together.
+ * Brightness follows automatically: densityCompensation divides by radius^2,
+ * so a smaller particle is a brighter one and the exposure holds.
  */
 const radiusFor = (extent: number, bodyExtent: number) =>
   THREE.MathUtils.clamp(
     PARTICLE_RADIUS * Math.sqrt(extent / Math.max(bodyExtent, 0.001)),
-    0.0009,
+    0.0008,
     PARTICLE_RADIUS
   );
 
 /**
- * Per-particle alpha scale for one cloud.
- *
- * Two corrections, both needed.
- *
- * The first is density: a small organ given a usable point count ends up
- * with several times the figure's points per square metre, so its particles
- * are dimmed in proportion.
- *
- * The second is depth complexity, and leaving it out is what made the heart
- * render as a white blob inside a dim blue body. Additive blending sums
- * every surface along a view ray, and spreading points by surface area alone
- * assumes there is only one. That holds for the skin. It does not hold for a
- * heart, whose chamber cavities, walls, valve leaflets and vessel stubs
- * stack three or four deep, nor for a brain with its folded cortex and
- * internal nuclei. The pipeline measures each structure's depth against a
- * simple closed shape and the manifest carries it; dividing by it relative
- * to the figure's own depth leaves the body exactly as it was and pulls the
- * nested organs back into the same exposure.
- */
-/**
  * Extra trim on the focused organ, beyond what the depth measurement gives.
  *
- * depth_complexity is a mean over the whole structure, and the places that
- * clip are the thickest parts — the middle of a heart has well over its
- * average number of surfaces stacked along the ray, and additive blending
- * has no shoulder below the tone curve to absorb it. Correcting to the mean
- * leaves the centre of a compact organ white while its edges are right.
- * Half a stop down puts the peak back under the knee.
+ * depth is a 90th percentile, and the places that clip are thicker still.
+ * Additive blending has no shoulder below the tone curve to absorb that, so
+ * a compact organ corrected only to its p90 still goes white in the middle.
  */
 const ORGAN_EXPOSURE = 0.85;
 
+/**
+ * Per-particle alpha for one cloud: solve the identity above for alpha.
+ *
+ * The depth term is the one that is easy to forget and impossible to miss
+ * once it is wrong. Spreading points by surface area assumes a view ray
+ * crosses one surface. True for the skin; false for a heart, whose chamber
+ * cavities, walls, valve leaflets and vessel stubs stack three or four deep,
+ * and false for a brain with its folded cortex. The pipeline measures it and
+ * the manifest carries it; dividing by it relative to the figure's own depth
+ * leaves the body untouched and pulls the nested organs back into range.
+ */
 const densityCompensation = (
   cloud: Cloud,
   depth: number,
@@ -307,12 +315,12 @@ const densityCompensation = (
   trim = 1
 ) =>
   THREE.MathUtils.clamp(
-    ((REFERENCE_DENSITY * cloud.area) / Math.max(cloud.count, 1) / 
-      Math.max(depth / Math.max(bodyDepth, 0.001), 0.25)) *
-      (PARTICLE_RADIUS / radius) ** 2 *
+    (EXPOSURE * cloud.area) /
+      (radius * radius * Math.max(cloud.count, 1)) /
+      Math.max(depth / Math.max(bodyDepth, 0.001), 0.25) *
       trim,
-    0.05,
-    6
+    0.02,
+    8
   );
 
 /* ------------------------------------------------------------------ */
@@ -348,6 +356,7 @@ const PARTICLE_VERT = /* glsl */ `
   varying float vHeat;
   varying float vSeed;
   varying float vActive;
+  varying float vSize;
 
   void main() {
     float isBody   = step(aOrgan, -0.5);
@@ -395,9 +404,10 @@ const PARTICLE_VERT = /* glsl */ `
     // rather than tuning a constant keeps the figure looking identical at
     // every viewport size and field of view.
     float size = aSize * aRadius * uSize * uScale * uPixelRatio / max(-mv.z, 0.05);
-    size *= (1.0 + scan * 1.4) * mix(1.0, 1.25, isActive);
+    size *= (1.0 + scan * 0.7) * mix(1.0, 1.25, isActive);
     size = clamp(size, 0.4, 9.0 * uPixelRatio);
     gl_PointSize = size;
+    vSize = size;
 
     // Light per pixel works out as alpha x radius^2 x (points per unit
     // surface area) — the camera distance cancels, because moving closer
@@ -420,6 +430,7 @@ const PARTICLE_FRAG = /* glsl */ `
   varying float vHeat;
   varying float vSeed;
   varying float vActive;
+  varying float vSize;
 
   void main() {
     vec2 uv = gl_PointCoord - vec2(0.5);
@@ -428,14 +439,26 @@ const PARTICLE_FRAG = /* glsl */ `
 
     // Soft disc with a hot core — a flat disc reads as confetti, a pure
     // gaussian reads as fog. This sits between the two.
+    //
+    // The exponent follows the sprite's own size, because the same number
+    // means opposite things at the two scales this renderer works at. A
+    // particle on the whole figure covers about a pixel, where a profile is
+    // not resolvable and a steep one only discards light; a particle on a
+    // focused organ covers several, where a steep profile is exactly what
+    // keeps neighbouring points distinguishable instead of bleeding into a
+    // continuous haze. Fixing it at either value costs the other view.
     float falloff = 1.0 - d * 4.0;
-    float a = pow(falloff, 2.2) * vAlpha;
+    float shape = mix(1.9, 3.2, smoothstep(1.5, 5.0, vSize));
+    float a = pow(falloff, shape) * vAlpha;
     if (a < 0.002) discard;
 
     vec3 col = mix(uColDeep, uColCyan, smoothstep(0.15, 0.92, vSeed));
     col = mix(col, uColAccent, vActive * uAccentMix);
-    col += vec3(0.30, 0.62, 0.95) * vHeat * 0.9;
-    col += vec3(vHeat * vHeat * 0.45);
+    // The sweep brightens what it crosses; it does not replace it. Pushed
+    // harder it clipped a band of pure white across the whole torso, which
+    // read as a rendering fault rather than as a scan.
+    col += vec3(0.30, 0.62, 0.95) * vHeat * 0.55;
+    col += vec3(vHeat * vHeat * 0.16);
 
     gl_FragColor = vec4(col, a);
   }
@@ -757,9 +780,9 @@ export class HoloEngine {
 
     this.bloom = new UnrealBloomPass(
       new THREE.Vector2(width, height),
-      0.38, // strength — eased at runtime
-      0.5, // radius
-      0.22 // threshold: only the brighter cores bloom, so the body keeps form
+      0.34, // strength — eased at runtime
+      0.38, // radius: a tight halo reads as glow, a wide one as fog
+      0.32 // threshold: only the brighter cores bloom, so the body keeps form
     );
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
@@ -1295,7 +1318,7 @@ export class HoloEngine {
     // just a flash across the frame, and at full strength it clips the
     // focused organ to white every time it crosses, so damp it right down.
     u.uScanStrength.value =
-      s.form * (this.reducedMotion ? 0.45 : 1) * (this.active ? 0.3 : 1);
+      s.form * (this.reducedMotion ? 0.3 : 0.5) * (this.active ? 0.5 : 1);
 
     this.bloom.strength = s.bloomStrength * (0.9 + Math.sin(t * 0.8) * 0.05);
     this.grade.uniforms.uTime.value = t;
