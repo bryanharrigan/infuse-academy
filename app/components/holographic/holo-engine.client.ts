@@ -76,7 +76,8 @@ type OrganConfig = {
   structure: StructureId;
   /** Centre of the structure's bounding box, in body-centred coordinates. */
   centre: [number, number, number];
-  count: number;
+  /** Surface area in m², which sets the particle count. */
+  area: number;
   /** Clickable volumes, in body-centred coordinates. */
   hits: HitSphere[];
   /** Where the camera sits when this organ is focused, relative to its centre. */
@@ -107,14 +108,6 @@ type OrganConfig = {
  * bounding boxes means the labels and click targets follow the meshes.
  */
 type ViewHint = {
-  /**
-   * Particle count at medium quality, scaled by the tier's organScale.
-   *
-   * Absolute rather than a share of one budget: only one organ is ever
-   * visible, so they do not compete for fill rate, and a share meant the
-   * whole-body structures starved the compact organs.
-   */
-  count: number;
   /** Camera direction from the organ's centre. */
   viewDir: [number, number, number];
   /**
@@ -140,18 +133,17 @@ type ViewHint = {
 };
 
 const VIEW_HINTS: Record<OrganId, ViewHint> = {
-  brain: { count: 20000, viewDir: [0.38, 0.22, 1], fill: 4.6 },
-  heart: { count: 17000, viewDir: [0.34, 0.14, 1], fill: 4.6 },
-  lungs: { count: 36000, viewDir: [0.18, 0.1, 1], fill: 4.6 },
-  liver: { count: 26000, viewDir: [0.5, 0.12, 1], fill: 4.6 },
+  brain: { viewDir: [0.38, 0.22, 1], fill: 4.6 },
+  heart: { viewDir: [0.34, 0.14, 1], fill: 4.6 },
+  lungs: { viewDir: [0.18, 0.1, 1], fill: 4.6 },
+  liver: { viewDir: [0.5, 0.12, 1], fill: 4.6 },
   // Retroperitoneal — the teaching view is from behind.
-  kidneys: { count: 17000, viewDir: [0.3, 0.18, -1], fill: 4.6 },
-  digestive: { count: 38000, viewDir: [0.26, 0.1, 1], fill: 4.6 },
-  vascular: { count: 34000, viewDir: [0.3, 0.1, 1], viewDist: 3.0 },
-  muscular: { count: 30000, viewDir: [0.3, 0.12, 1], viewDist: 2.9 },
-  eyes: { count: 11000, viewDir: [0.1, 0.05, 1], fill: 4.6 },
+  kidneys: { viewDir: [0.3, 0.18, -1], fill: 4.6 },
+  digestive: { viewDir: [0.26, 0.1, 1], fill: 4.6 },
+  vascular: { viewDir: [0.3, 0.1, 1], viewDist: 3.0 },
+  muscular: { viewDir: [0.3, 0.12, 1], viewDist: 2.9 },
+  eyes: { viewDir: [0.1, 0.05, 1], fill: 4.6 },
   skeleton: {
-    count: 42000,
     viewDir: [0.3, 0.1, 1],
     viewDist: 3.05,
     // No central volume — it would swallow every other organ. The limbs are
@@ -184,7 +176,7 @@ function organConfigs(manifest: Manifest): OrganConfig[] {
     out.push({
       id: organ.id,
       structure: organ.structure,
-      count: hint.count,
+      area: meta.area,
       hits,
       viewDir: hint.viewDir,
       viewDist: hint.viewDist ?? radiusOf(meta) * (hint.fill ?? 2.7),
@@ -234,12 +226,42 @@ const FOCUS_FRACTION = { rest: 0.58, organ: 0.3, narrow: 0.5 };
 
 export type QualityTier = "low" | "medium" | "high";
 
-const BUDGETS: Record<QualityTier, { body: number; dust: number; organScale: number }> = {
-  low: { body: 48000, dust: 1000, organScale: 0.7 },
-  medium: { body: 92000, dust: 2000, organScale: 1.25 },
-  high: { body: 160000, dust: 3200, organScale: 1.9 },
+const BUDGETS: Record<
+  QualityTier,
+  { body: number; dust: number; organDensity: number; organCap: number }
+> = {
+  low: { body: 48000, dust: 1000, organDensity: 170_000, organCap: 60_000 },
+  medium: { body: 92000, dust: 2000, organDensity: 320_000, organCap: 110_000 },
+  high: { body: 160000, dust: 3200, organDensity: 520_000, organCap: 170_000 },
 };
 
+/**
+ * How many particles a structure gets: its surface area times the tier's
+ * density, floored so a small structure stays solid and capped so a
+ * whole-body one does not eat the memory budget on its own.
+ *
+ * This used to be a hand-picked number per organ, and the numbers bore no
+ * relation to the surfaces they had to cover. Measured across the set they
+ * ranged from 980 000 points per square metre on the eyes down to 48 000 on
+ * the musculature — a twentyfold spread, which is precisely why some organs
+ * read as solid structures and others as a scattering of dots. Deriving the
+ * count means a structure added later is dense enough without anyone having
+ * to notice, and the tiers mean what they say.
+ *
+ * The cap binds on the skeleton, the musculature and the digestive tract.
+ * Those spread ten times the heart's surface over roughly the same area of
+ * screen, so they cannot reach its density without a count nothing would
+ * thank us for; they land about a third of the way there, which is still
+ * three times what they had.
+ */
+const organPointCount = (area: number, tier: QualityTier) =>
+  Math.round(
+    THREE.MathUtils.clamp(
+      area * BUDGETS[tier].organDensity,
+      Math.min(16_000, BUDGETS[tier].organCap),
+      BUDGETS[tier].organCap
+    )
+  );
 /**
  * Target light per unit of surface, in the additive sum the shader builds up.
  *
@@ -334,6 +356,7 @@ const PARTICLE_VERT = /* glsl */ `
   attribute float aOrgan;
   attribute float aDensity;
   attribute float aRadius;   // world radius, per structure
+  attribute vec3  aNormal;   // surface normal at the sampled point
 
   uniform float uTime;
   uniform float uForm;        // 0 = scattered cloud, 1 = assembled body
@@ -351,6 +374,7 @@ const PARTICLE_VERT = /* glsl */ `
   uniform float uRadius;      // figure's particle radius, in world metres
   uniform float uScale;       // (viewportHeightCss / 2) / tan(fov / 2)
   uniform float uDrift;
+  uniform vec3  uLightDir;
 
   varying float vAlpha;
   varying float vHeat;
@@ -395,6 +419,45 @@ const PARTICLE_VERT = /* glsl */ `
 
     float scan = exp(-pow((p.y - uScanY) / uScanWidth, 2.0)) * uScanStrength;
     vHeat = scan;
+
+    // ---- surface shading -------------------------------------------
+    //
+    // Weight each particle by how its surface faces the eye. Without this
+    // every surface along a view ray contributes equally, so a closed organ
+    // sums its near wall, its far wall and everything between into one
+    // undifferentiated mass — which is exactly how the heart was reading.
+    //
+    // Fresnel gives the edges: brightest where the surface turns away from
+    // the viewer, so the silhouette and every fold inside it draw their own
+    // outline. A key light fills the faces between them, so the result has
+    // volume instead of being a wireframe of its own outline.
+    //
+    // The model matrix is identity for this cloud and the organ swell is a
+    // uniform scale, so the attribute normal is already a world normal.
+    vec3 toEye = normalize(cameraPosition - p);
+    float signedNdv = dot(aNormal, toEye);
+    float ndv = abs(signedNdv);
+    float rim = pow(1.0 - ndv, 2.2);
+    float key = max(dot(aNormal, uLightDir), 0.0);
+
+    // Surfaces turned away from the eye are held back. The organs that
+    // stayed unreadable are the ones carrying the most hidden geometry —
+    // a heart's chamber cavities sit inside its muscle and a brain's deep
+    // nuclei inside its cortex, and additive blending was summing all of it
+    // through the near wall. abs() above keeps the rim symmetric, because
+    // these meshes are unions of separately scanned parts and their normals
+    // are not reliably outward; the facing term below is deliberately gentle
+    // for the same reason, so a flipped normal dims a particle rather than
+    // deleting it.
+    float facing = 0.34 + 0.66 * clamp(signedNdv, 0.0, 1.0);
+    float shade = (0.07 + 0.70 * rim + 0.48 * key) * facing;
+
+    // Hold the exposure while redistributing it. For normals spread evenly
+    // over a sphere, |n.v| is uniform on [0,1], so mean(rim) is 1/3.2,
+    // mean(key) is 1/4 and mean(facing) is 0.505 — putting the mean weight
+    // at 0.207. Dividing by it means this changes where the light goes, not
+    // how much of it there is.
+    vAlpha *= shade / 0.207;
 
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
@@ -707,7 +770,7 @@ export class HoloEngine {
     // boot animation at exactly the moment the user is watching it.
     for (let i = 0; i < this.organs.length; i++) {
       const cfg = this.organs[i];
-      const count = Math.round(cfg.count * budget.organScale);
+      const count = organPointCount(cfg.area, this.quality);
       organClouds.push({
         id: cfg.id,
         // Tight to the surface. The inward scatter that gives the figure
@@ -782,7 +845,7 @@ export class HoloEngine {
       new THREE.Vector2(width, height),
       0.34, // strength — eased at runtime
       0.38, // radius: a tight halo reads as glow, a wide one as fog
-      0.32 // threshold: only the brighter cores bloom, so the body keeps form
+      0.42 // threshold: only genuine highlights bloom, so structure survives
     );
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
@@ -845,10 +908,12 @@ export class HoloEngine {
     const organAttr = new Float32Array(total);
     const density = new Float32Array(total);
     const radii = new Float32Array(total);
+    const normals = new Float32Array(total * 3);
 
     let cursor = 0;
     const append = (cloud: Cloud, organIdx: number, comp: number, radius: number) => {
       positions.set(cloud.positions, cursor * 3);
+      normals.set(cloud.normals, cursor * 3);
       sizes.set(cloud.sizes, cursor);
       seeds.set(cloud.seeds, cursor);
       for (let i = 0; i < cloud.count; i++) {
@@ -894,6 +959,7 @@ export class HoloEngine {
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute("aScatter", new THREE.BufferAttribute(scatter, 3));
     geometry.setAttribute("aRadius", new THREE.BufferAttribute(radii, 1));
+    geometry.setAttribute("aNormal", new THREE.BufferAttribute(normals, 3));
     geometry.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
     geometry.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
     geometry.setAttribute("aOrgan", new THREE.BufferAttribute(organAttr, 1));
@@ -920,6 +986,12 @@ export class HoloEngine {
         uRadius: { value: PARTICLE_RADIUS },
         uScale: { value: 1000 },
         uDrift: { value: this.reducedMotion ? 0.0012 : 0.0045 },
+        // Fixed in world space rather than attached to the camera, so
+        // orbiting a structure moves the light across it and the form reads
+        // as you turn it.
+        uLightDir: {
+          value: new THREE.Vector3(0.4, 0.7, 0.6).normalize(),
+        },
         uColDeep: { value: new THREE.Color(0x0d3f7a) },
         uColCyan: { value: new THREE.Color(0x63e4ff) },
         uColAccent: { value: new THREE.Color(0xffb265) },
@@ -1181,14 +1253,22 @@ export class HoloEngine {
 
       // A body-framed structure fills the frame with many small points at
       // once, so it needs less per-particle alpha than a compact organ.
-      s.revealTarget = cfg.framing === "body" ? 0.85 : 1.0;
+      // Full reveal whatever the framing. Holding the whole-body structures
+      // back to 85% was a second penalty on exactly the ones that were
+      // already the sparsest, which is why the skeleton and the musculature
+      // read faintest of the set.
+      s.revealTarget = 1.0;
       // Low enough that the shell stays as a locating outline without
       // laying a blue haze over the organ behind it.
-      s.bodyAlphaTarget = cfg.framing === "body" ? 0.1 : 0.045;
+      s.bodyAlphaTarget = cfg.framing === "body" ? 0.055 : 0.045;
       s.ghostTarget = this.xray ? 0.12 : 0.03;
       s.organScaleTarget = cfg.framing === "body" ? 1 : 1.25;
       s.accentMixTarget = 0.55;
-      s.bloomTarget = 0.48;
+      // Bloom comes *down* on focus, not up. The rim shading earns its
+      // detail from the dark between the particles, and a wide halo is
+      // precisely what fills that back in — raising it here was undoing the
+      // shading at the one moment the learner is looking closely.
+      s.bloomTarget = 0.22;
 
       const centre = new THREE.Vector3(...cfg.hits[0].center);
       const target = cfg.framing === "body" ? HOME_TARGET.clone() : centre;
