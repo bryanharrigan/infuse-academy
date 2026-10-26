@@ -177,6 +177,7 @@ export const ORGANS: Organ[] = [
       { name: "Multiphase Contrast Timing", description: "Arterial, portal venous and delayed — matching phase to question.", duration: "45 min" },
       { name: "Focal Lesion Characterisation", description: "Haemangioma, FNH, adenoma and HCC on their enhancement signatures.", duration: "60 min" },
       { name: "Hepatic Ultrasound Technique", description: "Probe selection, patient positioning and getting under the ribs.", duration: "35 min" },
+      { name: "Focal Lesion Characterisation", description: "Haemangioma, FNH, adenoma and metastasis — the features that separate them across phases.", duration: "50 min" },
     ],
     framing: "organ",
     labelSide: "right",
@@ -201,6 +202,7 @@ export const ORGANS: Organ[] = [
       { name: "CT Urography Protocol", description: "Split-bolus technique and the excretory phase.", duration: "45 min" },
       { name: "Renal Calculi Detection", description: "Low-dose CT, Hounsfield composition and reporting the obstructing stone.", duration: "35 min" },
       { name: "Renal Ultrasound & Doppler", description: "Resistive indices, cortical thickness and transplant surveillance.", duration: "50 min" },
+      { name: "Renal Doppler Technique", description: "Resistive index, segmental sampling and the pitfalls of a poor angle.", duration: "45 min" },
     ],
     framing: "organ",
     labelSide: "left",
@@ -368,17 +370,33 @@ export type CourseResolution =
   | "catalog"
   /** A sample title that turned out to exist in the portal by name. */
   | "named-match"
-  /** Nothing in the portal matched, so the card opens the default course. */
-  | "fallback";
+  /** Nothing matched by name, so the card opens the default course. */
+  | "fallback"
+  /** Not even the default is in this portal; the card stays a sample. */
+  | "sample";
 
 /**
  * Opened by any card whose title has no counterpart in the portal.
  *
- * A demo in front of a prospect should never present a card that does
- * nothing, so the sample modules resolve against the live catalog by title
- * and land here when that finds nothing.
+ * Resolved **by name against the live catalog**, not by id. A course id
+ * belongs to one portal, and this project talks to two: the id below was
+ * correct for the portal the course was first uploaded to and produced
+ * `Failed to get player refresh token: 403` on every sample card once the
+ * course moved, because Absorb will not mint a player token for a course the
+ * learner has no enrolment in. A name survives that; the id is kept only as
+ * a hint for a portal that has renamed it.
  */
+export const FALLBACK_COURSE_NAME = "Echocardiographic Windows";
 export const FALLBACK_COURSE_ID = "05357410-0272-496e-9937-7507abed53dd";
+
+/** The default course as this learner's catalog has it, or null. */
+export function findFallbackCourse(catalog: CatalogCourse[]): CatalogCourse | null {
+  return (
+    findCourseByName(FALLBACK_COURSE_NAME, catalog) ??
+    catalog.find((c) => c.id === FALLBACK_COURSE_ID) ??
+    null
+  );
+}
 
 /** Title comparison key: case, punctuation and filler words all discarded. */
 function titleKey(name: string): string {
@@ -475,9 +493,9 @@ function scoreCourse(course: CatalogCourse, organ: Organ): number {
  */
 export function matchCatalogToOrgans(
   courses: CatalogCourse[],
-  options: { minScore?: number; maxPerOrgan?: number } = {}
+  options: { minScore?: number; maxPerOrgan?: number; minPerOrgan?: number } = {}
 ): Record<OrganId, MatchedCourse[]> {
-  const { minScore = 10, maxPerOrgan = 14 } = options;
+  const { minScore = 10, maxPerOrgan = 14, minPerOrgan = 5 } = options;
 
   const result = {} as Record<OrganId, MatchedCourse[]>;
   for (const organ of ORGANS) result[organ.id] = [];
@@ -507,37 +525,58 @@ export function matchCatalogToOrgans(
     }
   }
 
-  // The default course, if the learner can see it. Looking it up here means a
-  // fallback card carries the portal's own title and type rather than a guess.
-  const fallback = courses.find((c) => c.id === FALLBACK_COURSE_ID) ?? null;
+  // The default course as this portal has it. Looked up by name, so it keeps
+  // working when the course is re-uploaded and its id changes.
+  const fallback = findFallbackCourse(courses);
 
   for (const organ of ORGANS) {
     const matched = result[organ.id];
     matched.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
     result[organ.id] = matched.slice(0, maxPerOrgan);
 
-    if (result[organ.id].length === 0) {
-      result[organ.id] = organ.demoCourses.map((d, i) => {
-        // A sample title may well exist in the portal under the same name —
-        // look across the whole catalog, not just this organ's matches, since
-        // the keyword pass is what failed us here in the first place.
-        const live = findCourseByName(d.name, courses);
-        const target = live ?? fallback;
-        return {
-          id: `demo:${organ.id}:${i}`,
-          name: d.name,
-          description: `${d.description} · ${d.duration}`,
-          imageUrl: live?.imageUrl ?? "",
-          courseType: "OnlineCourse" as const,
-          enrollmentStatus: live?.enrollmentStatus ?? (i === 0 ? "In Progress" : null),
-          score: 0,
-          isDemo: true,
-          playableId: target?.id ?? FALLBACK_COURSE_ID,
-          resolution: live ? ("named-match" as const) : ("fallback" as const),
-          playableType: target?.courseType ?? ("OnlineCourse" as const),
-          playableEnrollment: target?.enrollmentStatus ?? null,
-        };
-      });
+    // Top up to a presentable path.
+    //
+    // This used to fire only when a discipline matched nothing at all, which
+    // meant one live course suppressed it entirely — Myocardium matched the
+    // single real Echocardiographic Windows course and showed one card while
+    // every other discipline showed five. A learning path of one module does
+    // not read as a learning path.
+    if (result[organ.id].length < minPerOrgan) {
+      // Deduplicate on title: the heart's sample list contains the very
+      // course the portal now carries, and showing both would be absurd.
+      const present = new Set(result[organ.id].map((c) => titleKey(c.name)));
+      const topUp = organ.demoCourses
+        .filter((d) => !present.has(titleKey(d.name)))
+        .slice(0, minPerOrgan - result[organ.id].length)
+        .map((d, i) => {
+          // A sample title may exist in the portal under the same name — look
+          // across the whole catalog, not just this discipline's matches,
+          // since the keyword pass is what failed us here.
+          const live = findCourseByName(d.name, courses);
+          const target = live ?? fallback;
+          return {
+            id: `demo:${organ.id}:${i}`,
+            name: d.name,
+            description: `${d.description} · ${d.duration}`,
+            imageUrl: live?.imageUrl ?? "",
+            enrollmentStatus: live?.enrollmentStatus ?? null,
+            courseType: "OnlineCourse" as const,
+            score: 0,
+            isDemo: true,
+            // No target means not even the default is in this portal. The
+            // card stays a sample module rather than launching a course id
+            // that will 403 — a dead card is better than an error screen.
+            playableId: target?.id ?? `demo:${organ.id}:${i}`,
+            resolution: live
+              ? ("named-match" as const)
+              : target
+                ? ("fallback" as const)
+                : ("sample" as const),
+            playableType: target?.courseType ?? ("OnlineCourse" as const),
+            playableEnrollment: target?.enrollmentStatus ?? null,
+          };
+        });
+      result[organ.id] = [...result[organ.id], ...topUp];
     }
   }
 

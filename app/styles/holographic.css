@@ -114,6 +114,16 @@
   position: absolute;
   top: 0;
   left: 0;
+  /* The container stays click-through so it never shadows the canvas; each
+     label opts back in, because the label is the obvious thing to reach for
+     when the organ itself is a small target inside a body. */
+  pointer-events: auto;
+  cursor: pointer;
+  appearance: none;
+  background: none;
+  border: 0;
+  color: inherit;
+  text-align: left;
   display: grid;
   grid-template-columns: auto auto;
   grid-template-rows: auto auto;
@@ -125,6 +135,11 @@
   /* The projected coordinate is the anchor point, so shift the card off it. */
   margin: -10px 0 0 14px;
   transition: opacity 0.25s ease;
+}
+
+.holo-label:focus-visible {
+  outline: 1px solid var(--organ-accent);
+  outline-offset: 4px;
 }
 
 .holo-label__pin {
@@ -171,7 +186,12 @@
   text-shadow: 0 0 22px var(--organ-accent);
 }
 
-.holo-label.is-hover .holo-label__pin {
+.holo-label.is-hover .holo-label:focus-visible {
+  outline: 1px solid var(--organ-accent);
+  outline-offset: 4px;
+}
+
+.holo-label__pin {
   width: 30px;
 }
 
@@ -190,7 +210,12 @@
   text-align: right;
 }
 
-.holo-label--left .holo-label__pin {
+.holo-label--left .holo-label:focus-visible {
+  outline: 1px solid var(--organ-accent);
+  outline-offset: 4px;
+}
+
+.holo-label__pin {
   left: auto;
   right: 0;
   background: linear-gradient(270deg, var(--organ-accent), transparent);

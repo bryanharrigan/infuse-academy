@@ -1,5 +1,6 @@
 {
  "generator": "bp3d/pipeline/build.py",
+ "triScale": 1.0,
  "source": "BodyParts3D 4.0 part_of, 99% reduced",
  "attribution": "BodyParts3D, (c) The Database Center for Life Science licensed under CC Attribution-Share Alike 2.1 Japan",
  "space": {
@@ -11,38 +12,38 @@
  },
  "structures": {
   "skin": {
-   "verts": 8423,
-   "tris": 25659,
+   "verts": 8479,
+   "tris": 25907,
    "lo": [
-    -0.335505,
-    -0.998448,
-    -0.044812
+    -0.335646,
+    -0.998476,
+    -0.045132
    ],
    "scale": [
-    1.0220426462318944e-05,
-    2.6813311891428593e-05,
-    4.461142246165819e-06
+    1.0278555470501703e-05,
+    2.681537206974302e-05,
+    4.533299812000982e-06
    ],
    "index": 16,
    "regions": false,
-   "bytes": 204492,
+   "bytes": 206316,
    "bbox": [
     [
-     -0.3355,
-     -0.9984,
-     -0.0448
+     -0.3356,
+     -0.9985,
+     -0.0451
     ],
     [
-     0.3343,
-     0.7587,
-     0.2475
+     0.3379,
+     0.7588,
+     0.252
     ]
    ],
    "label": "Body",
    "sources": 1,
    "sourceTris": 203382,
-   "area": 3.16263,
-   "depth": 6.9948,
+   "area": 3.14933,
+   "depth": 6.8708,
    "note": "The outer surface. This is what makes the figure read as a person."
   },
   "skeleton": {

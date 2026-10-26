@@ -29,7 +29,12 @@ EXCLUDE = W("prostate", "testis", "testes", "penis", "scrotum", "vagina",
 GROUPS = [
     # ---- the body shell -------------------------------------------------
     dict(id="skin", label="Body", match=W("skin"), tris=26000,
-         note="The outer surface. This is what makes the figure read as a person."),
+         note="The outer surface. This is what makes the figure read as a person.",
+         # EXCLUDE removes the reproductive organs, but the skin is one closed
+         # mesh and carries the external anatomy with it, so it comes out
+         # geometrically instead. See smooth_region in build.py.
+         smooth=dict(centre=[0.0, -0.185, 0.155], radius=0.062,
+                     limit=0.150, feather=0.030)),
 
     # ---- skeleton -------------------------------------------------------
     dict(id="skeleton", label="Skeleton", tris=34000,

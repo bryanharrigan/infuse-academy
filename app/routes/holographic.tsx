@@ -201,16 +201,18 @@ export default function Holographic() {
         />
 
         {/* 3D-anchored organ labels, projected by the engine each frame. */}
-        <div className="holo-labels" aria-hidden="true">
+        <div className="holo-labels">
           {!activeOrgan &&
             !engineError &&
             labels.map((label) => {
               const o = organById(label.id);
               const isHover = hoverOrgan === label.id;
               if (!label.visible) return null;
+              const count = byOrgan[label.id].length;
               return (
-                <span
+                <button
                   key={label.id}
+                  type="button"
                   className={`holo-label holo-label--${label.side} ${
                     isHover ? "is-hover" : ""
                   }`}
@@ -219,14 +221,25 @@ export default function Holographic() {
                     opacity: 0.35 + label.depth * 0.65,
                     ["--organ-accent" as string]: o.accent,
                   }}
+                  // The label is the same target as the body itself. It sits
+                  // in clear space with the organ name on it, so it is what
+                  // anyone reaches for first — and until now it quietly did
+                  // nothing.
+                  onClick={() => setActiveOrgan(label.id)}
+                  onMouseEnter={() => setHoverOrgan(label.id)}
+                  onMouseLeave={() => setHoverOrgan(null)}
+                  onFocus={() => setHoverOrgan(label.id)}
+                  onBlur={() => setHoverOrgan(null)}
+                  aria-label={`${o.label}, ${o.specialty}, ${count} module${
+                    count === 1 ? "" : "s"
+                  }`}
                 >
-                  <i className="holo-label__pin" />
+                  <i className="holo-label__pin" aria-hidden="true" />
                   <b>{o.label}</b>
                   <em>
-                    {byOrgan[label.id].length} module
-                    {byOrgan[label.id].length === 1 ? "" : "s"}
+                    {count} module{count === 1 ? "" : "s"}
                   </em>
-                </span>
+                </button>
               );
             })}
         </div>

@@ -124,6 +124,35 @@ def _cluster(verts, faces, res, span, lo):
     return inv, uniq, src[first]
 
 
+def smooth_region(verts, centre, radius, limit, feather=0.02):
+    """
+    Pulls an anterior bulge back to the surrounding body contour.
+
+    The reproductive organs are excluded from the display set by name, but the
+    skin is a single closed mesh and carries the external anatomy with it, so
+    there is nothing to exclude — it has to come out geometrically. Vertices
+    within `radius` of `centre` have their anterior coordinate clamped to
+    `limit`, blended over a `feather` band at the edge of the region so the
+    surface merges into the surrounding contour instead of creasing.
+
+    Measured, not guessed: along the midline the surface sits at z = 0.152
+    through the pelvis and rises to 0.209 across a 6 cm band, which is the
+    region this removes.
+    """
+    centre = np.asarray(centre, float)
+    d = np.linalg.norm(verts - centre, axis=1)
+    inside = d < radius + feather
+    if not inside.any():
+        return verts
+    out = verts.copy()
+    # 1 at the centre, easing to 0 across the feather band.
+    t = np.clip((radius + feather - d[inside]) / max(feather, 1e-6), 0.0, 1.0)
+    t = t * t * (3 - 2 * t)
+    z = out[inside, 2]
+    out[inside, 2] = np.where(z > limit, z + (limit - z) * t, z)
+    return out
+
+
 def decimate(verts, faces, target):
     """Returns (verts, faces, source_face_index)."""
     """
@@ -497,6 +526,11 @@ def main(src, index_path, out_dir, tri_scale="1"):
         xyz[:, 0] = verts[:, 0] * mpu
         xyz[:, 1] = verts[:, 2] * mpu - zmin * mpu - BODY_Y_OFFSET
         xyz[:, 2] = -verts[:, 1] * mpu
+        if g.get("smooth"):
+            sm = g["smooth"]
+            xyz = smooth_region(xyz, sm["centre"], sm["radius"], sm["limit"],
+                                sm.get("feather", 0.02))
+
         before = len(faces)
         xyz, faces, src_face = decimate(xyz, faces, int(g["tris"] * scale))
         if tags is not None:
