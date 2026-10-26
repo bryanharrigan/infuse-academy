@@ -414,7 +414,17 @@ def select(group, rows):
     return core, extras
 
 
-def main(src, index_path, out_dir):
+def main(src, index_path, out_dir, tri_scale="1"):
+    """
+    tri_scale multiplies every structure's triangle budget.
+
+    The particle renderer samples points over these surfaces, so facets are
+    invisible to it and 1x is plenty. Drawing the same meshes as shaded
+    surfaces exposes every facet, and needs roughly 4x. Both sets are built:
+    the small one loads at boot for the figure, the large one loads for one
+    organ at a time when it is focused.
+    """
+    scale = float(tri_scale)
     rows = [r for r in json.load(open(index_path)) if r.get("name")]
     os.makedirs(out_dir, exist_ok=True)
 
@@ -425,6 +435,7 @@ def main(src, index_path, out_dir):
 
     manifest = {
         "generator": "bp3d/pipeline/build.py",
+        "triScale": scale,
         "source": "BodyParts3D 4.0 part_of, 99% reduced",
         "attribution": "BodyParts3D, (c) The Database Center for Life Science "
                        "licensed under CC Attribution-Share Alike 2.1 Japan",
@@ -473,7 +484,7 @@ def main(src, index_path, out_dir):
             hv, hf = reconstruct_hull(verts, h["pad"], h["smooth"], h["iso"],
                                       h["split_lr"], h.get("grid", 96))
             if len(hf):
-                hv, hf, _ = decimate(hv, hf, h["tris"])
+                hv, hf, _ = decimate(hv, hf, int(h["tris"] * scale))
                 print("  %-10s hull %d tris from %d points"
                       % (g["id"], len(hf), len(verts)))
                 nf_before = len(faces)
@@ -487,7 +498,7 @@ def main(src, index_path, out_dir):
         xyz[:, 1] = verts[:, 2] * mpu - zmin * mpu - BODY_Y_OFFSET
         xyz[:, 2] = -verts[:, 1] * mpu
         before = len(faces)
-        xyz, faces, src_face = decimate(xyz, faces, g["tris"])
+        xyz, faces, src_face = decimate(xyz, faces, int(g["tris"] * scale))
         if tags is not None:
             tags = tags[src_face]
 
@@ -510,4 +521,4 @@ def main(src, index_path, out_dir):
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:4])
+    main(*sys.argv[1:5])

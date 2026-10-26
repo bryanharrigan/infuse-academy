@@ -107,10 +107,16 @@ check("exposure is in range", body.meanLuma > 2 && body.meanLuma < 90,
 for (const organ of ["heart", "lungs", "brain", "liver", "kidneys", "digestive", "vascular", "skeleton", "muscular", "eyes"]) {
   await page.evaluate((id) => window.__select(id), organ);
   // Hold until the reveal and the camera flight have both settled.
+  // Wait for the camera, the reveal, and the shaded surface's fade — the
+  // surface arrives on its own fetch, so without this the shot catches the
+  // particle cloud mid-swap.
   await page.waitForFunction(
-    () => (window.__holo?.state?.reveal ?? 0) > 0.8 && window.__holo?.camT >= 1,
+    () =>
+      (window.__holo?.state?.reveal ?? 0) > 0.8 &&
+      window.__holo?.camT >= 1 &&
+      (window.__holo?.state?.surface ?? 0) > 0.97,
     null,
-    { timeout: 30000 }
+    { timeout: 40000 }
   ).catch(() => {});
   await page.waitForTimeout(900);
   const s = await shoot(organ);

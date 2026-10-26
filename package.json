@@ -9,7 +9,8 @@
     "start": "remix-serve ./build/server/index.js",
     "typecheck": "tsc",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint .",
-    "test:player": "node test/player/run.mjs"
+    "test:player": "node test/player/run.mjs",
+    "test:surface": "esbuild test/surface/harness.ts --bundle --outfile=test/surface/harness.js --format=iife --target=es2020 && node test/surface/run.mjs"
   },
   "dependencies": {
     "@emotion/cache": "latest",

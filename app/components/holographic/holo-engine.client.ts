@@ -49,6 +49,7 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 
 import {
   ANATOMY_BASE,
+  ANATOMY_HIRES_BASE,
   BODY_Y_OFFSET,
   centreOf,
   extentOf,
@@ -118,6 +119,15 @@ type ViewHint = {
    * the heart as a thumbnail in the middle of a torso while the kidneys
    * overflowed the frame. Scaling by the structure's own size frames every
    * organ the same way, and keeps doing so when the meshes change.
+   *
+   * The value matters more than it looks. A focused organ is pushed to 30%
+   * of the frame width to clear room for the learning path, and an earlier
+   * attempt at a close camera clipped against that, so this was backed off
+   * until nothing clipped — which left every organ about 300px wide and its
+   * structure below the spacing between particles. The table starts at 36%
+   * of the width, so there is room for roughly 500px. Multiplied against
+   * radiusOf, which is a bounding-sphere radius and so already generous for
+   * an elongated structure, 3.0 uses it without touching the table.
    */
   fill?: number;
   /** Absolute camera distance, for whole-body structures. */
@@ -133,16 +143,16 @@ type ViewHint = {
 };
 
 const VIEW_HINTS: Record<OrganId, ViewHint> = {
-  brain: { viewDir: [0.38, 0.22, 1], fill: 4.6 },
-  heart: { viewDir: [0.34, 0.14, 1], fill: 4.6 },
-  lungs: { viewDir: [0.18, 0.1, 1], fill: 4.6 },
-  liver: { viewDir: [0.5, 0.12, 1], fill: 4.6 },
+  brain: { viewDir: [0.38, 0.22, 1], fill: 3.0 },
+  heart: { viewDir: [0.34, 0.14, 1], fill: 3.0 },
+  lungs: { viewDir: [0.18, 0.1, 1], fill: 3.0 },
+  liver: { viewDir: [0.5, 0.12, 1], fill: 3.0 },
   // Retroperitoneal — the teaching view is from behind.
-  kidneys: { viewDir: [0.3, 0.18, -1], fill: 4.6 },
-  digestive: { viewDir: [0.26, 0.1, 1], fill: 4.6 },
+  kidneys: { viewDir: [0.3, 0.18, -1], fill: 3.0 },
+  digestive: { viewDir: [0.26, 0.1, 1], fill: 3.0 },
   vascular: { viewDir: [0.3, 0.1, 1], viewDist: 3.0 },
   muscular: { viewDir: [0.3, 0.12, 1], viewDist: 2.9 },
-  eyes: { viewDir: [0.1, 0.05, 1], fill: 4.6 },
+  eyes: { viewDir: [0.1, 0.05, 1], fill: 3.0 },
   skeleton: {
     viewDir: [0.3, 0.1, 1],
     viewDist: 3.05,
@@ -289,6 +299,28 @@ const organPointCount = (area: number, tier: QualityTier) =>
 const EXPOSURE = 25000 * 0.0034 ** 2 * 1.75;
 
 /**
+ * A note on shading, so nobody spends the afternoon I did.
+ *
+ * The sampler computes a surface normal for every particle, and it is
+ * tempting to weight each one by how its surface faces the eye — Fresnel for
+ * the edges, a key light for the faces. Rendered offline at low overlap it
+ * transforms these organs: a heart grows chambers, coronaries and an arch.
+ *
+ * In this renderer it does nothing. Measured across eight structures it
+ * moved contrast between -4% and +5%, and not consistently upward. The
+ * reason is that shading varies per particle, while a pixel sums every
+ * particle that lands on it. At the densities these organs need in order to
+ * read as solid, five to ten normals share a pixel and the pixel gets their
+ * mean — which the exposure model pins to a constant. The variation cancels
+ * exactly where the detail was wanted.
+ *
+ * It would pay off at low particle density, or at a much tighter camera.
+ * Neither is where this page lives. What actually separated the organs was
+ * giving each one a point count proportional to its surface area; see
+ * organPointCount below. tools/shading-preview reproduces the experiment.
+ */
+
+/**
  * Particle radius for a structure, from how big that structure is.
  *
  * A particle is drawn at a pixel size proportional to radius / distance, so
@@ -345,6 +377,61 @@ const densityCompensation = (
     8
   );
 
+/**
+ * Translucent, edge-lit surface material for a focused organ.
+ *
+ * Particles cannot show what this shows, and five measured attempts at
+ * making them establish it: additive point clouds sum every surface along a
+ * view ray, so a closed organ fills its own silhouette and no amount of
+ * shading, density or bloom tuning recovers the structure inside. A surface
+ * can occlude, which is the whole difference.
+ *
+ * Fresnel on the edges, a key light on the faces, normal blending so the
+ * near wall hides the far one. The same geometry the particles are scattered
+ * over, at four times the triangle budget so the facets do not show.
+ */
+function organSurfaceMaterial(accent: number): ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uColour: { value: new THREE.Color(accent) },
+      uLight: { value: new THREE.Vector3(0.35, 0.7, 0.6).normalize() },
+      uFade: { value: 0 },
+      uTime: { value: 0 },
+    },
+    vertexShader: /* glsl */ `
+      varying vec3 vN;
+      varying vec3 vView;
+      void main() {
+        vN = normalize(normalMatrix * normal);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vView = normalize(-mv.xyz);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: /* glsl */ `
+      precision highp float;
+      uniform vec3  uColour;
+      uniform vec3  uLight;
+      uniform float uFade;
+      uniform float uTime;
+      varying vec3 vN;
+      varying vec3 vView;
+      void main() {
+        vec3 n = normalize(vN);
+        float f = pow(1.0 - abs(dot(n, normalize(vView))), 1.5);
+        float key = max(dot(n, normalize(uLight)), 0.0);
+        // A slow breath across the surface, so it still reads as projected
+        // light rather than as a solid plastic model.
+        float pulse = 0.97 + 0.03 * sin(uTime * 1.1);
+        vec3 col = uColour * (0.40 + 0.60 * key) + vec3(f * 0.45);
+        gl_FragColor = vec4(col * pulse, clamp(0.26 + f * 0.58, 0.0, 1.0) * uFade);
+      }`,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.NormalBlending,
+    side: THREE.FrontSide,
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Shaders                                                              */
 /* ------------------------------------------------------------------ */
@@ -356,7 +443,6 @@ const PARTICLE_VERT = /* glsl */ `
   attribute float aOrgan;
   attribute float aDensity;
   attribute float aRadius;   // world radius, per structure
-  attribute vec3  aNormal;   // surface normal at the sampled point
 
   uniform float uTime;
   uniform float uForm;        // 0 = scattered cloud, 1 = assembled body
@@ -374,7 +460,6 @@ const PARTICLE_VERT = /* glsl */ `
   uniform float uRadius;      // figure's particle radius, in world metres
   uniform float uScale;       // (viewportHeightCss / 2) / tan(fov / 2)
   uniform float uDrift;
-  uniform vec3  uLightDir;
 
   varying float vAlpha;
   varying float vHeat;
@@ -420,47 +505,9 @@ const PARTICLE_VERT = /* glsl */ `
     float scan = exp(-pow((p.y - uScanY) / uScanWidth, 2.0)) * uScanStrength;
     vHeat = scan;
 
-    // ---- surface shading -------------------------------------------
-    //
-    // Weight each particle by how its surface faces the eye. Without this
-    // every surface along a view ray contributes equally, so a closed organ
-    // sums its near wall, its far wall and everything between into one
-    // undifferentiated mass — which is exactly how the heart was reading.
-    //
-    // Fresnel gives the edges: brightest where the surface turns away from
-    // the viewer, so the silhouette and every fold inside it draw their own
-    // outline. A key light fills the faces between them, so the result has
-    // volume instead of being a wireframe of its own outline.
-    //
-    // The model matrix is identity for this cloud and the organ swell is a
-    // uniform scale, so the attribute normal is already a world normal.
-    vec3 toEye = normalize(cameraPosition - p);
-    float signedNdv = dot(aNormal, toEye);
-    float ndv = abs(signedNdv);
-    float rim = pow(1.0 - ndv, 2.2);
-    float key = max(dot(aNormal, uLightDir), 0.0);
-
-    // Surfaces turned away from the eye are held back. The organs that
-    // stayed unreadable are the ones carrying the most hidden geometry —
-    // a heart's chamber cavities sit inside its muscle and a brain's deep
-    // nuclei inside its cortex, and additive blending was summing all of it
-    // through the near wall. abs() above keeps the rim symmetric, because
-    // these meshes are unions of separately scanned parts and their normals
-    // are not reliably outward; the facing term below is deliberately gentle
-    // for the same reason, so a flipped normal dims a particle rather than
-    // deleting it.
-    float facing = 0.34 + 0.66 * clamp(signedNdv, 0.0, 1.0);
-    float shade = (0.07 + 0.70 * rim + 0.48 * key) * facing;
-
-    // Hold the exposure while redistributing it. For normals spread evenly
-    // over a sphere, |n.v| is uniform on [0,1], so mean(rim) is 1/3.2,
-    // mean(key) is 1/4 and mean(facing) is 0.505 — putting the mean weight
-    // at 0.207. Dividing by it means this changes where the light goes, not
-    // how much of it there is.
-    vAlpha *= shade / 0.207;
-
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
+
 
     // Perspective-correct: a particle is a sphere of uRadius metres, so its
     // projected size is radius * (viewportScale / distance). Deriving it
@@ -654,6 +701,15 @@ export class HoloEngine {
   /** Cancels in-flight asset fetches when the engine is disposed mid-load. */
   private abort = new AbortController();
 
+  /** Dense manifest for the surface meshes, fetched on the first focus. */
+  private hiManifest?: Manifest;
+  /** Surface meshes already built, keyed by structure. */
+  private surfaces = new Map<StructureId, Mesh>();
+  /** In-flight surface loads, so a double click does not fetch twice. */
+  private surfaceLoads = new Map<StructureId, Promise<void>>();
+  /** The surface currently showing, if any. */
+  private surface?: Mesh;
+
   private raycaster = new THREE.Raycaster();
   private pointer = new THREE.Vector2();
   private pointerInside = false;
@@ -681,6 +737,9 @@ export class HoloEngine {
     organScaleTarget: 1,
     accentMix: 0,
     accentMixTarget: 0,
+    /** Cross-fade between the particle organ and its shaded surface. */
+    surface: 0,
+    surfaceTarget: 0,
     glitch: 0,
     scanY: -1.2,
     bloomStrength: 0.38,
@@ -884,6 +943,53 @@ export class HoloEngine {
     });
   }
 
+  /**
+   * Fetches and builds the shaded surface for one structure, once.
+   *
+   * Deliberately lazy. The dense meshes are 7.8 MB across the set and only
+   * ever one is on screen, so loading them at boot would pay for ten organs
+   * to show one. At ~700 KB each they arrive inside the camera flight, and
+   * the particle cloud covers the gap.
+   */
+  private async ensureSurface(cfg: OrganConfig): Promise<void> {
+    if (this.surfaces.has(cfg.structure)) return;
+    const pending = this.surfaceLoads.get(cfg.structure);
+    if (pending) return pending;
+
+    const load = (async () => {
+      if (!this.hiManifest) {
+        this.hiManifest = await loadManifest(ANATOMY_HIRES_BASE);
+      }
+      const mesh = await loadMesh(
+        cfg.structure,
+        this.hiManifest,
+        ANATOMY_HIRES_BASE,
+        this.abort.signal
+      );
+      if (this.disposed) return;
+
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(mesh.positions, 3));
+      geometry.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
+      // Smooth normals across shared vertices; without this every facet of
+      // the decimated mesh shades flat and the organ looks like cut glass.
+      geometry.computeVertexNormals();
+
+      const surface = new THREE.Mesh(geometry, organSurfaceMaterial(cfg.accent));
+      surface.visible = false;
+      surface.frustumCulled = false;
+      // Drawn after the particles so it composites over them.
+      surface.renderOrder = 2;
+      this.surfaces.set(cfg.structure, surface);
+      this.scene.add(surface);
+    })().finally(() => {
+      this.surfaceLoads.delete(cfg.structure);
+    });
+
+    this.surfaceLoads.set(cfg.structure, load);
+    return load;
+  }
+
   /* ---------------------------------------------------------------- */
   /* Geometry assembly                                                 */
   /* ---------------------------------------------------------------- */
@@ -908,12 +1014,10 @@ export class HoloEngine {
     const organAttr = new Float32Array(total);
     const density = new Float32Array(total);
     const radii = new Float32Array(total);
-    const normals = new Float32Array(total * 3);
 
     let cursor = 0;
     const append = (cloud: Cloud, organIdx: number, comp: number, radius: number) => {
       positions.set(cloud.positions, cursor * 3);
-      normals.set(cloud.normals, cursor * 3);
       sizes.set(cloud.sizes, cursor);
       seeds.set(cloud.seeds, cursor);
       for (let i = 0; i < cloud.count; i++) {
@@ -959,7 +1063,6 @@ export class HoloEngine {
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute("aScatter", new THREE.BufferAttribute(scatter, 3));
     geometry.setAttribute("aRadius", new THREE.BufferAttribute(radii, 1));
-    geometry.setAttribute("aNormal", new THREE.BufferAttribute(normals, 3));
     geometry.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
     geometry.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
     geometry.setAttribute("aOrgan", new THREE.BufferAttribute(organAttr, 1));
@@ -986,12 +1089,6 @@ export class HoloEngine {
         uRadius: { value: PARTICLE_RADIUS },
         uScale: { value: 1000 },
         uDrift: { value: this.reducedMotion ? 0.0012 : 0.0045 },
-        // Fixed in world space rather than attached to the camera, so
-        // orbiting a structure moves the light across it and the form reads
-        // as you turn it.
-        uLightDir: {
-          value: new THREE.Vector3(0.4, 0.7, 0.6).normalize(),
-        },
         uColDeep: { value: new THREE.Color(0x0d3f7a) },
         uColCyan: { value: new THREE.Color(0x63e4ff) },
         uColAccent: { value: new THREE.Color(0xffb265) },
@@ -1232,6 +1329,25 @@ export class HoloEngine {
   /* Public API                                                        */
   /* ---------------------------------------------------------------- */
 
+  /**
+   * Clears every shaded surface from view.
+   *
+   * All of them, not just the one on screen: a surface stays in the scene
+   * once built, and only the active one has its fade driven by the loop, so
+   * hiding by reference left each previously opened organ sitting at full
+   * opacity. Switching from lungs to liver showed both, plus the heart from
+   * two organs ago.
+   */
+  private hideSurface() {
+    this.state.surface = 0;
+    this.state.surfaceTarget = 0;
+    for (const mesh of this.surfaces.values()) {
+      (mesh.material as ShaderMaterial).uniforms.uFade.value = 0;
+      mesh.visible = false;
+    }
+    this.surface = undefined;
+  }
+
   /** Focus an organ, or pass null to return to the whole body. */
   setOrgan(id: OrganId | null) {
     if (id === this.active) return;
@@ -1251,23 +1367,19 @@ export class HoloEngine {
       );
       (this.material.uniforms.uColAccent.value as THREE.Color).setHex(cfg.accent);
 
-      // A body-framed structure fills the frame with many small points at
-      // once, so it needs less per-particle alpha than a compact organ.
       // Full reveal whatever the framing. Holding the whole-body structures
       // back to 85% was a second penalty on exactly the ones that were
-      // already the sparsest, which is why the skeleton and the musculature
-      // read faintest of the set.
+      // already the sparsest.
       s.revealTarget = 1.0;
-      // Low enough that the shell stays as a locating outline without
-      // laying a blue haze over the organ behind it.
-      s.bodyAlphaTarget = cfg.framing === "body" ? 0.055 : 0.045;
+      // The shell is a locating outline, nothing more. Every body particle
+      // in front of a focused organ lays haze over it, and there are 160 000
+      // of them.
+      s.bodyAlphaTarget = cfg.framing === "body" ? 0.055 : 0.022;
       s.ghostTarget = this.xray ? 0.12 : 0.03;
       s.organScaleTarget = cfg.framing === "body" ? 1 : 1.25;
       s.accentMixTarget = 0.55;
-      // Bloom comes *down* on focus, not up. The rim shading earns its
-      // detail from the dark between the particles, and a wide halo is
-      // precisely what fills that back in — raising it here was undoing the
-      // shading at the one moment the learner is looking closely.
+      // Bloom comes down on focus, not up. A wide halo fills in the dark
+      // between particles, which is the one thing a close look needs kept.
       s.bloomTarget = 0.22;
 
       const centre = new THREE.Vector3(...cfg.hits[0].center);
@@ -1286,7 +1398,22 @@ export class HoloEngine {
           cfg.accent
         );
       }
+
+      // Bring up the shaded surface once its mesh is here. Until then the
+      // particle cloud carries the shot, so the flight never waits on a
+      // fetch; the swap lands a moment later and reads as the organ
+      // resolving rather than as a load.
+      this.hideSurface();
+      void this.ensureSurface(cfg).then(() => {
+        if (this.disposed || this.active !== id) return;
+        const mesh = this.surfaces.get(cfg.structure);
+        if (!mesh) return;
+        this.surface = mesh;
+        mesh.visible = true;
+        this.state.surfaceTarget = 1;
+      });
     } else {
+      this.hideSurface();
       s.revealTarget = 0;
       s.bodyAlphaTarget = 1.0;
       s.ghostTarget = this.xray ? 0.18 : 0;
@@ -1378,6 +1505,14 @@ export class HoloEngine {
     s.ghost += (s.ghostTarget - s.ghost) * k;
     s.organScale += (s.organScaleTarget - s.organScale) * k;
     s.accentMix += (s.accentMixTarget - s.accentMix) * k;
+    s.surface += (s.surfaceTarget - s.surface) * (1 - Math.exp(-dt * 2.4));
+
+    if (this.surface) {
+      const mat = this.surface.material as ShaderMaterial;
+      mat.uniforms.uFade.value = s.surface;
+      mat.uniforms.uTime.value = t;
+      this.surface.visible = s.surface > 0.004;
+    }
     s.bloomStrength += (s.bloomTarget - s.bloomStrength) * k;
     s.glitch *= Math.exp(-dt * 3.5);
 
@@ -1389,7 +1524,11 @@ export class HoloEngine {
     u.uTime.value = t;
     u.uForm.value = s.form;
     u.uBodyAlpha.value = s.bodyAlpha;
-    u.uReveal.value = s.reveal;
+    // Once the shaded surface is up the particle organ steps back to a thin
+    // aura around it, rather than competing with it. Not to zero: the aura
+    // is what keeps a solid-looking organ inside a particle figure from
+    // reading as two different pictures.
+    u.uReveal.value = s.reveal * (1 - 0.72 * s.surface);
     u.uGhost.value = s.ghost;
     u.uOrganScale.value = s.organScale;
     u.uAccentMix.value = s.accentMix;

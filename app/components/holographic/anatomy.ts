@@ -31,6 +31,17 @@ export const BODY_Y_OFFSET = 1.0;
 /** Where the built assets are served from. */
 export const ANATOMY_BASE = "/anatomy";
 
+/**
+ * The same structures at roughly four times the triangle budget.
+ *
+ * Facets are invisible to a point cloud, so the particle renderer is well
+ * served by the small set and boots quickly on it. Drawing the same meshes
+ * as shaded surfaces exposes every facet, which needs the dense set — but
+ * only for the one structure being looked at, so it is fetched on demand
+ * rather than at boot. About 700 KB per organ against 7.8 MB for all of them.
+ */
+export const ANATOMY_HIRES_BASE = "/anatomy/hi";
+
 export type StructureId =
   | "skin"
   | "skeleton"
