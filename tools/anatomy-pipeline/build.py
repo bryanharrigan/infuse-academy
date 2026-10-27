@@ -124,32 +124,99 @@ def _cluster(verts, faces, res, span, lo):
     return inv, uniq, src[first]
 
 
-def smooth_region(verts, centre, radius, limit, feather=0.02):
+def _smoothstep(t):
+    t = np.clip(t, 0.0, 1.0)
+    return t * t * (3.0 - 2.0 * t)
+
+
+def resurface_region(verts, half_width, feather_x, y_lo, y_hi, feather_y,
+                     z_top, z_bot, z_floor, feather_z):
     """
-    Pulls an anterior bulge back to the surrounding body contour.
+    Projects the front of the pelvis onto a smooth contour.
+
+    Laplacian smoothing alone does not remove the external genitalia. It
+    polishes them: the protrusion is a folded sheet, so a vertex on it has
+    neighbours that are also on it, and diffusing toward their mean moves the
+    whole fold together instead of retracting it.
+
+    So the region is resurfaced rather than relaxed. The target is a curve,
+    not a plane -- the groin slopes back as it descends, and clamping to a
+    constant depth leaves a flat vertical plate where there should be a
+    contour. Measured off-midline at |x| in 0.055..0.085, where no genital
+    anatomy exists, the body wall sits at z ~= 0.171-0.176; the midline lobes
+    reach 0.211, about 4 cm proud.
+
+    The whole anterior shell is projected, not just the part standing proud.
+    Pushing back only the excess leaves the inner wall of the fold sitting
+    behind the new surface: invisible, but it still carries area, so the
+    sampler still spends particles on it and it glows through the body.
+
+    z_floor gates the projection to the front. Without it the same x/y band
+    would catch the buttocks and drag them forward through the body.
+
+    Weights are separable smoothsteps in each axis, so the region fades out
+    rather than ending, and the surrounding surface is untouched.
+    """
+    wx = _smoothstep((half_width + feather_x - np.abs(verts[:, 0])) / feather_x)
+    wy = (_smoothstep((verts[:, 1] - (y_lo - feather_y)) / feather_y) *
+          _smoothstep(((y_hi + feather_y) - verts[:, 1]) / feather_y))
+    wz = _smoothstep((verts[:, 2] - z_floor) / feather_z)
+    w = wx * wy * wz
+
+    t = _smoothstep((verts[:, 1] - y_lo) / (y_hi - y_lo))
+    limit = z_bot + (z_top - z_bot) * t
+
+    out = verts.copy()
+    out[:, 2] = verts[:, 2] + (limit - verts[:, 2]) * w
+    return out
+
+
+def smooth_region(verts, faces, centre, radii, iterations=70, rate=0.65):
+    """
+    Laplacian-smooths a region of the surface, pinning its boundary.
 
     The reproductive organs are excluded from the display set by name, but the
     skin is a single closed mesh and carries the external anatomy with it, so
-    there is nothing to exclude — it has to come out geometrically. Vertices
-    within `radius` of `centre` have their anterior coordinate clamped to
-    `limit`, blended over a `feather` band at the edge of the region so the
-    surface merges into the surrounding contour instead of creasing.
+    there is nothing to exclude — it has to come out geometrically.
 
-    Measured, not guessed: along the midline the surface sits at z = 0.152
-    through the pelvis and rises to 0.209 across a 6 cm band, which is the
-    region this removes.
+    An earlier version clamped the anterior coordinate inside a sphere, which
+    was both the wrong operation and too small a region: it flattened the
+    front into a shelf and left everything that protrudes downward or to the
+    side untouched. Diffusing the region into itself removes a protrusion
+    whatever direction it sticks out in, and leaves a continuous surface
+    rather than a step.
+
+    Each vertex is pulled toward the mean of its neighbours, weighted by a
+    smoothstep falloff that reaches zero at the ellipsoid boundary — so the
+    edge of the region does not move at all and the result blends into the
+    surrounding body. Laplacian smoothing shrinks what it touches, which here
+    is precisely the point.
     """
+    from scipy.sparse import coo_matrix
+
     centre = np.asarray(centre, float)
-    d = np.linalg.norm(verts - centre, axis=1)
-    inside = d < radius + feather
-    if not inside.any():
+    radii = np.asarray(radii, float)
+    # Normalised radius: 1.0 on the ellipsoid surface, 0 at its centre.
+    d = np.linalg.norm((verts - centre) / radii, axis=1)
+    w = np.clip(1.0 - d, 0.0, 1.0)
+    w = w * w * (3 - 2 * w)
+    if not (w > 0).any():
         return verts
+
+    n = len(verts)
+    i = np.concatenate([faces[:, 0], faces[:, 1], faces[:, 2],
+                        faces[:, 1], faces[:, 2], faces[:, 0]])
+    j = np.concatenate([faces[:, 1], faces[:, 2], faces[:, 0],
+                        faces[:, 0], faces[:, 1], faces[:, 2]])
+    adj = coo_matrix((np.ones(len(i)), (i, j)), shape=(n, n)).tocsr()
+    adj.data[:] = 1.0                      # tocsr summed duplicates; make it 0/1
+    degree = np.asarray(adj.sum(1)).ravel()
+    degree[degree == 0] = 1.0
+
     out = verts.copy()
-    # 1 at the centre, easing to 0 across the feather band.
-    t = np.clip((radius + feather - d[inside]) / max(feather, 1e-6), 0.0, 1.0)
-    t = t * t * (3 - 2 * t)
-    z = out[inside, 2]
-    out[inside, 2] = np.where(z > limit, z + (limit - z) * t, z)
+    step = (w * rate)[:, None]
+    for _ in range(iterations):
+        out += step * ((adj @ out) / degree[:, None] - out)
     return out
 
 
@@ -528,8 +595,13 @@ def main(src, index_path, out_dir, tri_scale="1"):
         xyz[:, 2] = -verts[:, 1] * mpu
         if g.get("smooth"):
             sm = g["smooth"]
-            xyz = smooth_region(xyz, sm["centre"], sm["radius"], sm["limit"],
-                                sm.get("feather", 0.02))
+            # Resurface first, then relax: the projection leaves a seam where
+            # the collapsed fold meets the untouched surface, and the
+            # Laplacian pass is what rounds it off.
+            if sm.get("resurface"):
+                xyz = resurface_region(xyz, **sm["resurface"])
+            xyz = smooth_region(xyz, faces, sm["centre"], sm["radii"],
+                                sm.get("iterations", 70), sm.get("rate", 0.65))
 
         before = len(faces)
         xyz, faces, src_face = decimate(xyz, faces, int(g["tris"] * scale))

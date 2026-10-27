@@ -32,9 +32,21 @@ GROUPS = [
          note="The outer surface. This is what makes the figure read as a person.",
          # EXCLUDE removes the reproductive organs, but the skin is one closed
          # mesh and carries the external anatomy with it, so it comes out
-         # geometrically instead. See smooth_region in build.py.
-         smooth=dict(centre=[0.0, -0.185, 0.155], radius=0.062,
-                     limit=0.150, feather=0.030)),
+         # geometrically instead: resurface_region then smooth_region in
+         # build.py. Both regions stay well inside the thighs and lower
+         # abdomen so the edges sit on surface that should not move.
+         smooth=dict(
+             # Project the front of the pelvis onto the body-wall contour,
+             # measured off-midline where no genital anatomy exists.
+             resurface=dict(half_width=0.060, feather_x=0.032,
+                            y_lo=-0.270, y_hi=-0.095, feather_y=0.030,
+                            z_top=0.170, z_bot=0.082,
+                            z_floor=0.090, feather_z=0.030),
+             # Then relax the seam. Smaller and gentler than the pass it
+             # replaces: the shape is already right, this only rounds it.
+             centre=[0.0, -0.185, 0.105],
+             radii=[0.100, 0.120, 0.120],
+             iterations=55, rate=0.6)),
 
     # ---- skeleton -------------------------------------------------------
     dict(id="skeleton", label="Skeleton", tris=34000,

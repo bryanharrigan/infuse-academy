@@ -12,8 +12,8 @@
  },
  "structures": {
   "skin": {
-   "verts": 39672,
-   "tris": 103568,
+   "verts": 39728,
+   "tris": 103813,
    "lo": [
     -0.339946,
     -0.998848,
@@ -26,7 +26,7 @@
    ],
    "index": 16,
    "regions": false,
-   "bytes": 859440,
+   "bytes": 861246,
    "bbox": [
     [
      -0.3399,
@@ -42,8 +42,8 @@
    "label": "Body",
    "sources": 1,
    "sourceTris": 203382,
-   "area": 3.63542,
-   "depth": 5.2333,
+   "area": 3.64592,
+   "depth": 5.3068,
    "note": "The outer surface. This is what makes the figure read as a person."
   },
   "skeleton": {
