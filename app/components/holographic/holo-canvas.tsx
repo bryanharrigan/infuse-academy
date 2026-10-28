@@ -107,10 +107,19 @@ export default function HoloCanvas({
           { quality: quality ?? mod.detectQuality(), reducedMotion }
         );
 
-        engineRef.current = engine;
+        // Publish the engine only once init() has resolved.
+        //
+        // Assigning it first leaves a half-built engine wired to the prop
+        // effects below if init() throws: the next activeOrgan change calls
+        // setOrgan on an instance whose shader material was never created,
+        // and the TypeError is raised inside a React effect, where it
+        // escapes to the error boundary and takes the whole app down --
+        // which signs the learner out. A mesh that failed to load should
+        // cost the volume, not the session.
         await engine.init();
         if (cancelled) return;
         engine.resize();
+        engineRef.current = engine;
 
         onHandle?.({
           resetView: () => engineRef.current?.resetView(),
@@ -119,6 +128,15 @@ export default function HoloCanvas({
           isSettled: () => engineRef.current?.isSettled() ?? false,
         });
       } catch (err) {
+        // Whatever state init() got to, nothing may reach it now.
+        engineRef.current = null;
+        try {
+          engine?.dispose();
+        } catch {
+          // A failed init can leave dispose() with nothing to free. The
+          // original error is the one worth reporting.
+        }
+        engine = null;
         if (cancelled) return;
         const message = err instanceof Error ? err.message : String(err);
         cbRef.current.onError(message);
@@ -128,7 +146,12 @@ export default function HoloCanvas({
     return () => {
       cancelled = true;
       onHandle?.(null);
-      engineRef.current?.dispose();
+      // Dispose the local reference, not the ref: the ref is only populated
+      // after a successful init, so unmounting while init is still in flight
+      // would otherwise strand an engine holding a WebGL context. The async
+      // body re-checks `cancelled` before touching the engine again.
+      engine?.dispose();
+      engine = null;
       engineRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

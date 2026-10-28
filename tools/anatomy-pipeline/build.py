@@ -15,6 +15,7 @@ Coordinates convert from BodyParts3D (millimetres, +X left, -Y anterior,
 +Z superior, origin near the soles) to the engine's convention (metres,
 +Y up, +Z anterior) and are recentred on BODY_Y_OFFSET.
 """
+import hashlib
 import json, os, re, struct, sys
 import numpy as np
 
@@ -621,7 +622,23 @@ def main(src, index_path, out_dir, tri_scale="1"):
               % (g["id"], len(sel), before, meta["tris"], meta["bytes"] / 1024,
                  meta["area"], meta["depth"]))
 
+    # Content hash over every mesh in the set, in a fixed order.
+    #
+    # This is the cache key the client appends to each mesh URL. It has to be
+    # derived from the file bytes, not from the manifest: decimation lands on
+    # the same vertex and triangle counts across builds often enough that a
+    # structure's manifest entry can be identical while its geometry differs.
+    # The 26 Oct pelvis rebuild was exactly that -- same counts, same bounding
+    # box, same 206316 bytes, different surface.
+    digest = hashlib.sha256()
+    for sid in sorted(manifest["structures"]):
+        with open(os.path.join(out_dir, sid + ".bin"), "rb") as fh:
+            digest.update(sid.encode("utf-8"))
+            digest.update(fh.read())
+    manifest["build"] = digest.hexdigest()[:12]
+
     json.dump(manifest, open(os.path.join(out_dir, "manifest.json"), "w"), indent=1)
+    print("\n  build %s" % manifest["build"])
     total = sum(s["bytes"] for s in manifest["structures"].values())
     print("\n%d structures, %.0f KB total" % (len(manifest["structures"]), total / 1024))
 

@@ -22,8 +22,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const ASSETS = path.join(here, "..", "public", "anatomy");
 
 // anatomy.ts calls fetch; serve it from disk.
+//
+// The query string is dropped before resolving the path, the way a static
+// file server does: loadMesh appends the manifest's build hash as `?v=` so a
+// rebuild changes every mesh URL, and keeping it here would look for a file
+// named `skin.bin?v=...`.
 globalThis.fetch = async (url) => {
-  const file = path.join(ASSETS, String(url).replace(/^.*\/anatomy\//, ""));
+  const rel = String(url).replace(/^.*\/anatomy\//, "").replace(/\?.*$/, "");
+  const file = path.join(ASSETS, rel);
   const buf = await readFile(file);
   return {
     ok: true,
@@ -153,6 +159,58 @@ const lungHits = hitSpheres(manifest.structures.lungs, true);
 check("paired organs get two hit spheres", lungHits.length === 2);
 check("the two lung spheres are on opposite sides",
   lungHits[0].center[0] < 0 && lungHits[1].center[0] > 0);
+
+/* ---------------------------------------------------------------- *
+ * Build pairing                                                      *
+ *                                                                    *
+ * On 27 Oct both browsers threw `Invalid typed array length: 77721`  *
+ * on /holographic. 77721 is 3 x 25907 triangles; the skin had 25902. *
+ * remix-serve sends everything copied from public/ as                *
+ * `max-age=31536000, immutable`, and these files keep plain names    *
+ * across deploys, so manifest.json and skin.bin cached independently *
+ * and a browser ended up holding one from each of two builds. The    *
+ * fix is a content hash in the manifest, appended to every mesh URL. *
+ * ---------------------------------------------------------------- */
+
+check("manifest carries a build hash", typeof manifest.build === "string" && manifest.build.length >= 8,
+  String(manifest.build));
+
+const hiManifest = await loadManifest("/anatomy/hi");
+check("hi manifest carries a build hash", typeof hiManifest.build === "string" && hiManifest.build.length >= 8,
+  String(hiManifest.build));
+check("the two resolutions have distinct build hashes", manifest.build !== hiManifest.build);
+
+// The hash must reach the wire, or it buys nothing.
+const requested = [];
+const realFetch = globalThis.fetch;
+globalThis.fetch = async (url, init) => { requested.push(String(url)); return realFetch(url, init); };
+await loadMesh("heart", manifest, "/anatomy");
+globalThis.fetch = realFetch;
+check("mesh URL carries the build hash",
+  requested.some((u) => u.includes(`heart.bin?v=${manifest.build}`)), requested.join(" "));
+
+// A mismatched pair must be named, not decoded. Both shapes it takes:
+// different counts (the RangeError above) and identical byte length with
+// different contents, which decimation produces often enough to matter.
+const wrongCounts = {
+  ...manifest,
+  structures: { ...manifest.structures, heart: { ...manifest.structures.heart, tris: manifest.structures.heart.tris + 5 } },
+};
+let msg = "";
+try { await loadMesh("heart", wrongCounts, "/anatomy"); } catch (e) { msg = e.message; }
+check("a stale manifest is reported, not decoded",
+  /different builds/.test(msg) && /heart/.test(msg), msg || "no error thrown");
+
+const sameSize = {
+  ...manifest,
+  structures: {
+    ...manifest.structures,
+    heart: { ...manifest.structures.heart, verts: manifest.structures.heart.verts - 1, tris: manifest.structures.heart.tris + 1 },
+  },
+};
+msg = "";
+try { await loadMesh("heart", sameSize, "/anatomy"); } catch (e) { msg = e.message; }
+check("an out-of-range triangle index is caught", /different builds/.test(msg), msg || "no error thrown");
 
 console.log(`\n${pass} passed, ${failures.length} failed`);
 console.log(`${ids.length} structures, ${(totalBytes / 1024).toFixed(0)} KB of geometry\n`);

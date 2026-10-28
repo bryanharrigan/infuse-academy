@@ -689,6 +689,16 @@ export class HoloEngine {
 
   private points!: Points;
   private material!: ShaderMaterial;
+  /**
+   * True once init() has built the shader material and started the loop.
+   *
+   * Every public method below is a no-op until then. holo-canvas already
+   * withholds the instance until init() resolves; this is the second lock,
+   * because the cost of getting it wrong is not a dead canvas but an
+   * exception raised inside a React effect, which unmounts the app and signs
+   * the learner out.
+   */
+  private ready = false;
   private dust!: Points;
   private hud!: Group;
   private reticle!: Group;
@@ -858,6 +868,7 @@ export class HoloEngine {
 
     this.callbacks.onProgress?.(1, "SYSTEM ONLINE");
     this.attachEvents();
+    this.ready = true;
     this.start();
     this.callbacks.onReady?.();
   }
@@ -1350,6 +1361,7 @@ export class HoloEngine {
 
   /** Focus an organ, or pass null to return to the whole body. */
   setOrgan(id: OrganId | null) {
+    if (!this.ready) return;
     if (id === this.active) return;
     this.active = id;
 
@@ -1404,14 +1416,24 @@ export class HoloEngine {
       // fetch; the swap lands a moment later and reads as the organ
       // resolving rather than as a load.
       this.hideSurface();
-      void this.ensureSurface(cfg).then(() => {
-        if (this.disposed || this.active !== id) return;
-        const mesh = this.surfaces.get(cfg.structure);
-        if (!mesh) return;
-        this.surface = mesh;
-        mesh.visible = true;
-        this.state.surfaceTarget = 1;
-      });
+      void this.ensureSurface(cfg)
+        .then(() => {
+          if (this.disposed || this.active !== id) return;
+          const mesh = this.surfaces.get(cfg.structure);
+          if (!mesh) return;
+          this.surface = mesh;
+          mesh.visible = true;
+          this.state.surfaceTarget = 1;
+        })
+        .catch((err) => {
+          // The dense mesh is an enhancement, not the organ. Losing it leaves
+          // `surfaceTarget` at 0, which is exactly the particle-only view, so
+          // there is nothing to undo -- but it must be reported rather than
+          // left as an unhandled rejection, and it must not take the page
+          // down the way a throw from the prop effects would.
+          if (this.disposed) return;
+          console.warn(`holographic: ${cfg.structure} surface unavailable`, err);
+        });
     } else {
       this.hideSurface();
       s.revealTarget = 0;
@@ -1436,11 +1458,13 @@ export class HoloEngine {
    * on a slow renderer wall-clock time is a poor proxy for animation state.
    */
   isSettled(): boolean {
+    if (!this.ready) return false;
     return this.state.form > 0.985 && this.camT >= 1;
   }
 
   /** Ghosts every organ into view at once, through the body shell. */
   setXray(on: boolean) {
+    if (!this.ready) return;
     this.xray = on;
     this.state.ghostTarget = on ? (this.active ? 0.12 : 0.18) : this.active ? 0.03 : 0;
     this.material.uniforms.uBodyAlpha.value = this.state.bodyAlpha;
@@ -1448,15 +1472,18 @@ export class HoloEngine {
   }
 
   setAutoRotate(on: boolean) {
+    if (!this.ready) return;
     this.controls.autoRotate = on && !this.reducedMotion;
   }
 
   resetView() {
+    if (!this.ready) return;
     this.setOrgan(null);
   }
 
   /** Nudges the camera without changing the focused organ. */
   zoom(delta: number) {
+    if (!this.ready) return;
     const dir = this.camera.position.clone().sub(this.controls.target);
     const len = THREE.MathUtils.clamp(
       dir.length() * (1 + delta),
@@ -1677,6 +1704,7 @@ export class HoloEngine {
 
   /** Call when the canvas scrolls out of view or the tab is hidden. */
   setPaused(paused: boolean) {
+    if (!this.ready) return;
     if (paused) {
       this.running = false;
       cancelAnimationFrame(this.frame);
@@ -1686,6 +1714,7 @@ export class HoloEngine {
   }
 
   dispose() {
+    this.ready = false;
     this.disposed = true;
     this.running = false;
     cancelAnimationFrame(this.frame);

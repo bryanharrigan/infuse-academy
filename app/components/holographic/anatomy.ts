@@ -88,6 +88,15 @@ export type StructureMeta = {
 
 export type Manifest = {
   generator: string;
+  /**
+   * Content hash over every .bin in this set, written by the pipeline.
+   *
+   * It is the cache key: `loadMesh` appends it to each mesh URL, so a rebuild
+   * changes every mesh URL and a browser can never pair this manifest with a
+   * mesh from a different build. Optional only so an older manifest still
+   * loads; without it the pairing is unprotected.
+   */
+  build?: string;
   source: string;
   attribution: string;
   space: {
@@ -157,7 +166,26 @@ export function makeRng(seed: number): () => number {
 /* ------------------------------------------------------------------ */
 
 export async function loadManifest(base = ANATOMY_BASE): Promise<Manifest> {
-  const res = await fetch(`${base}/manifest.json`, { headers: { Accept: "application/json" } });
+  // `cache: "reload"` is load-bearing, not a precaution.
+  //
+  // remix-serve serves everything under build/client -- which includes
+  // everything copied from public/ -- as
+  // `Cache-Control: public, max-age=31536000, immutable`. That is right for
+  // its own content-hashed bundles and wrong for these, which keep plain
+  // names across every deploy. `immutable` means a browser will not
+  // revalidate even on a normal reload, so a visitor can hold a year-old
+  // manifest while deploys land invisibly.
+  //
+  // The Cloudflare rule that strips `immutable` matches only paths ending in
+  // `.html`, so it does not cover this file.
+  //
+  // Everything else here depends on the manifest being the current one: it
+  // supplies the build hash that keys every mesh URL below. Six kilobytes off
+  // the network per page load is the whole cost.
+  const res = await fetch(`${base}/manifest.json`, {
+    headers: { Accept: "application/json" },
+    cache: "reload",
+  });
   if (!res.ok) throw new Error(`anatomy manifest: HTTP ${res.status}`);
   return (await res.json()) as Manifest;
 }
@@ -178,12 +206,37 @@ export async function loadMesh(
   const meta = manifest.structures[id];
   if (!meta) throw new Error(`anatomy: no structure "${id}" in manifest`);
 
-  const res = await fetch(`${base}/${id}.bin`, { signal });
+  // The build hash keys the URL so this mesh can only ever be the one the
+  // manifest describes. Without it the two files cache independently under a
+  // one-year immutable policy and a browser will eventually hold a manifest
+  // from one build beside a mesh from another -- which decodes as a
+  // RangeError if the counts disagree, and as wild triangles if they happen
+  // to agree. See loadManifest.
+  const url = manifest.build
+    ? `${base}/${id}.bin?v=${encodeURIComponent(manifest.build)}`
+    : `${base}/${id}.bin`;
+  const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`anatomy ${id}: HTTP ${res.status}`);
   const buf = await res.arrayBuffer();
 
   const nv = meta.verts;
   const nt = meta.tris;
+
+  // Check the size before decoding anything. Reading past the end of the
+  // buffer throws `Invalid typed array length: <n>`, which names the array it
+  // tried to build and nothing about why -- it took a byte count and a
+  // triangle count to work back to a stale manifest. Say so directly instead.
+  const indexBytes = meta.index === 32 ? 4 : 2;
+  const expected = nv * 6 + nt * 3 * indexBytes + (meta.regions ? nt : 0);
+  if (buf.byteLength !== expected) {
+    throw new Error(
+      `anatomy ${id}: manifest and mesh disagree — manifest describes ` +
+        `${nv} vertices and ${nt} triangles (${expected} bytes), file is ` +
+        `${buf.byteLength} bytes. The two are from different builds; ` +
+        `the cached copy of one of them is stale.`
+    );
+  }
+
   const q = new Int16Array(buf, 0, nv * 3);
   const positions = new Float32Array(nv * 3);
   const [lx, ly, lz] = meta.lo;
@@ -201,6 +254,23 @@ export async function loadMesh(
   } else {
     const src = new Uint16Array(buf, idxOffset, nt * 3);
     for (let i = 0; i < src.length; i++) indices[i] = src[i];
+  }
+
+  // A size match is not proof the two files agree: decimation lands on the
+  // same vertex and triangle counts often enough that two builds of the same
+  // structure can be byte-for-byte the same length. An index past the end of
+  // the vertex array is the giveaway, and it is the failure that does not
+  // announce itself -- the mesh builds, and draws triangles stretching to
+  // whatever happens to sit at that address.
+  let maxIndex = 0;
+  for (let i = 0; i < indices.length; i++) {
+    if (indices[i] > maxIndex) maxIndex = indices[i];
+  }
+  if (maxIndex >= nv) {
+    throw new Error(
+      `anatomy ${id}: triangle references vertex ${maxIndex} of ${nv}. ` +
+        `The mesh and the manifest are from different builds.`
+    );
   }
 
   const regionOffset = idxOffset + nt * 3 * (meta.index === 32 ? 4 : 2);
