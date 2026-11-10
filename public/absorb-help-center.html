@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Absorb Help Center — Infuse demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" />
+<style>
+  /* Tokens sampled from support.absorblms.com, 10 Nov 2026:
+     navy #0C1B54 · strip #19214D · link #008BCC · cyan #00AEEF
+     card #F3F4F6 · body #333 · Montserrat */
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+
+  :root {
+    --navy:#0C1B54; --strip:#19214D; --link:#008BCC; --cyan:#00AEEF;
+    --body:#333; --muted:#6a7183; --card:#F3F4F6; --offwhite:#F7F7F9;
+    --border:#e3e5ea; --white:#fff;
+    --good:#1b7f4f; --good-soft:#e4f3eb;
+    --warn:#9a6b05; --warn-soft:#fdf2da;
+    --shadow:0 1px 3px rgba(12,27,84,.08), 0 8px 24px rgba(12,27,84,.07);
+  }
+
+  html, body { height:100%; }
+  body { font-family:'Montserrat',sans-serif; font-size:15px; line-height:1.6; color:var(--body);
+         background:var(--white); -webkit-font-smoothing:antialiased; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+  a { color:var(--link); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  h1,h2,h3,h4 { color:var(--navy); font-weight:700; line-height:1.25; }
+  :focus-visible { outline:2px solid var(--cyan); outline-offset:2px; }
+
+  .demo-strip { background:var(--strip); color:rgba(255,255,255,.82); font-size:11.5px;
+                padding:6px 18px; text-align:center; }
+
+  /* ── Header ── */
+  .hdr { background:var(--white); border-bottom:1px solid var(--border); padding:14px 26px;
+         display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+  .logo { display:flex; align-items:center; gap:9px; cursor:pointer; }
+  .logo-mark { width:26px; height:26px; flex-shrink:0; }
+  .logo-txt { font-size:19px; color:var(--navy); font-weight:400; letter-spacing:-.01em; }
+  .logo-txt b { font-weight:700; }
+  .hdr-nav { margin-left:auto; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .hdr-nav a { font-size:11.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--navy); }
+  .hdr-btn { border:1.5px solid var(--navy); border-radius:3px; padding:8px 14px; font-size:11.5px;
+             font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--navy);
+             background:none; display:inline-flex; align-items:center; gap:7px; }
+  .hdr-btn:hover { background:var(--navy); color:#fff; }
+
+  /* ── Hero (home) ── */
+  .hero { background:var(--navy); position:relative; overflow:hidden; padding:74px 26px 88px; text-align:center; }
+  .hero::before { content:''; position:absolute; left:-18%; top:-62%; width:62%; height:190%;
+                  background:linear-gradient(140deg,#4f9ae0,#2f6fc0); border-radius:50%; opacity:.92; }
+  .hero::after { content:''; position:absolute; right:-10%; top:-40%; width:70%; height:180%;
+                 border-left:2px solid rgba(150,120,255,.3); border-radius:50%; }
+  .hero-in { position:relative; z-index:1; max-width:720px; margin:0 auto; }
+  .hero h1 { color:#fff; font-size:44px; font-weight:800; margin-bottom:26px; }
+  .popular { color:#fff; font-size:13px; margin-top:16px; font-weight:600; }
+  .popular button { background:none; border:0; color:#fff; font-weight:700; font-size:13px;
+                    border-bottom:2px solid #fff; padding:0 1px 1px; margin-left:8px; }
+
+  /* Search box, shared */
+  .sbox { display:flex; align-items:center; gap:10px; background:var(--card); border-radius:4px;
+          padding:13px 17px; position:relative; }
+  .sbox.plain { background:#fff; }
+  .sbox svg { width:19px; height:19px; color:var(--muted); flex-shrink:0; }
+  .sbox input { flex:1; min-width:0; border:0; background:none; font:inherit; font-size:15px;
+                color:var(--body); outline:none; }
+
+  /* Navy search strip on inner pages */
+  .sstrip { background:var(--navy); padding:22px 26px; }
+  .sstrip .sbox { max-width:1580px; margin:0 auto; }
+
+  /* ── Typeahead ── */
+  .ta { position:absolute; left:0; right:0; top:calc(100% + 6px); background:#fff; border:1px solid var(--border);
+        box-shadow:0 14px 40px rgba(12,27,84,.16); z-index:60; text-align:left; display:none;
+        max-height:62vh; overflow-y:auto; border-radius:3px; }
+  .ta.open { display:block; }
+  .ta-g { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+          color:var(--muted); padding:11px 18px 6px; background:var(--offwhite); }
+  .ta-i { display:flex; gap:12px; align-items:flex-start; padding:13px 18px;
+          border-bottom:1px solid var(--border); cursor:pointer; }
+  .ta-i:hover { background:var(--offwhite); }
+  .ta-t { font-size:14.5px; color:var(--link); font-weight:500; }
+  .ta-t mark { background:none; color:var(--link); font-weight:800; padding:0; }
+  .ta-p { font-size:12px; color:var(--muted); margin-top:2px; }
+  .ta-m { flex:1; min-width:0; }
+  .ta-badge { font-size:9.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+              padding:3px 7px; border-radius:11px; background:#e8f6fd; color:#0b6f9c; flex-shrink:0; margin-top:2px; }
+  .ta-badge.lesson { background:#eae6fb; color:#4b32a8; }
+  .ta-empty { padding:16px 18px; font-size:13.5px; color:var(--muted); }
+
+  /* ── Layout ── */
+  .page { max-width:1580px; margin:0 auto; padding:0 26px; }
+  .crumbs { padding:15px 0; font-size:13.5px; color:var(--muted); background:var(--offwhite); }
+  .crumbs .page { padding-top:0; padding-bottom:0; }
+  .crumb-bar { background:var(--offwhite); border-bottom:1px solid var(--border); }
+  .crumb-bar .page { padding-top:14px; padding-bottom:14px; }
+
+  .view { display:none; }
+  .view.on { display:block; }
+
+  /* ── Home tiles ── */
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:30px;
+           padding:54px 0 42px; text-align:center; }
+  .tile svg { width:58px; height:58px; color:var(--navy); }
+  .tile h3 { font-size:17px; margin-top:14px; }
+  .tile p { font-size:13px; color:var(--muted); margin-top:4px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:22px; padding-bottom:62px; }
+  .ccard { background:var(--card); border-radius:3px; padding:34px 22px; text-align:center; cursor:pointer;
+           transition:box-shadow .15s ease; }
+  .ccard:hover { box-shadow:var(--shadow); }
+  .ccard svg { width:48px; height:48px; color:var(--navy); }
+  .ccard h3 { font-size:16px; margin-top:16px; }
+
+  /* ── Category ── */
+  .cat-h { padding:42px 0 14px; }
+  .cat-h h1 { font-size:40px; font-weight:800; }
+  .cat-h hr { border:0; border-top:1px solid var(--border); margin-top:22px; }
+  .cat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:44px 34px; padding:30px 0 66px; }
+  .cat-sec h2 { font-size:22px; font-weight:700; margin-bottom:14px; }
+  .cat-sec a { display:block; font-size:14.5px; margin-bottom:11px; }
+
+  /* ── Article ── */
+  .art-cols { display:grid; grid-template-columns:270px minmax(0,1fr) 300px; gap:34px; padding:30px 0 70px; }
+  @media (max-width:1150px){ .art-cols { grid-template-columns:1fr; } }
+  .toc h4 { font-size:12px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; margin-bottom:12px; }
+  .toc a { display:block; font-size:13.5px; padding:7px 13px; color:var(--link); border-radius:2px; }
+  .toc a.sub { padding-left:28px; font-size:13px; }
+  .toc a.on { background:#4a8fd0; color:#fff; font-weight:600; }
+  .toc a.on:hover { text-decoration:none; }
+
+  .art h1 { font-size:38px; font-weight:800; margin-bottom:12px; }
+  .art h2 { font-size:29px; font-weight:800; margin:34px 0 14px; }
+  .art h3 { font-size:19px; margin:26px 0 10px; }
+  .art p { margin-bottom:15px; font-size:15px; }
+  .art ol, .art ul { margin:0 0 16px 22px; }
+  .art li { margin-bottom:8px; }
+  .art strong { color:var(--navy); }
+  .art-meta { display:flex; align-items:center; gap:12px; margin-bottom:26px; flex-wrap:wrap; }
+  .art-meta .upd { font-size:13px; color:var(--muted); flex:1; }
+  .shot { background:var(--card); border:1px solid var(--border); border-radius:3px;
+          padding:16px 18px; margin:0 0 18px; font-size:13.5px; }
+  .shot-k { font-size:11px; font-weight:700; color:var(--navy); margin-bottom:9px; }
+  .toggle { display:inline-flex; align-items:center; border-radius:3px; overflow:hidden; font-size:12px; font-weight:700; }
+  .toggle .off { background:var(--navy); color:#fff; padding:5px 10px; }
+  .toggle .on { background:#dfe3ea; color:var(--navy); padding:5px 10px; }
+
+  /* Right rail */
+  .rail { display:grid; gap:22px; align-content:start; }
+  .rbox { border-radius:3px; overflow:hidden; border:1px solid var(--border); }
+  .rbox-h { background:var(--navy); color:#fff; padding:13px 16px; font-size:15px; font-weight:700;
+            display:flex; align-items:center; gap:9px; }
+  .rbox-b { background:var(--card); padding:14px 16px; }
+  .rbox-b a { display:block; font-size:13.5px; margin-bottom:11px; text-decoration:underline; }
+  .rbox-b a:last-child { margin-bottom:0; }
+
+  /* ── Related Training ── */
+  .rt-item { background:#fff; border:1px solid var(--border); border-radius:3px; padding:12px 13px; margin-bottom:10px; }
+  .rt-item:last-child { margin-bottom:0; }
+  .rt-t { font-size:13.5px; font-weight:600; color:var(--navy); line-height:1.35; }
+  .rt-s { font-size:11.5px; color:var(--muted); margin-top:3px; }
+  .rt-f { display:flex; align-items:center; gap:9px; margin-top:10px; flex-wrap:wrap; }
+  .rt-btn { background:var(--navy); color:#fff; border:0; border-radius:3px; padding:7px 12px;
+            font-size:11.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
+            display:inline-flex; align-items:center; gap:6px; }
+  .rt-btn:hover { background:var(--link); }
+  .rt-state { font-size:11px; font-weight:700; padding:3px 7px; border-radius:11px; }
+  .rt-state.done { background:var(--good-soft); color:var(--good); }
+  .rt-state.prog { background:var(--warn-soft); color:var(--warn); }
+  .rt-empty { font-size:13px; color:var(--muted); }
+  .rt-why { font-size:11px; color:var(--link); font-weight:700; margin-top:8px; }
+
+  /* ── Search results page ── */
+  .sr-h { padding:34px 0 10px; }
+  .sr-h h1 { font-size:30px; font-weight:800; }
+  .sr-h p { font-size:14px; color:var(--muted); margin-top:6px; }
+  .sr-tabs { display:flex; gap:22px; border-bottom:1px solid var(--border); margin-top:20px; }
+  .sr-tab { background:none; border:0; padding:11px 2px; font-size:13.5px; font-weight:700;
+            color:var(--muted); border-bottom:3px solid transparent; }
+  .sr-tab.on { color:var(--navy); border-bottom-color:var(--cyan); }
+  .sr-list { padding:12px 0 70px; }
+  .sr-i { padding:20px 0; border-bottom:1px solid var(--border); }
+  .sr-i h3 { font-size:18px; font-weight:600; color:var(--link); margin-bottom:5px; }
+  .sr-p { font-size:12.5px; color:var(--muted); margin-bottom:7px; }
+  .sr-x { font-size:14px; }
+  .sr-x mark { background:#fff6cc; padding:0 2px; }
+  .sr-foot { font-size:12px; color:var(--muted); margin-top:9px; display:flex; gap:14px; flex-wrap:wrap; align-items:center; }
+
+  /* ── Under the hood ── */
+  .uth-h { font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.07em;
+           color:var(--navy); margin:0 0 10px; display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; }
+  .uth-sub { font-size:11.5px; font-weight:500; text-transform:none; letter-spacing:0; color:var(--muted); }
+  .api { background:var(--navy); border-radius:3px; overflow:hidden; }
+  .api-h { padding:12px 15px; display:flex; align-items:center; gap:9px; }
+  .api-h h2 { font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.07em; color:#fff; }
+  .api-h .tag { margin-left:auto; font-size:10px; font-weight:800; text-transform:uppercase;
+                letter-spacing:.05em; background:rgba(0,174,239,.25); color:#8ad8f7;
+                padding:3px 8px; border-radius:11px; }
+  .api-blk { padding:12px 15px; border-bottom:1px solid rgba(255,255,255,.08); }
+  .api-blk:last-child { border-bottom:0; }
+  .api-k { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.07em;
+           color:rgba(255,255,255,.45); margin-bottom:6px; }
+  .api pre { margin:0; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+             font-size:11.5px; line-height:1.65; color:#C5D6E8; white-space:pre-wrap; word-break:break-word; }
+  .api pre.plain { color:rgba(255,255,255,.64); font-family:inherit; font-size:12.5px; line-height:1.6; }
+  .api .m { color:#8ad8f7; font-weight:700; } .api .f { color:#8FD0A4; }
+  .api .x { color:#F2918F; } .api .d { color:rgba(255,255,255,.35); }
+  details.apiD { margin-bottom:9px; }
+  details.apiD > summary { padding:12px 15px; display:flex; align-items:center; gap:9px; cursor:pointer;
+                           list-style:none; user-select:none; }
+  details.apiD > summary::-webkit-details-marker { display:none; }
+  details.apiD[open] > summary { border-bottom:1px solid rgba(255,255,255,.12); }
+  details.apiD > summary:hover { background:rgba(255,255,255,.05); }
+  details.apiD > summary .chev { margin-left:4px; color:rgba(255,255,255,.4); font-size:11px;
+                                 transition:transform .15s ease; flex-shrink:0; }
+  details.apiD[open] > summary .chev { transform:rotate(90deg); }
+  details.apiD > summary .tag { margin-left:auto; }
+  details.apiD.api-upd > summary { box-shadow:inset 3px 0 0 var(--cyan); }
+
+  /* ── Player modal ── */
+  .mp { position:fixed; inset:0; background:rgba(12,27,84,.78); z-index:120; display:none;
+        align-items:center; justify-content:center; padding:24px; }
+  .mp.open { display:flex; }
+  .mp-box { background:#0e1430; border-radius:5px; width:100%; max-width:1180px; height:min(780px,92vh);
+            display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 70px rgba(0,0,0,.5); }
+  .mp-h { display:flex; align-items:center; gap:11px; padding:12px 16px;
+          border-bottom:1px solid rgba(255,255,255,.1); flex-shrink:0; }
+  .mp-h h3 { font-size:14px; font-weight:600; color:#fff; flex:1; min-width:0;
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #modalBadge { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
+                background:rgba(0,174,239,.26); color:#8ad8f7; padding:3px 9px; border-radius:11px; white-space:nowrap; }
+  .mp-x { background:none; border:0; color:rgba(255,255,255,.55); font-size:23px; line-height:1; padding:0 4px; }
+  .mp-x:hover { color:#fff; }
+  .mp-body { flex:1; display:flex; min-height:0; }
+  .mp-side { width:268px; border-right:1px solid rgba(255,255,255,.1); overflow-y:auto;
+             flex-shrink:0; background:#0a0f26; }
+  @media (max-width:820px){ .mp-side { display:none; } }
+  .mp-main { flex:1; min-width:0; background:#000; }
+  .mp-frame-el { width:100%; height:100%; border:0; display:block; }
+  .il-chapter { padding:10px 14px 4px; font-size:10px; font-weight:800; text-transform:uppercase;
+                letter-spacing:.07em; color:rgba(255,255,255,.35); }
+  .il-lesson { display:flex; align-items:flex-start; gap:10px; padding:9px 14px; cursor:pointer;
+               border-left:3px solid transparent; }
+  .il-lesson:hover { background:rgba(255,255,255,.05); }
+  .il-lesson.il-active { background:rgba(0,174,239,.15); border-left-color:var(--cyan); }
+  .il-arrow { width:19px; height:19px; border-radius:50%; display:grid; place-items:center;
+              font-size:10px; flex-shrink:0; background:rgba(255,255,255,.14); color:#fff; }
+  .il-arrow.done { background:#1b7f4f; } .il-arrow.playing { background:var(--cyan); color:#05253a; }
+  .il-title { color:#E6EDF6; font-size:12.5px; line-height:1.35; }
+  .il-dur { color:rgba(255,255,255,.4); font-size:11px; }
+  .mp-uth { flex-shrink:0; border-top:1px solid rgba(255,255,255,.14); background:var(--navy); }
+  .mp-uth > summary { padding:10px 16px; display:flex; align-items:center; gap:9px; cursor:pointer;
+                      list-style:none; user-select:none; }
+  .mp-uth > summary::-webkit-details-marker { display:none; }
+  .mp-uth-t { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.07em;
+              color:rgba(255,255,255,.72); }
+  .mp-uth > summary .tag { margin-left:auto; font-size:10px; font-weight:800; text-transform:uppercase;
+                           background:rgba(0,174,239,.25); color:#8ad8f7; padding:3px 8px; border-radius:11px; }
+  .mp-uth > summary .chev { color:rgba(255,255,255,.4); font-size:11px; transition:transform .15s ease; }
+  .mp-uth[open] > summary .chev { transform:rotate(90deg); }
+  .mp-uth-b { padding:0 16px 14px; max-height:34vh; overflow-y:auto; border-top:1px solid rgba(255,255,255,.08); }
+  .mp-uth-b pre { margin:11px 0 0; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+                  font-size:11.5px; line-height:1.65; color:#C5D6E8; white-space:pre-wrap; word-break:break-word; }
+  .mp-uth-b .m { color:#8ad8f7; font-weight:700; } .mp-uth-b .f { color:#8FD0A4; }
+
+  .ftr { background:var(--navy); color:rgba(255,255,255,.7); padding:26px; font-size:12.5px; text-align:center; }
+  .ico { width:15px; height:15px; flex:0 0 15px; }
+</style>
+</head>
+<body>
+
+<div class="demo-strip">
+  Absorb Infuse demonstration &mdash; a mock-up of the Absorb Help Center showing training embedded in support content. Article text is abridged.
+</div>
+
+<header class="hdr">
+  <div class="logo" onclick="go('home')">
+    <svg class="logo-mark" viewBox="0 0 40 40" aria-hidden="true">
+      <polygon points="4,34 16,6 22,20 16,20 11,34" fill="#00AEEF"/>
+      <polygon points="18,34 27,12 33,26 27,26 25,34" fill="#E8457C"/>
+      <polygon points="27,26 33,26 36,34 30,34" fill="#F5C542"/>
+    </svg>
+    <span class="logo-txt">absorb <b>help center</b></span>
+  </div>
+  <nav class="hdr-nav">
+    <a href="#" onclick="return false;">Latest News</a>
+    <a href="#" onclick="return false;">Contact Us</a>
+    <button class="hdr-btn">Categories
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <button class="hdr-btn">Submit a Request</button>
+    <button class="hdr-btn">Sign In</button>
+  </nav>
+</header>
+
+<!-- ══════════════════ HOME ══════════════════ -->
+<section class="view on" id="view-home">
+  <div class="hero">
+    <div class="hero-in">
+      <h1>How can we help?</h1>
+      <div class="sbox" id="heroSbox">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="heroSearch" placeholder="Search..." autocomplete="off" />
+        <div class="ta" id="heroTa"></div>
+      </div>
+      <div class="popular">Popular Searches:
+        <button onclick="runSearch('SSO')">SSO</button>
+        <button onclick="runSearch('RESTful API')">RESTful API</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="tiles">
+      <div class="tile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1zM16 8a5 5 0 010 8M19 5a9 9 0 010 14"/></svg>
+        <h3>Release Notes</h3><p>Absorb LMS Announcements</p>
+      </div>
+      <div class="tile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 3l9 4.5-9 4.5-9-4.5zM3 12l9 4.5 9-4.5M3 16.5L12 21l9-4.5"/></svg>
+        <h3>Products</h3><p>Absorb Software Products</p>
+      </div>
+      <div class="tile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="13" height="13" rx="1.5"/><rect x="8" y="8" width="13" height="13" rx="1.5"/></svg>
+        <h3>Services</h3><p>Absorb Professional Services</p>
+      </div>
+    </div>
+
+    <div class="cards">
+      <div class="ccard" onclick="go('cat')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="7" r="3"/><circle cx="5" cy="10" r="2.2"/><circle cx="19" cy="10" r="2.2"/><path d="M2 19c0-3 2-4.5 3-4.5M22 19c0-3-2-4.5-3-4.5M6 20c0-4 3-6 6-6s6 2 6 6"/></svg>
+        <h3>New to Absorb</h3>
+      </div>
+      <div class="ccard" onclick="go('cat')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><ellipse cx="12" cy="12" rx="9" ry="7" transform="rotate(-18 12 12)"/></svg>
+        <h3>Absorb Aura</h3>
+      </div>
+      <div class="ccard" onclick="go('cat')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="6" width="18" height="14" rx="1"/><path d="M3 11h18M9 11v9M15 11v9M7 3l1 2M12 2.5V5M17 3l-1 2"/></svg>
+        <h3>Absorb LMS Knowledge Base</h3>
+      </div>
+      <div class="ccard" onclick="go('cat')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="4" width="14" height="13" rx="1"/><path d="M6 13l3-3 2 2 3-4"/><circle cx="17" cy="17" r="4"/><path d="M20 20l2 2"/></svg>
+        <h3>Absorb Analyze</h3>
+      </div>
+      <div class="ccard" onclick="go('cat')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 20V9l2-5 2 5v11M14 20v-8l2-4 2 4v8M3 20h18"/></svg>
+        <h3>Absorb Create</h3>
+      </div>
+      <div class="ccard" onclick="go('cat')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 2c3 3 5 6 5 10a5 5 0 01-10 0c0-4 2-7 5-10zM9 17l-2 5 5-2 5 2-2-5"/></svg>
+        <h3>Absorb Engage</h3>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ CATEGORY ══════════════════ -->
+<section class="view" id="view-cat">
+  <div class="sstrip">
+    <div class="sbox plain" id="catSbox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="catSearch" placeholder="Search..." autocomplete="off" />
+      <div class="ta" id="catTa"></div>
+    </div>
+  </div>
+  <div class="crumb-bar"><div class="page"><span class="crumbs"><a href="#" onclick="go('home');return false;">Absorb Help Center</a> &rsaquo; Absorb Aura</span></div></div>
+  <div class="page">
+    <div class="cat-h"><h1>Absorb Aura</h1><hr /></div>
+    <div class="cat-grid">
+      <div class="cat-sec"><h2>Aura Admin Assist</h2>
+        <a href="#" onclick="go('art');return false;">Aura Admin Assist</a></div>
+      <div class="cat-sec"><h2>Aura Learner Agent</h2>
+        <a href="#" onclick="go('art');return false;">Aura Learner Agent: Global Resources</a>
+        <a href="#" onclick="go('art');return false;">Aura Learner Agent: External Knowledge</a>
+        <a href="#" onclick="go('art');return false;">Aura Learner Agent: Course Extraction</a>
+        <a href="#" onclick="go('art');return false;">Aura Learner Agent</a></div>
+      <div class="cat-sec"><h2>Aura Create</h2>
+        <a href="#" onclick="go('art');return false;">Aura Create: Course Authoring Agent</a></div>
+      <div class="cat-sec"><h2>Aura Configuration</h2>
+        <a href="#" onclick="go('art');return false;">Aura Credits System Overview</a></div>
+      <div class="cat-sec"><h2>Aura Applications</h2>
+        <a href="#" onclick="go('art');return false;">Connecting Absorb Aura to Claude and ChatGPT using MCP</a>
+        <a href="#" onclick="go('art');return false;">Aura Extension for Google Chrome</a>
+        <a href="#" onclick="go('art');return false;">Aura for Microsoft Teams</a></div>
+      <div class="cat-sec"><h2>Aura Reporting</h2>
+        <a href="#" onclick="go('art');return false;">Rehearsals Report</a>
+        <a href="#" onclick="go('art');return false;">Aura Chats Report</a></div>
+      <div class="cat-sec"><h2>Aura Rehearse</h2>
+        <a href="#" onclick="go('art');return false;">Aura Rehearse</a></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ ARTICLE ══════════════════ -->
+<section class="view" id="view-art">
+  <div class="sstrip">
+    <div class="sbox plain" id="artSbox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="artSearch" placeholder="Search..." autocomplete="off" />
+      <div class="ta" id="artTa"></div>
+    </div>
+  </div>
+  <div class="crumb-bar"><div class="page"><span class="crumbs">
+    <a href="#" onclick="go('home');return false;">Absorb Help Center</a> &rsaquo;
+    <a href="#" onclick="go('cat');return false;">Absorb Aura</a> &rsaquo; Aura Admin Assist</span></div></div>
+
+  <div class="page art-cols">
+    <aside class="toc">
+      <h4>Table of Contents</h4>
+      <a href="#" class="on" onclick="return false;">Aura Admin Assist</a>
+      <a href="#" onclick="return false;">Aura Admin Assist Configuration</a>
+      <a href="#" onclick="return false;">Access Aura Admin Assist</a>
+      <a href="#" class="sub" onclick="return false;">Start A Chat</a>
+      <a href="#" class="sub" onclick="return false;">Start A New Chat</a>
+      <a href="#" class="sub" onclick="return false;">Manage Chat History</a>
+      <a href="#" onclick="return false;">Use Aura Admin Assist</a>
+      <a href="#" class="sub" onclick="return false;">Ask Questions About Using Absorb</a>
+      <a href="#" class="sub" onclick="return false;">Ask Questions About Your Data</a>
+      <a href="#" class="sub" onclick="return false;">Unsupported Data Requests</a>
+      <a href="#" onclick="return false;">Understand Responses</a>
+      <a href="#" class="sub" onclick="return false;">Source Citations</a>
+      <a href="#" class="sub" onclick="return false;">Live LMS Data</a>
+      <a href="#" onclick="return false;">Feature Limits</a>
+      <a href="#" onclick="return false;">Troubleshooting</a>
+      <a href="#" onclick="return false;">Frequently Asked Questions</a>
+    </aside>
+
+    <article class="art">
+      <h1>Aura Admin Assist</h1>
+      <div class="art-meta">
+        <span class="upd">Updated 17 days ago</span>
+        <button class="hdr-btn">Follow</button>
+      </div>
+
+      <p><strong>Aura Admin Assist</strong> is an AI assistant in the <strong>Admin Experience</strong>.
+      Administrators can ask it how to do something in Absorb, or ask it for supported LMS data in
+      plain language. This article covers how it works, what it can answer, where it stops, and the
+      usual troubleshooting steps.</p>
+
+      <p>Chats with <strong>Aura Admin Assist</strong> are free and do not consume credits. The
+      <a href="#" onclick="return false;">Aura Credits System Overview</a> article explains how
+      credits work elsewhere in Aura. Admin Assist is currently English only.</p>
+
+      <h2>Aura Admin Assist Configuration</h2>
+      <p><strong>Aura Admin Assist</strong> is on by default in some portals. If it is not enabled in
+      yours, a <strong>System Administrator</strong> can switch it on in <strong>Client Settings</strong>.
+      Your Account Manager can help if Aura is not available in your portal at all.</p>
+
+      <p>To reach the Aura configuration tile, an Admin needs the
+      <strong>User Management &gt; All</strong> permission in their <strong>User Settings</strong>.</p>
+
+      <div class="shot">
+        <div class="shot-k">Admin</div>
+        <span class="toggle"><span class="off">&nbsp;</span><span class="on">ON</span></span>
+        <span style="margin-left:10px;color:var(--muted);font-style:italic;">This user will be able to access the admin portal.</span>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <div class="shot-k">User Management</div>
+          <label style="margin-right:16px;"><input type="radio" name="um" checked /> All</label>
+          <label style="margin-right:16px;"><input type="radio" name="um" /> Department</label>
+          <label><input type="radio" name="um" /> Group</label>
+        </div>
+      </div>
+
+      <p>In the <strong>Admin Experience</strong>, follow these steps to enable
+      <strong>Aura Admin Assist</strong>:</p>
+      <ol>
+        <li>Click <strong>Client Settings</strong> in the <strong>Account</strong> menu.</li>
+        <li>Open the <strong>Aura</strong> tile.</li>
+        <li>Switch <strong>Admin Assist</strong> on and save.</li>
+      </ol>
+
+      <h2>Understand Responses</h2>
+      <h3>Source Citations</h3>
+      <p>Answers drawn from Absorb documentation carry a citation back to the article they came from,
+      so an Admin can confirm the source rather than take the answer on trust.</p>
+      <h3>Live LMS Data</h3>
+      <p>Data questions are answered against the portal's live records, scoped to what the signed-in
+      Admin is already permitted to see. Admin Assist cannot widen its own permissions.</p>
+
+      <!-- ══════════════ Under the hood ══════════════ -->
+      <div style="margin-top:40px">
+        <div class="uth-h">Under the hood
+          <span class="uth-sub">How the training below reaches this help centre</span></div>
+
+        <details class="api apiD" id="panelCatalog">
+          <summary class="api-h"><h2>1 &mdash; Catalog, inside the help centre</h2>
+            <span class="tag">Request / response</span><span class="chev">&#9656;</span></summary>
+          <div>
+            <div class="api-blk"><div class="api-k">What this proves</div>
+              <pre class="plain">The Related Training block and the Training results in search both came
+from Absorb a moment ago, through this site's own origin. Nothing is
+hard-coded. Publish a course in Absorb and it appears in the help centre
+with no deployment and no content migration.</pre></div>
+            <div class="api-blk"><div class="api-k">1 &bull; The help centre asks, on the reader's behalf</div>
+              <pre id="apiCatReq">&mdash;</pre></div>
+            <div class="api-blk"><div class="api-k">2 &bull; Absorb answers <span id="apiCatTag"></span></div>
+              <pre id="apiCatRes">&mdash;</pre></div>
+          </div>
+        </details>
+
+        <details class="api apiD" id="panelMatch">
+          <summary class="api-h"><h2>2 &mdash; How an article finds its training</h2>
+            <span class="tag">Matching</span><span class="chev">&#9656;</span></summary>
+          <div>
+            <div class="api-blk"><div class="api-k">What this proves</div>
+              <pre class="plain">No one tagged this article by hand. The page scores the live catalog
+against the words in the article's own title and headings, so the
+mapping survives both a course rename and an article rewrite. A real
+deployment would use Absorb tags or categories for precision — the
+point here is that it needs no second content system either way.</pre></div>
+            <div class="api-blk"><div class="api-k">Terms taken from this article</div>
+              <pre id="apiMatchReq">&mdash;</pre></div>
+            <div class="api-blk"><div class="api-k">Scored result</div>
+              <pre id="apiMatchRes">&mdash;</pre></div>
+          </div>
+        </details>
+
+        <details class="api apiD" id="panelDeliver">
+          <summary class="api-h"><h2>3 &mdash; Content delivery handshake</h2>
+            <span class="tag">Embedded player</span><span class="chev">&#9656;</span></summary>
+          <div>
+            <div class="api-blk"><div class="api-k">What this proves</div>
+              <pre class="plain">Starting a lesson does not send the reader to an LMS login. The server
+mints a single-use player URL and this page renders it in place. The
+reader stays in the help centre, and their progress is recorded in
+Absorb against their own record.</pre></div>
+            <div class="api-blk"><div class="api-k">The exchange</div>
+              <pre id="apiDeliver">Start a lesson and this fills in.</pre></div>
+          </div>
+        </details>
+
+        <details class="api apiD" id="panelLog">
+          <summary class="api-h"><h2>4 &mdash; Live API call log</h2>
+            <span class="tag">Every request</span><span class="chev">&#9656;</span></summary>
+          <div>
+            <div class="api-blk"><div class="api-k">What this proves</div>
+              <pre class="plain">Every call this page makes. The browser only ever talks to this site's
+own origin — the Absorb API key and the reader's token stay server-side.</pre></div>
+            <div class="api-blk"><div class="api-k">Browser &rarr; help centre server</div>
+              <pre id="apiCallLog">No calls recorded yet.</pre></div>
+          </div>
+        </details>
+      </div>
+    </article>
+
+    <aside class="rail">
+      <div class="rbox">
+        <div class="rbox-h">&minus;&nbsp;Related Articles</div>
+        <div class="rbox-b">
+          <a href="#" onclick="return false;">Aura Learner Agent</a>
+          <a href="#" onclick="return false;">Aura Credits System Overview</a>
+          <a href="#" onclick="return false;">Introducing Absorb Aura: The Agentic Learning and Performance System</a>
+          <a href="#" onclick="return false;">Absorb AI Program Overview</a>
+          <a href="#" onclick="return false;">Modern Learner UI</a>
+        </div>
+      </div>
+
+      <!-- ══════════════ Related Training ══════════════
+           Sits directly under Related Articles, in the same box
+           treatment, so it reads as part of the help centre rather
+           than a widget bolted onto it. -->
+      <div class="rbox">
+        <div class="rbox-h">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3L2 8l10 5 10-5zM6 11v5c0 1 3 2 6 2s6-1 6-2v-5"/></svg>
+          Related Training
+        </div>
+        <div class="rbox-b" id="relTraining">
+          <div class="rt-empty">Loading from Absorb&hellip;</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ══════════════════ SEARCH RESULTS ══════════════════ -->
+<section class="view" id="view-search">
+  <div class="sstrip">
+    <div class="sbox plain" id="srSbox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="srSearch" placeholder="Search..." autocomplete="off" />
+      <div class="ta" id="srTa"></div>
+    </div>
+  </div>
+  <div class="crumb-bar"><div class="page"><span class="crumbs">
+    <a href="#" onclick="go('home');return false;">Absorb Help Center</a> &rsaquo; Search results</span></div></div>
+  <div class="page">
+    <div class="sr-h">
+      <h1 id="srTitle">Search results</h1>
+      <p id="srCount"></p>
+      <div class="sr-tabs">
+        <button class="sr-tab on" id="tabAll" onclick="setTab('all')">All</button>
+        <button class="sr-tab" id="tabArt" onclick="setTab('articles')">Articles</button>
+        <button class="sr-tab" id="tabLes" onclick="setTab('lessons')">Training</button>
+      </div>
+    </div>
+    <div class="sr-list" id="srList"></div>
+  </div>
+</section>
+
+<!-- ── Player modal ── -->
+<div class="mp" id="playerModal" onclick="if(event.target===this)closePlayerModal()">
+  <div class="mp-box">
+    <div class="mp-h">
+      <h3 id="modalTitle">Lesson</h3>
+      <span id="modalBadge">Online Course</span>
+      <button class="mp-x" onclick="closePlayerModal()" aria-label="Close player">&#10005;</button>
+    </div>
+    <div class="mp-body">
+      <div class="mp-side" id="modalLessonList"></div>
+      <div class="mp-main"><iframe id="mpFrame" class="mp-frame-el" src="about:blank" allowfullscreen allow="autoplay; fullscreen"></iframe></div>
+    </div>
+    <details class="mp-uth">
+      <summary><span class="mp-uth-t">Under the hood &mdash; content delivery handshake</span>
+        <span class="tag">Embedded player</span><span class="chev">&#9656;</span></summary>
+      <div class="mp-uth-b"><pre id="mpDeliver">Open a lesson and this fills in.</pre></div>
+    </details>
+  </div>
+</div>
+
+<footer class="ftr">Absorb Help Center &mdash; Infuse demonstration. Article text abridged; training is live from Absorb.</footer>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ══════════════════════════════════════════
+     Help-centre article corpus.
+     Titles and paths taken from the real help centre so search behaves
+     the way a prospect expects. Bodies are abridged one-liners.
+  ══════════════════════════════════════════ */
+  var ARTICLES = [
+    { t:'Aura Admin Assist', p:'Absorb Help Center > Absorb Aura > Aura Admin Assist',
+      x:'Chats using Aura Admin Assist are free and do not use credits. For more information on the Aura credits system, see the Aura Credits article.',
+      d:'May 1, 2026 at 3:03 PM', view:'art' },
+    { t:'Aura Learner Agent', p:'Absorb Help Center > Absorb Aura > Aura Learner Agent',
+      x:'The Aura Learner Agent answers learner questions in the Modern Learner UI and can draw on global resources and external knowledge.' },
+    { t:'Aura Learner Agent: Global Resources', p:'Absorb Help Center > Absorb Aura > Aura Learner Agent',
+      x:'Global resources make selected documents available to the Learner Agent across every course in the portal.' },
+    { t:'Aura Learner Agent: External Knowledge', p:'Absorb Help Center > Absorb Aura > Aura Learner Agent',
+      x:'External knowledge lets the Learner Agent cite approved sources outside the LMS.' },
+    { t:'Aura Learner Agent: Course Extraction', p:'Absorb Help Center > Absorb Aura > Aura Learner Agent',
+      x:'Course extraction indexes course content so the Learner Agent can answer from inside the material itself.' },
+    { t:'Aura Rehearse', p:'Absorb Help Center > Absorb Aura > Aura Rehearse',
+      x:'Aura Rehearse gives learners a scored practice conversation and returns a rehearsal transcript.' },
+    { t:'Aura Chats Report', p:'Absorb Help Center > Absorb Aura > Aura Reporting',
+      x:'The Aura Chats Report shows chat volume, usage insights and department breakdowns.' },
+    { t:'Rehearsals Report', p:'Absorb Help Center > Absorb Aura > Aura Reporting',
+      x:'The Rehearsals Report lists completed rehearsals with their scores.' },
+    { t:'Aura Credits System Overview', p:'Absorb Help Center > Absorb Aura > Aura Configuration',
+      x:'Credits are consumed by generative Aura features. Admin Assist chats are free.' },
+    { t:'Aura Extension for Google Chrome', p:'Absorb Help Center > Absorb Aura > Aura Applications',
+      x:'The Chrome extension brings Aura into the browser alongside the tools people already use.' },
+    { t:'Aura for Microsoft Teams', p:'Absorb Help Center > Absorb Aura > Aura Applications',
+      x:'Aura for Microsoft Teams answers questions without leaving the Teams client.' },
+    { t:'Connecting Absorb Aura to Claude and ChatGPT using MCP', p:'Absorb Help Center > Absorb Aura > Aura Applications',
+      x:'Connect Aura to an MCP client so an assistant can search your Absorb content directly.' },
+    { t:'Aura Create: Course Authoring Agent', p:'Absorb Help Center > Absorb Aura > Aura Create',
+      x:'Aura Create drafts course structure and content from source material you supply.' },
+    { t:'August 2026 Aura Release: Department Selector for Aura Learner Agent and Usage Insights for Aura Chats',
+      p:'Absorb Help Center > News > Release Notes',
+      x:'This release adds a department selector to the Learner Agent and usage insights to Aura Chats.' },
+    { t:'Single Sign-On (SSO) Overview', p:'Absorb Help Center > Absorb LMS Knowledge Base > Integrations',
+      x:'Absorb supports SAML 2.0 and OpenID Connect for single sign-on against your identity provider.' },
+    { t:'RESTful API: Getting Started', p:'Absorb Help Center > Absorb LMS Knowledge Base > Developer',
+      x:'The RESTful API is authenticated with an API key issued per portal and region.' },
+    { t:'Modern Learner UI', p:'Absorb Help Center > Absorb LMS Knowledge Base > Learner Experience',
+      x:'The Modern Learner UI is the current learner-facing interface for Absorb LMS.' },
+    { t:'Absorb AI Program Overview', p:'Absorb Help Center > Products > Absorb AI',
+      x:'An overview of how Absorb builds, governs and releases its AI features.' }
+  ];
+
+  var CATALOG = [], RELATED = [], apiLog = [], srQuery = '', srTab = 'all';
+
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+    });
+  }
+  function byId(id){ return document.getElementById(id); }
+
+  /* ── View switching ──────────────────────────────────────── */
+  window.go = function(name){
+    ['home','cat','art','search'].forEach(function(v){
+      byId('view-' + v).classList.toggle('on', v === name);
+    });
+    closeAllTypeahead();
+    window.scrollTo({ top:0, behavior:'instant' in window ? 'instant' : 'auto' });
+  };
+
+  /* ── Instrumentation ─────────────────────────────────────── */
+  function pulsePanel(id){
+    var el = byId(id); if (!el) return;
+    el.classList.add('api-upd');
+    setTimeout(function(){ el.classList.remove('api-upd'); }, 2200);
+  }
+  function recordCall(method, url, status, t0){
+    var now = (window.performance && performance.now) ? performance.now() : Date.now();
+    var path = String(url);
+    try { var u = new URL(url, window.location.origin); path = u.pathname + (u.search || ''); } catch (e) {}
+    apiLog.unshift({ method:String(method || 'GET').toUpperCase(), path:path, status:status,
+                     ms:Math.max(0, Math.round(now - t0)) });
+    if (apiLog.length > 14) apiLog.length = 14;
+    paintApiLog();
+  }
+  function paintApiLog(){
+    var el = byId('apiCallLog'); if (!el) return;
+    if (!apiLog.length) { el.textContent = 'No calls recorded yet.'; return; }
+    el.innerHTML = apiLog.map(function(c){
+      var cls = (c.status >= 200 && c.status < 300) ? 'f' : 'x';
+      return '<span class="m">' + esc(c.method) + '</span> ' + esc(c.path) +
+             '  <span class="' + cls + '">' + (c.status || 'ERR') + '</span>' +
+             ' <span class="d">' + c.ms + 'ms</span>';
+    }).join('\n');
+    pulsePanel('panelLog');
+  }
+  (function instrumentFetch(){
+    if (!window.fetch) return;
+    var orig = window.fetch.bind(window);
+    window.fetch = function(input, init){
+      var url = (typeof input === 'string') ? input : (input && input.url) || String(input);
+      var method = (init && init.method) || (input && input.method) || 'GET';
+      var t0 = (window.performance && performance.now) ? performance.now() : Date.now();
+      return orig(input, init).then(function(r){ recordCall(method, url, r.status, t0); return r; },
+        function(e){ recordCall(method, url, 0, t0); throw e; });
+    };
+  })();
+
+  function redactUrl(u){
+    if (!u) return '(none)';
+    try {
+      var x = new URL(u, window.location.origin), keys = [];
+      x.searchParams.forEach(function(v, k){ keys.push(k); });
+      keys.forEach(function(k){
+        if (/token|jwt|sig|auth|key|ticket|sso/i.test(k)) x.searchParams.set(k, 'REDACTED');
+      });
+      return x.origin + x.pathname + (x.search || '');
+    } catch (e) {
+      return String(u).replace(/([?&][^=&]*(?:token|jwt|sig|auth|key|ticket|sso)[^=&]*=)[^&]*/gi, '$1REDACTED');
+    }
+  }
+
+  function paintDelivery(reqPath, payload){
+    var html =
+      '<span class="m">GET</span> <span class="f">' + esc(reqPath) + '</span>\n' +
+      '   → help centre server authenticates to Absorb (API key + learner\n' +
+      '     token, both server-side only)\n' +
+      '   ← Absorb mints a single-use player URL\n\n' +
+      '<span class="m">iframe src</span>\n  ' + esc(redactUrl(payload && payload.playerUrl)) + '\n' +
+      (payload && payload.lessonId ? '\n<span class="m">lessonId</span> ' + esc(payload.lessonId) + '\n' : '') +
+      '\nRendered into the modal on this page. The reader never leaves the\n' +
+      'help centre and never holds an Absorb credential.';
+    var page = byId('apiDeliver'); if (page) page.innerHTML = html;
+    var modal = byId('mpDeliver'); if (modal) modal.innerHTML = html;
+    pulsePanel('panelDeliver');
+  }
+
+  /* ── Catalog ─────────────────────────────────────────────── */
+  function courseTypeLabel(t){
+    if (t === 'Curriculum') return 'Curriculum';
+    if (t === 'InstructorLedCourse') return 'Instructor-Led';
+    return 'Online Course';
+  }
+  function courseName(c){ return c.name || c.title || 'Course'; }
+  function courseBlurb(c){ return String(c.description || '').replace(/<[^>]*>/g, '').trim(); }
+
+  function scoreCourse(c, terms){
+    var n = courseName(c).toLowerCase(), d = courseBlurb(c).toLowerCase(), s = 0;
+    terms.forEach(function(k, i){
+      var w = Math.max(1, terms.length - i);
+      if (n.indexOf(k) !== -1) s += 10 * w;
+      else if (d.indexOf(k) !== -1) s += 3 * w;
+    });
+    if ((c.courseType || c.type) === 'Curriculum') s += 2;
+    return s;
+  }
+
+  /* Terms are taken from the article itself — no hand-tagging. */
+  var ARTICLE_TERMS = ['aura','admin','assist','ai','assistant','chat','absorb','report','credit'];
+
+  async function loadCatalog(){
+    var req = byId('apiCatReq');
+    if (req) req.innerHTML = '<span class="m">GET</span> <span class="f">/api/psbi/catalog</span>\n' +
+      '   credentials: include   (help centre session cookie, HttpOnly)';
+    try {
+      var resp = await fetch('/api/psbi/catalog', { credentials:'include' });
+      if (resp.status === 401) {
+        setCat('<span class="x">401</span>', '<span class="x">401 Not authenticated</span>\n\n' +
+          'No session. Sign in and Related Training and the Training tab\nfill with this reader\'s own catalog.');
+        signedOut(); return;
+      }
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var data = await resp.json();
+      CATALOG = (data._embedded && data._embedded.courses) || [];
+
+      setCat('<span class="f">200</span>', '<span class="f">200 OK</span>  ' + CATALOG.length + ' courses\n\n' +
+        CATALOG.slice(0, 6).map(function(c){
+          return '  <span class="d">·</span> ' + esc(courseName(c)) +
+                 '  <span class="d">' + esc(courseTypeLabel(c.courseType || c.type)) + '</span>';
+        }).join('\n') +
+        (CATALOG.length > 6 ? '\n  <span class="d">… and ' + (CATALOG.length - 6) + ' more</span>' : ''));
+      pulsePanel('panelCatalog');
+
+      var scored = CATALOG.map(function(c){ return { c:c, s:scoreCourse(c, ARTICLE_TERMS) }; })
+                          .sort(function(a, b){ return b.s - a.s; });
+      RELATED = scored.filter(function(r){ return r.s > 0; }).slice(0, 3);
+      if (!RELATED.length) RELATED = scored.slice(0, 2);
+
+      var mReq = byId('apiMatchReq');
+      if (mReq) mReq.innerHTML = ARTICLE_TERMS.map(function(t){ return '<span class="f">' + esc(t) + '</span>'; }).join(', ');
+      var mRes = byId('apiMatchRes');
+      if (mRes) mRes.innerHTML = scored.slice(0, 5).map(function(r){
+        return '  ' + String(r.s).padStart(3, ' ') + '  ' + esc(courseName(r.c)) +
+               (r.s > 0 ? '' : '  <span class="d">(below threshold)</span>');
+      }).join('\n') || '  <span class="d">catalog empty</span>';
+      pulsePanel('panelMatch');
+
+      renderRelated();
+      if (srQuery) renderResults();
+    } catch (err) {
+      setCat('<span class="x">error</span>', '<span class="x">' + esc(err.message) + '</span>');
+      signedOut(err.message);
+    }
+  }
+
+  function setCat(tag, body){
+    var t = byId('apiCatTag'), b = byId('apiCatRes');
+    if (t) t.innerHTML = tag;
+    if (b) b.innerHTML = body;
+  }
+
+  function signedOut(msg){
+    var note = msg ? 'Could not reach the catalog: ' + msg
+                   : 'Sign in to see training for this article.';
+    byId('relTraining').innerHTML = '<div class="rt-empty">' + esc(note) +
+      ' <a href="/signin">Sign in</a>.</div>';
+    if (srQuery) renderResults();
+  }
+
+  /* ══════════════ Related Training ══════════════ */
+  function renderRelated(){
+    var el = byId('relTraining');
+    if (!RELATED.length) {
+      el.innerHTML = '<div class="rt-empty">No matching courses in this catalog yet. ' +
+        'Publish one in Absorb and it appears here with no deployment.</div>';
+      return;
+    }
+    el.innerHTML = '';
+    RELATED.forEach(function(r){
+      var c = r.c;
+      var box = document.createElement('div');
+      box.className = 'rt-item';
+      var blurb = courseBlurb(c).slice(0, 90);
+      box.innerHTML =
+        '<div class="rt-t">' + esc(courseName(c)) + '</div>' +
+        (blurb ? '<div class="rt-s">' + esc(blurb) + '</div>' : '') +
+        '<div class="rt-f"><button class="rt-btn">' +
+          '<svg class="ico" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>' +
+          'Start lesson</button>' +
+          '<span class="rt-s">' + esc(courseTypeLabel(c.courseType || c.type)) + '</span></div>' +
+        '<div class="rt-why">Matched to this article</div>';
+      box.querySelector('.rt-btn').addEventListener('click', function(){
+        openPlayerModal(c.id, courseName(c), c.courseType || c.type);
+      });
+      el.appendChild(box);
+    });
+  }
+
+  /* ══════════════ Search ══════════════ */
+  function matchArticles(q){
+    var lq = q.toLowerCase();
+    return ARTICLES.filter(function(a){
+      return a.t.toLowerCase().indexOf(lq) !== -1 || (a.x || '').toLowerCase().indexOf(lq) !== -1;
+    });
+  }
+  function matchCourses(q){
+    var lq = q.toLowerCase();
+    return CATALOG.filter(function(c){
+      return courseName(c).toLowerCase().indexOf(lq) !== -1 ||
+             courseBlurb(c).toLowerCase().indexOf(lq) !== -1;
+    });
+  }
+  function highlight(text, q){
+    if (!q) return esc(text);
+    var i = text.toLowerCase().indexOf(q.toLowerCase());
+    if (i === -1) return esc(text);
+    return esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' +
+           esc(text.slice(i + q.length));
+  }
+
+  function closeAllTypeahead(){
+    ['heroTa','catTa','artTa','srTa'].forEach(function(id){
+      var el = byId(id); if (el) el.classList.remove('open');
+    });
+  }
+
+  /* The typeahead carries BOTH article hits and live Absorb training,
+     in separate labelled groups. A lesson result starts the lesson in
+     place; an article result opens the article. */
+  function paintTypeahead(taId, q){
+    var ta = byId(taId); if (!ta) return;
+    if (!q || q.length < 2) { ta.classList.remove('open'); return; }
+
+    var arts = matchArticles(q).slice(0, 5);
+    var cs = matchCourses(q).slice(0, 3);
+    var html = '';
+
+    if (arts.length) {
+      html += '<div class="ta-g">Help articles</div>';
+      arts.forEach(function(a, i){
+        html += '<div class="ta-i" data-kind="art" data-i="' + i + '">' +
+          '<div class="ta-m"><div class="ta-t">' + highlight(a.t, q) + '</div>' +
+          '<div class="ta-p">' + esc(a.p) + '</div></div></div>';
+      });
+    }
+    if (cs.length) {
+      html += '<div class="ta-g">Training &mdash; live from Absorb</div>';
+      cs.forEach(function(c, i){
+        html += '<div class="ta-i" data-kind="course" data-i="' + i + '">' +
+          '<div class="ta-m"><div class="ta-t">' + highlight(courseName(c), q) + '</div>' +
+          '<div class="ta-p">Absorb &rsaquo; ' + esc(courseTypeLabel(c.courseType || c.type)) + '</div></div>' +
+          '<span class="ta-badge lesson">Lesson</span></div>';
+      });
+    }
+    if (!arts.length && !cs.length) {
+      html = '<div class="ta-empty">No articles or training match &ldquo;' + esc(q) + '&rdquo;.</div>';
+    }
+
+    ta.innerHTML = html;
+    ta.classList.add('open');
+
+    var artHits = arts, courseHits = cs;
+    [].forEach.call(ta.querySelectorAll('.ta-i'), function(row){
+      row.addEventListener('mousedown', function(e){
+        e.preventDefault();
+        var i = parseInt(row.getAttribute('data-i'), 10);
+        if (row.getAttribute('data-kind') === 'course') {
+          var c = courseHits[i];
+          openPlayerModal(c.id, courseName(c), c.courseType || c.type);
+          closeAllTypeahead();
+        } else {
+          var a = artHits[i];
+          closeAllTypeahead();
+          if (a.view === 'art') go('art'); else runSearch(a.t);
+        }
+      });
+    });
+  }
+
+  window.runSearch = function(q){
+    srQuery = q;
+    byId('srSearch').value = q;
+    srTab = 'all'; setTabUI();
+    go('search');
+    renderResults();
+  };
+
+  window.setTab = function(t){ srTab = t; setTabUI(); renderResults(); };
+  function setTabUI(){
+    byId('tabAll').classList.toggle('on', srTab === 'all');
+    byId('tabArt').classList.toggle('on', srTab === 'articles');
+    byId('tabLes').classList.toggle('on', srTab === 'lessons');
+  }
+
+  function renderResults(){
+    var arts = matchArticles(srQuery), cs = matchCourses(srQuery);
+    byId('srTitle').textContent = 'Results for "' + srQuery + '"';
+    byId('srCount').textContent = arts.length + ' article' + (arts.length === 1 ? '' : 's') +
+      ' · ' + cs.length + ' training item' + (cs.length === 1 ? '' : 's') + ' from Absorb';
+
+    var list = byId('srList');
+    list.innerHTML = '';
+
+    if (srTab !== 'lessons') {
+      arts.forEach(function(a){
+        var d = document.createElement('div');
+        d.className = 'sr-i';
+        d.innerHTML = '<h3>' + esc(a.t) + '</h3>' +
+          '<div class="sr-p">' + esc(a.p) + '</div>' +
+          '<div class="sr-x">' + highlight(a.x || '', srQuery) + '</div>' +
+          '<div class="sr-foot"><span>' + esc(a.d || 'Help article') + '</span></div>';
+        d.querySelector('h3').style.cursor = 'pointer';
+        d.querySelector('h3').addEventListener('click', function(){ if (a.view === 'art') go('art'); });
+        list.appendChild(d);
+      });
+    }
+
+    if (srTab !== 'articles') {
+      if (!CATALOG.length && srTab === 'lessons') {
+        list.innerHTML += '<div class="sr-i"><div class="sr-x">No training loaded. ' +
+          '<a href="/signin">Sign in</a> to search this reader\'s Absorb catalog.</div></div>';
+      }
+      cs.forEach(function(c){
+        var d = document.createElement('div');
+        d.className = 'sr-i';
+        var blurb = courseBlurb(c).slice(0, 180);
+        d.innerHTML = '<h3>' + esc(courseName(c)) + '</h3>' +
+          '<div class="sr-p">Absorb &rsaquo; ' + esc(courseTypeLabel(c.courseType || c.type)) + '</div>' +
+          '<div class="sr-x">' + highlight(blurb || 'Course from your Absorb catalog.', srQuery) + '</div>' +
+          '<div class="sr-foot"><span class="ta-badge lesson">Lesson</span>' +
+          '<button class="rt-btn"><svg class="ico" viewBox="0 0 24 24" fill="currentColor">' +
+          '<polygon points="5 3 19 12 5 21 5 3"/></svg>Start lesson</button></div>';
+        d.querySelector('.rt-btn').addEventListener('click', function(){
+          openPlayerModal(c.id, courseName(c), c.courseType || c.type);
+        });
+        list.appendChild(d);
+      });
+    }
+
+    if (!list.children.length) {
+      list.innerHTML = '<div class="sr-i"><div class="sr-x">Nothing matched &ldquo;' +
+        esc(srQuery) + '&rdquo;.</div></div>';
+    }
+  }
+
+  /* Wire every search box to the same typeahead behaviour. */
+  [['heroSearch','heroTa'],['catSearch','catTa'],['artSearch','artTa'],['srSearch','srTa']]
+    .forEach(function(pair){
+      var input = byId(pair[0]);
+      if (!input) return;
+      input.addEventListener('input', function(){ paintTypeahead(pair[1], input.value.trim()); });
+      input.addEventListener('focus', function(){ paintTypeahead(pair[1], input.value.trim()); });
+      input.addEventListener('blur', function(){ setTimeout(closeAllTypeahead, 120); });
+      input.addEventListener('keydown', function(e){
+        if (e.key === 'Enter' && input.value.trim()) runSearch(input.value.trim());
+        if (e.key === 'Escape') closeAllTypeahead();
+      });
+    });
+
+  /* ══════════════════════════════════════════
+     Player modal — the proven implementation.
+  ══════════════════════════════════════════ */
+  window.openPlayerModal = async function(courseId, courseTitle, courseType){
+    byId('modalTitle').textContent = courseTitle || 'Loading…';
+    byId('modalBadge').textContent = courseTypeLabel(courseType);
+    byId('playerModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    var list = byId('modalLessonList'), frame = byId('mpFrame');
+    list.innerHTML = '<div style="padding:16px;color:rgba(255,255,255,0.4);font-size:12px;">Loading…</div>';
+    frame.src = 'about:blank';
+    if (courseType === 'Curriculum') await openCurriculum(courseId, courseTitle, list, frame);
+    else await openOnline(courseId, courseTitle, list, frame);
+  };
+
+  async function openCurriculum(curriculumId, title, list, frame){
+    var path = '/api/psbi/curriculum/' + encodeURIComponent(curriculumId);
+    try {
+      var resp = await fetch(path, { credentials:'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+      var children = payload.courses || [];
+      list.innerHTML = '';
+      var rows = [];
+      children.forEach(function(child, idx){
+        var row = buildLessonRow(child.id, courseName(child), idx === 0 ? 'playing' : 'next');
+        row.courseId = child.id; row.courseType = child.courseType || child.type;
+        list.appendChild(row.el); rows.push(row);
+      });
+      rows.forEach(function(row){
+        row.el.addEventListener('click', function(){
+          rows.forEach(function(r){ r.el.classList.remove('il-active'); });
+          row.el.classList.add('il-active'); loadChild(row.courseId);
+        });
+      });
+      var first = rows.filter(function(r){ return r.courseType !== 'InstructorLedCourse'; })[0];
+      if (first) {
+        rows.forEach(function(r){ r.el.classList.remove('il-active'); });
+        first.el.classList.add('il-active'); loadChild(first.courseId);
+      }
+    } catch (err) {
+      list.innerHTML = '<div style="padding:16px;color:#f87171;font-size:12px;">Error: ' + esc(err.message) + '</div>';
+    }
+  }
+
+  async function openOnline(courseId, courseTitle, list, frame){
+    var path = '/api/psbi/player?courseId=' + encodeURIComponent(courseId) + '&mode=course';
+    try {
+      var resp = await fetch(path, { credentials:'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+
+      var chapters = payload.chapters || [];
+      list.innerHTML = '';
+      var rows = [], firstLessonId = payload.lessonId;
+
+      if (!chapters.length) {
+        var only = buildLessonRow(null, courseTitle, 'playing');
+        list.appendChild(only.el); rows.push(only);
+      } else {
+        chapters.forEach(function(ch){
+          var lessons = (ch._embedded && ch._embedded.lessons) || [];
+          if (chapters.length > 1) {
+            var h = document.createElement('div');
+            h.className = 'il-chapter';
+            h.textContent = ch.name || ch.title || 'Chapter';
+            list.appendChild(h);
+          }
+          lessons.forEach(function(l){
+            var st = String((l.enrollment && l.enrollment.status) || '').toLowerCase();
+            var state = st === 'complete' ? 'done' : (l.id === firstLessonId ? 'playing' : 'next');
+            var row = buildLessonRow(l.id, l.name || l.title || 'Lesson', state);
+            list.appendChild(row.el); rows.push(row);
+          });
+        });
+      }
+
+      rows.forEach(function(row){
+        row.el.addEventListener('click', function(){
+          rows.forEach(function(r){ r.el.classList.remove('il-active'); });
+          row.el.classList.add('il-active'); loadLesson(courseId, row.lessonId);
+        });
+      });
+      if (rows.length) {
+        var idx = 0;
+        for (var i = 0; i < rows.length; i++) if (rows[i].state === 'playing') { idx = i; break; }
+        rows.forEach(function(r){ r.el.classList.remove('il-active'); });
+        rows[idx].el.classList.add('il-active');
+      }
+
+      frame.src = payload.playerUrl;
+      paintDelivery(path, payload);
+    } catch (err) {
+      list.innerHTML = '<div style="padding:16px;color:#f87171;font-size:12px;">Error: ' + esc(err.message) + '</div>';
+    }
+  }
+
+  function buildLessonRow(lessonId, name, state){
+    var el = document.createElement('div');
+    el.className = 'il-lesson' + (state === 'playing' ? ' il-active' : '');
+    var cls = state === 'done' ? 'done' : state === 'playing' ? 'playing' : 'next';
+    var label = state === 'done' ? '✓' : '▶';
+    var dur = state === 'done' ? '· Complete' : state === 'playing' ? '· In progress' : '';
+    el.innerHTML = '<div class="il-arrow ' + cls + '">' + label + '</div>' +
+      '<div><div class="il-title">' + esc(name) + '</div><div class="il-dur">' + dur + '</div></div>';
+    return { el:el, lessonId:lessonId, state:state };
+  }
+
+  async function loadLesson(courseId, lessonId){
+    var frame = byId('mpFrame'); frame.src = 'about:blank';
+    var qs = lessonId
+      ? 'courseId=' + encodeURIComponent(courseId) + '&lessonId=' + encodeURIComponent(lessonId)
+      : 'courseId=' + encodeURIComponent(courseId);
+    var path = '/api/psbi/player?' + qs;
+    try {
+      var resp = await fetch(path, { credentials:'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+      frame.src = payload.playerUrl; paintDelivery(path, payload);
+    } catch (err) { console.error('loadLesson error:', err); }
+  }
+
+  async function loadChild(courseId){
+    var frame = byId('mpFrame'); frame.src = 'about:blank';
+    var path = '/api/psbi/player?courseId=' + encodeURIComponent(courseId);
+    try {
+      var resp = await fetch(path, { credentials:'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+      frame.src = payload.playerUrl; paintDelivery(path, payload);
+    } catch (err) { console.error('loadChild error:', err); }
+  }
+
+  window.closePlayerModal = function(){
+    byId('playerModal').classList.remove('open');
+    document.body.style.overflow = '';
+    byId('mpFrame').src = 'about:blank';
+  };
+
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && byId('playerModal').classList.contains('open')) closePlayerModal();
+  });
+
+  loadCatalog();
+})();
+</script>
+</body>
+</html>

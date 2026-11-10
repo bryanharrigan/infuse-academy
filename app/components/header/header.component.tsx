@@ -56,6 +56,7 @@ export const Header = () => {
       mmit: "/mmit-dashboard-demo.html",
       silfab: "/silfab-installer-portal.html",
       biomedtracker: "/biomedtracker-portal.html",
+      helpcenter: "/absorb-help-center.html",
       holographic: "/holographic",
     };
     const demoHref = DEMO_PORTALS[next];
@@ -129,6 +130,7 @@ export const Header = () => {
         <MenuItem value="mmit">MMIT iQ</MenuItem>
         <MenuItem value="silfab">Silfab Solar</MenuItem>
         <MenuItem value="biomedtracker">Biomedtracker</MenuItem>
+        <MenuItem value="helpcenter">Absorb Help Center</MenuItem>
         <MenuItem value="holographic">Holographic</MenuItem>
       </Select>
     </FormControl>

@@ -15,6 +15,7 @@ export type ThemeVariant =
   | "mmit"
   | "silfab"
   | "biomedtracker"
+  | "helpcenter"
   // Not a theme of the IA chrome — a destination. The header's variant
   // select navigates to /holographic rather than persisting this value.
   | "holographic";
