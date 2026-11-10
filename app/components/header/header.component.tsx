@@ -55,6 +55,7 @@ export const Header = () => {
       psbi: "/psbi-dashboard-demo.html",
       mmit: "/mmit-dashboard-demo.html",
       silfab: "/silfab-installer-portal.html",
+      biomedtracker: "/biomedtracker-portal.html",
       holographic: "/holographic",
     };
     const demoHref = DEMO_PORTALS[next];
@@ -127,6 +128,7 @@ export const Header = () => {
         <MenuItem value="psbi">PSBI</MenuItem>
         <MenuItem value="mmit">MMIT iQ</MenuItem>
         <MenuItem value="silfab">Silfab Solar</MenuItem>
+        <MenuItem value="biomedtracker">Biomedtracker</MenuItem>
         <MenuItem value="holographic">Holographic</MenuItem>
       </Select>
     </FormControl>

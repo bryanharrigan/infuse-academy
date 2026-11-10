@@ -14,6 +14,7 @@ export type ThemeVariant =
   | "psbi"
   | "mmit"
   | "silfab"
+  | "biomedtracker"
   // Not a theme of the IA chrome — a destination. The header's variant
   // select navigates to /holographic rather than persisting this value.
   | "holographic";

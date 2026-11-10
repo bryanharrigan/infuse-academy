@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Biomedtracker — Drug Record</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Signika:wght@300;400;600;700&display=swap" />
+<style>
+  /* Brand tokens sampled from biomedtracker.com, 10 Nov 2026:
+     header #63428C · accent #A34FCF · slate #444957 · muted #717990
+     surface #F0F1F3 · border #E1E3E7 · ink #14123B · Signika */
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+
+  :root {
+    --purple:#63428C; --purple-d:#4e3370;
+    --accent:#A34FCF; --accent-soft:#f3e9fa;
+    --slate:#444957; --muted:#717990;
+    --surface:#F0F1F3; --card:#fff; --border:#E1E3E7; --ink:#14123B;
+    --good:#1b7f4f; --good-soft:#e4f3eb;
+    --warn:#9a6b05; --warn-soft:#fdf2da;
+    --bad:#b3303f; --bad-soft:#fbe9eb;
+    --shadow:0 1px 2px rgba(20,18,59,.06),0 6px 18px rgba(20,18,59,.07);
+    --radius:6px;
+  }
+
+  html, body { height:100%; }
+  body { font-family:'Signika',Helvetica,Calibri,Arial,sans-serif; font-size:14px; line-height:1.5;
+         background:var(--surface); color:var(--slate); -webkit-font-smoothing:antialiased; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+  a { color:var(--accent); }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  .demo-strip { background:var(--ink); color:rgba(255,255,255,.8); font-size:11.5px;
+                padding:6px 18px; text-align:center; }
+
+  /* ── Masthead ── */
+  .mast { background:var(--purple); color:#fff; padding:10px 18px; display:flex;
+          align-items:center; gap:18px; flex-wrap:wrap; }
+  .wordmark { font-weight:700; font-size:21px; letter-spacing:.055em; line-height:1.05; }
+  .wordmark small { display:block; font-size:9.5px; font-weight:400; letter-spacing:.14em;
+                    color:#D9B8EE; text-transform:uppercase; margin-top:2px; }
+  .mast-search { display:flex; align-items:stretch; margin-left:18px; border-radius:3px;
+                 overflow:hidden; flex:1; max-width:620px; min-width:220px; }
+  .mast-search .scope { background:#fff; color:var(--slate); border:0; padding:7px 10px;
+                        font-size:12.5px; border-right:1px solid var(--border); }
+  .mast-search input { flex:1; min-width:0; border:0; padding:7px 11px; font:inherit; font-size:13px; color:var(--slate); }
+  .mast-search button { background:var(--accent); border:0; color:#fff; padding:0 15px; }
+  .mast-right { margin-left:auto; display:flex; align-items:center; gap:12px; font-size:12.5px; }
+  .who { display:flex; align-items:center; gap:8px; }
+  .avatar { width:27px; height:27px; border-radius:50%; background:#fff; color:var(--purple);
+            display:grid; place-items:center; font-size:11px; font-weight:700; }
+
+  /* ── Nav ── */
+  .nav { background:var(--purple-d); display:flex; flex-wrap:wrap; align-items:stretch;
+         border-bottom:3px solid var(--accent); }
+  .nav a { color:#E5D8F2; text-decoration:none; font-size:12.5px; padding:10px 13px; white-space:nowrap; }
+  .nav a:hover { background:rgba(255,255,255,.1); color:#fff; }
+  .nav a.active { background:var(--surface); color:var(--purple); font-weight:600; }
+  .nav .nav-r { margin-left:auto; display:flex; }
+
+  .wrap { padding:16px 18px 34px; display:grid; gap:14px; }
+  .crumbs { font-size:12px; color:var(--muted); }
+  .crumbs a { text-decoration:none; }
+  .cols { display:grid; grid-template-columns:minmax(0,1fr) 318px; gap:14px; align-items:start; }
+  @media (max-width:1150px){ .cols { grid-template-columns:1fr; } }
+  .stack { display:grid; gap:14px; min-width:0; }
+
+  .card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); }
+  .card-h { padding:11px 14px; border-bottom:1px solid var(--border); display:flex;
+            align-items:center; gap:10px; background:#fbfbfd; }
+  .card-h h2 { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--purple); }
+  .card-h .sub { font-size:11.5px; color:var(--muted); font-weight:400; text-transform:none; letter-spacing:0; }
+  .card-h .right { margin-left:auto; display:flex; gap:8px; align-items:center; }
+  .link-btn { background:none; border:0; color:var(--accent); font-size:12px; font-weight:600; }
+
+  /* ── Drug record header ── */
+  .rec-top { padding:16px 16px 14px; display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
+  .rec-id { flex:1; min-width:230px; }
+  .rec-id h1 { font-size:23px; font-weight:600; color:var(--ink); }
+  .rec-id .gen { font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .rec-tags { display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
+  .tag { font-size:11px; font-weight:600; background:var(--surface); border:1px solid var(--border);
+         border-radius:3px; padding:3px 8px; color:var(--slate); }
+  .tag.ph { background:var(--accent-soft); border-color:#e2cdf0; color:var(--purple); }
+  .loa { display:flex; align-items:center; gap:13px; }
+  .loa svg { width:86px; height:86px; flex-shrink:0; }
+  .loa-m .loa-k { font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); }
+  .loa-m .loa-d { font-size:12px; color:var(--muted); margin-top:3px; max-width:21ch; }
+  .rec-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+              border-top:1px solid var(--border); }
+  .rec-f { padding:11px 14px; border-right:1px solid var(--border); }
+  .rec-f:last-child { border-right:0; }
+  .rec-k { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .rec-v { font-size:13.5px; font-weight:600; color:var(--ink); margin-top:2px; }
+
+  /* Learning attached to the record */
+  .rec-learn { border-top:1px solid var(--border); background:var(--accent-soft);
+               padding:12px 14px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .rl-ic { width:30px; height:30px; border-radius:5px; background:var(--purple); color:#fff;
+           display:grid; place-items:center; flex-shrink:0; }
+  .rl-m { flex:1; min-width:180px; }
+  .rl-t { font-size:12.5px; font-weight:600; color:var(--ink); }
+  .rl-s { font-size:11.5px; color:var(--muted); }
+
+  /* ── Tables ── */
+  table { width:100%; border-collapse:collapse; }
+  th { text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+       color:var(--muted); padding:9px 14px; border-bottom:1px solid var(--border); background:#fbfbfd; white-space:nowrap; }
+  td { padding:10px 14px; border-bottom:1px solid var(--border); font-size:12.5px; vertical-align:top; }
+  tr:last-child td { border-bottom:0; }
+  tbody tr:hover { background:var(--surface); }
+  .co { font-weight:600; color:var(--ink); }
+  .num { font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .chg.up { color:var(--good); font-weight:600; }
+  .chg.dn { color:var(--bad); font-weight:600; }
+  .pct { font-weight:700; font-variant-numeric:tabular-nums; }
+  .scroll-x { overflow-x:auto; }
+
+  /* ── Due-diligence queue + gate ── */
+  .q-row { display:grid; grid-template-columns:auto 1fr auto; gap:11px; align-items:center;
+           padding:11px 14px; border-bottom:1px solid var(--border); cursor:pointer; }
+  .q-row:last-child { border-bottom:0; }
+  .q-row:hover { background:var(--surface); }
+  .q-row.sel { background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent); }
+  .q-dot { width:8px; height:8px; border-radius:50%; }
+  .q-dot.bad{background:var(--bad)} .q-dot.warn{background:var(--warn)}
+  .q-dot.good{background:var(--good)} .q-dot.done{background:var(--muted);opacity:.45}
+  .q-t { font-size:13px; font-weight:600; color:var(--ink); }
+  .q-s { font-size:11.5px; color:var(--muted); }
+  .badge { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+           padding:3px 8px; border-radius:11px; white-space:nowrap; }
+  .badge.bad{background:var(--bad-soft);color:var(--bad)} .badge.warn{background:var(--warn-soft);color:var(--warn)}
+  .badge.good{background:var(--good-soft);color:var(--good)} .badge.done{background:var(--surface);color:var(--muted)}
+
+  .gate { margin:0 14px 14px; border:1px solid var(--bad); border-radius:5px; overflow:hidden; }
+  .gate.cleared { border-color:var(--good); } .gate.unknown { border-color:var(--warn); }
+  .gate-h { background:var(--bad-soft); padding:11px 13px; display:flex; align-items:center; gap:9px; }
+  .gate.cleared .gate-h{background:var(--good-soft)} .gate.unknown .gate-h{background:var(--warn-soft)}
+  .gate-h strong { font-size:13px; color:var(--bad); }
+  .gate.cleared .gate-h strong{color:var(--good)} .gate.unknown .gate-h strong{color:var(--warn)}
+  .gate-b { padding:13px; }
+  .gate-b p { font-size:12.5px; color:var(--muted); margin-bottom:11px; max-width:70ch; }
+  .gate-course { display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:var(--surface);
+                 border:1px solid var(--border); border-radius:5px; padding:11px 13px; }
+  .gc-m { flex:1; min-width:180px; }
+  .gc-t { font-size:12.5px; font-weight:600; color:var(--ink); }
+  .gc-s { font-size:11.5px; color:var(--muted); }
+
+  .btn { background:var(--card); border:1px solid var(--border); border-radius:4px; padding:7px 12px;
+         font-size:12.5px; color:var(--slate); display:inline-flex; align-items:center; gap:7px; }
+  .btn:hover { border-color:var(--accent); color:var(--accent); }
+  .btn.locked { border-color:var(--bad); color:var(--bad); background:var(--bad-soft); }
+  .btn.primary { background:var(--purple); border-color:var(--purple); color:#fff; font-weight:600; }
+  .btn.primary:hover { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.ghost-light { background:rgba(255,255,255,.14); border-color:rgba(255,255,255,.3); color:#fff; }
+  .ico { width:15px; height:15px; flex:0 0 15px; }
+
+  /* ── Ask Ella ── */
+  .ella-q { padding:13px 14px; display:flex; gap:9px; align-items:center; border-bottom:1px solid var(--border); }
+  .ella-q input { flex:1; min-width:0; border:1px solid var(--border); border-radius:4px;
+                  padding:8px 11px; font:inherit; font-size:13px; color:var(--slate); }
+  .ella-a { padding:13px 14px; font-size:12.5px; }
+  .ella-a p { margin-bottom:9px; }
+  .ella-cite { font-size:11px; color:var(--muted); }
+  .ella-learn { border-top:1px solid var(--border); background:var(--accent-soft);
+                padding:11px 14px; display:flex; gap:11px; align-items:center; flex-wrap:wrap; }
+
+  /* ── Right rail ── */
+  .ctx-item { padding:11px 14px; border-bottom:1px solid var(--border); display:flex; gap:10px; align-items:flex-start; }
+  .ctx-item:last-child { border-bottom:0; }
+  .ctx-ic { width:26px; height:26px; border-radius:4px; background:var(--accent-soft); color:var(--purple);
+            display:grid; place-items:center; flex-shrink:0; font-size:11px; font-weight:700; }
+  .ctx-m { flex:1; min-width:0; }
+  .ctx-t { font-size:12.5px; font-weight:600; color:var(--ink); line-height:1.35; }
+  .ctx-s { font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .ctx-why { font-size:10.5px; color:var(--accent); font-weight:600; margin-top:4px; }
+  .ctx-empty { padding:13px 14px; font-size:12px; color:var(--muted); }
+
+  .ring-wrap { padding:14px; display:flex; gap:14px; align-items:center; }
+  .ring { width:84px; height:84px; flex-shrink:0; }
+  .ring-n { font-size:20px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .ring-s { font-size:11.5px; color:var(--muted); }
+  .ring-row { display:flex; gap:10px; align-items:center; padding:8px 14px;
+              border-top:1px solid var(--border); font-size:12px; }
+  .rr-t { flex:1; min-width:0; } .rr-v { color:var(--muted); }
+
+  .rep { display:flex; gap:10px; padding:11px 14px; border-bottom:1px solid var(--border); align-items:center; }
+  .rep:last-child { border-bottom:0; }
+  .rep-th { width:34px; height:44px; background:linear-gradient(160deg,var(--purple),var(--accent));
+            border-radius:2px; flex-shrink:0; }
+  .rep-t { font-size:12px; font-weight:600; color:var(--ink); line-height:1.35; }
+  .rep-s { font-size:11px; color:var(--muted); }
+
+  /* ── Under-the-hood ── */
+  .uth-h { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
+           color:var(--purple); margin:4px 0 9px; display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; }
+  .uth-sub { font-size:11.5px; font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted); }
+  .api { background:var(--ink); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); }
+  .api-h { padding:12px 15px; display:flex; align-items:center; gap:9px; }
+  .api-h h2 { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#fff; }
+  .api-h .tag { margin-left:auto; font-size:10px; font-weight:700; text-transform:uppercase;
+                letter-spacing:.05em; background:rgba(163,79,207,.3); color:#DFC0F3;
+                padding:3px 8px; border-radius:11px; }
+  .api-blk { padding:12px 15px; border-bottom:1px solid rgba(255,255,255,.08); }
+  .api-blk:last-child { border-bottom:0; }
+  .api-k { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
+           color:rgba(255,255,255,.45); margin-bottom:6px; }
+  .api pre { margin:0; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+             font-size:11.5px; line-height:1.65; color:#CFC6E4; white-space:pre-wrap; word-break:break-word; }
+  .api pre.plain { color:rgba(255,255,255,.62); font-family:inherit; font-size:12.5px; line-height:1.6; }
+  .api .m { color:#DFC0F3; font-weight:700; }
+  .api .f { color:#8FD0A4; } .api .x { color:#F2918F; } .api .w { color:#F5C542; }
+  .api .d { color:rgba(255,255,255,.35); }
+
+  details.apiD { margin-bottom:9px; }
+  details.apiD:last-child { margin-bottom:0; }
+  details.apiD > summary { padding:12px 15px; display:flex; align-items:center; gap:9px; cursor:pointer;
+                           list-style:none; user-select:none; border-bottom:1px solid transparent; }
+  details.apiD > summary::-webkit-details-marker { display:none; }
+  details.apiD[open] > summary { border-bottom-color:rgba(255,255,255,.12); }
+  details.apiD > summary:hover { background:rgba(255,255,255,.05); }
+  details.apiD > summary .chev { margin-left:4px; color:rgba(255,255,255,.4); font-size:11px;
+                                 transition:transform .15s ease; flex-shrink:0; }
+  details.apiD[open] > summary .chev { transform:rotate(90deg); }
+  details.apiD > summary .tag { margin-left:auto; }
+  details.apiD.api-upd > summary { box-shadow:inset 3px 0 0 var(--accent); }
+
+  /* ── Player modal ── */
+  .mp { position:fixed; inset:0; background:rgba(20,18,59,.76); z-index:120; display:none;
+        align-items:center; justify-content:center; padding:24px; }
+  .mp.open { display:flex; }
+  .mp-box { background:#17132b; border-radius:8px; width:100%; max-width:1180px; height:min(780px,92vh);
+            display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 70px rgba(0,0,0,.5); }
+  .mp-h { display:flex; align-items:center; gap:11px; padding:12px 16px;
+          border-bottom:1px solid rgba(255,255,255,.1); flex-shrink:0; }
+  .mp-h h3 { font-size:14px; font-weight:600; color:#fff; flex:1; min-width:0;
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #modalBadge { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+                background:rgba(163,79,207,.32); color:#DFC0F3; padding:3px 9px; border-radius:11px; white-space:nowrap; }
+  .mp-x { background:none; border:0; color:rgba(255,255,255,.55); font-size:23px; line-height:1; padding:0 4px; }
+  .mp-x:hover { color:#fff; }
+  .mp-body { flex:1; display:flex; min-height:0; }
+  .mp-side { width:268px; border-right:1px solid rgba(255,255,255,.1); overflow-y:auto;
+             flex-shrink:0; background:#120f23; }
+  @media (max-width:820px){ .mp-side { display:none; } }
+  .mp-main { flex:1; min-width:0; background:#000; }
+  .mp-frame-el { width:100%; height:100%; border:0; display:block; }
+  .il-chapter { padding:10px 14px 4px; font-size:10px; font-weight:700; text-transform:uppercase;
+                letter-spacing:.07em; color:rgba(255,255,255,.35); }
+  .il-lesson { display:flex; align-items:flex-start; gap:10px; padding:9px 14px; cursor:pointer;
+               border-left:3px solid transparent; }
+  .il-lesson:hover { background:rgba(255,255,255,.05); }
+  .il-lesson.il-active { background:rgba(163,79,207,.2); border-left-color:var(--accent); }
+  .il-arrow { width:19px; height:19px; border-radius:50%; display:grid; place-items:center;
+              font-size:10px; flex-shrink:0; background:rgba(255,255,255,.14); color:#fff; }
+  .il-arrow.done { background:#1b7f4f; } .il-arrow.playing { background:var(--accent); }
+  .il-title { color:#EDE6F5; font-size:12.5px; line-height:1.35; }
+  .il-dur { color:rgba(255,255,255,.4); font-size:11px; }
+
+  .mp-uth { flex-shrink:0; border-top:1px solid rgba(255,255,255,.14); background:var(--ink); }
+  .mp-uth > summary { padding:10px 16px; display:flex; align-items:center; gap:9px; cursor:pointer;
+                      list-style:none; user-select:none; }
+  .mp-uth > summary::-webkit-details-marker { display:none; }
+  .mp-uth > summary:hover { background:rgba(255,255,255,.05); }
+  .mp-uth-t { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
+              color:rgba(255,255,255,.72); }
+  .mp-uth > summary .tag { margin-left:auto; font-size:10px; font-weight:700; text-transform:uppercase;
+                           letter-spacing:.05em; background:rgba(163,79,207,.3); color:#DFC0F3;
+                           padding:3px 8px; border-radius:11px; }
+  .mp-uth > summary .chev { color:rgba(255,255,255,.4); font-size:11px; transition:transform .15s ease; }
+  .mp-uth[open] > summary .chev { transform:rotate(90deg); }
+  .mp-uth-b { padding:0 16px 14px; max-height:34vh; overflow-y:auto; border-top:1px solid rgba(255,255,255,.08); }
+  .mp-uth-b pre { margin:11px 0 0; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+                  font-size:11.5px; line-height:1.65; color:#CFC6E4; white-space:pre-wrap; word-break:break-word; }
+  .mp-uth-b .m { color:#DFC0F3; font-weight:700; } .mp-uth-b .f { color:#8FD0A4; }
+
+  .toast { position:fixed; right:18px; bottom:18px; background:var(--ink); color:#fff; border-radius:6px;
+           padding:12px 15px; box-shadow:0 12px 34px rgba(0,0,0,.3); max-width:330px; z-index:140; display:none; }
+  .toast.show { display:block; }
+  .toast b { display:block; font-size:12.5px; margin-bottom:3px; }
+  .toast span { font-size:11.5px; color:rgba(255,255,255,.6); }
+
+  .foot { color:var(--muted); font-size:11.5px; max-width:92ch; }
+  @media (prefers-reduced-motion:reduce){ * { transition:none !important; } }
+</style>
+</head>
+<body>
+
+<div class="demo-strip">
+  Absorb LMS demonstration environment &mdash; not a Biomedtracker or Evaluate system and not affiliated with either. All pipeline data below is fictitious.
+</div>
+
+<header class="mast">
+  <div class="wordmark">BIOMEDTRACKER<small>Realtime Commercial Tracking</small></div>
+  <div class="mast-search">
+    <select class="scope" id="searchScope" aria-label="Search scope">
+      <option>Search All</option><option>Products</option><option>Companies</option>
+      <option>Diseases</option><option>Trials</option><option>Targets</option>
+      <option>Events</option><option>Deals</option><option>Catalysts</option><option>Reports</option>
+    </select>
+    <input id="searchBox" placeholder="Enter a Company, Disease, Product, etc..." />
+    <button aria-label="Search">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    </button>
+  </div>
+  <div class="mast-right">
+    <button class="btn ghost-light" id="exportBtn" onclick="focusQueue()">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+      Export pack
+    </button>
+    <span class="who"><span class="avatar">DW</span>D. Whitfield</span>
+  </div>
+</header>
+
+<nav class="nav">
+  <a href="#">Catalysts</a>
+  <a href="#">Events</a>
+  <a href="#" class="active">Products</a>
+  <a href="#">Companies</a>
+  <a href="#">Diseases</a>
+  <a href="#">Targets</a>
+  <a href="#">Deals</a>
+  <a href="#">Reports</a>
+  <a href="#">Regulatory Insights</a>
+  <a href="#">Advanced Search</a>
+  <span class="nav-r"><a href="#">Resources</a></span>
+</nav>
+
+<div class="wrap">
+  <div class="crumbs"><a href="#">Products</a> &rsaquo; <a href="#">Oncology</a> &rsaquo; <a href="#">NSCLC</a> &rsaquo; Obrenitib</div>
+
+  <div class="cols">
+    <div class="stack">
+
+      <!-- ════════════════════════════════════════════════════
+           EMBED 1 — learning attached to the data record.
+           The LOA score is the number an analyst will put in front of
+           a client. The course explaining how it is derived sits on
+           the record itself, not in a learning tab.
+      ═════════════════════════════════════════════════════ -->
+      <section class="card">
+        <div class="rec-top">
+          <div class="rec-id">
+            <h1>Obrenitib</h1>
+            <div class="gen">CLW-2187 &middot; oral KRAS G12C inhibitor &middot; Calloway Therapeutics</div>
+            <div class="rec-tags">
+              <span class="tag ph">Phase III</span>
+              <span class="tag">2L NSCLC</span>
+              <span class="tag">Oncology</span>
+              <span class="tag">Fast Track</span>
+              <span class="tag">US &middot; EU</span>
+            </div>
+          </div>
+          <div class="loa">
+            <svg viewBox="0 0 100 100" role="img" aria-label="Likelihood of approval 64 percent">
+              <circle cx="50" cy="50" r="41" fill="none" stroke="#E1E3E7" stroke-width="10"/>
+              <circle cx="50" cy="50" r="41" fill="none" stroke="#A34FCF" stroke-width="10"
+                      stroke-linecap="round" stroke-dasharray="258" stroke-dashoffset="93"
+                      transform="rotate(-90 50 50)"/>
+              <text x="50" y="56" text-anchor="middle" font-size="22" font-weight="600" fill="#14123B">64%</text>
+            </svg>
+            <div class="loa-m">
+              <div class="loa-k">Likelihood of approval</div>
+              <div class="loa-d">vs 47% Phase III oncology average. Raised 6 pts after the Sep readout.</div>
+            </div>
+          </div>
+        </div>
+        <div class="rec-grid">
+          <div class="rec-f"><div class="rec-k">Lead company</div><div class="rec-v">Calloway Therapeutics</div></div>
+          <div class="rec-f"><div class="rec-k">Partner</div><div class="rec-v">Arvexia Bio</div></div>
+          <div class="rec-f"><div class="rec-k">Next catalyst</div><div class="rec-v">Q1 2027</div></div>
+          <div class="rec-f"><div class="rec-k">Peak sales est.</div><div class="rec-v">$1.84bn</div></div>
+          <div class="rec-f"><div class="rec-k">Patent expiry</div><div class="rec-v">Mar 2039</div></div>
+        </div>
+        <div class="rec-learn" id="recLearn">
+          <div class="rl-ic"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3L2 8l10 5 10-5zM6 11v5c0 1 3 2 6 2s6-1 6-2v-5"/></svg></div>
+          <div class="rl-m"><div class="rl-t">Loading attached learning&hellip;</div>
+            <div class="rl-s">Matched from this analyst's Absorb catalog</div></div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════════
+           EMBED 2 — blocking gate on client-facing output.
+      ═════════════════════════════════════════════════════ -->
+      <section class="card" id="queue">
+        <div class="card-h">
+          <h2>Due diligence queue</h2>
+          <span class="sub">Q4 FY26 &middot; D. Whitfield</span>
+          <span class="right"><span class="badge bad" id="qSummary">1 blocked</span></span>
+        </div>
+        <div id="qList"></div>
+        <div id="gateSlot"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-h"><h2>Impact Events</h2>
+          <span class="sub">Obrenitib &amp; comparator set</span>
+          <span class="right"><button class="link-btn">View More &rsaquo;</button></span></div>
+        <div class="scroll-x">
+          <table>
+            <thead><tr><th>Date</th><th>Lead Company</th><th>Event</th><th>Type</th>
+              <th>Approval Change</th><th>Approval Likelihood</th></tr></thead>
+            <tbody>
+              <tr><td class="num">06 Nov 2026</td><td class="co">Calloway Therapeutics</td>
+                <td>Phase III CREST-2 meets primary PFS endpoint</td><td>Clinical &mdash; Phase III Data</td>
+                <td class="chg up">+6</td><td class="pct">64%</td></tr>
+              <tr><td class="num">22 Oct 2026</td><td class="co">Northfield Pharma</td>
+                <td>Tifrexanide CRL on manufacturing findings</td><td>Regulatory &mdash; CRL</td>
+                <td class="chg dn">&minus;19</td><td class="pct">31%</td></tr>
+              <tr><td class="num">09 Oct 2026</td><td class="co">Lentara Sciences</td>
+                <td>sNDA filing accepted, priority review</td><td>Regulatory &mdash; sNDA/sBLA Filing</td>
+                <td class="chg up">+8</td><td class="pct">72%</td></tr>
+              <tr><td class="num">28 Sep 2026</td><td class="co">Pemberton Oncology</td>
+                <td>Analyst day: Celoxamer deprioritised</td><td>Company &mdash; Analyst/R&amp;D Update</td>
+                <td class="chg dn">&minus;11</td><td class="pct">24%</td></tr>
+              <tr><td class="num">15 Sep 2026</td><td class="co">Arvexia Bio</td>
+                <td>AdComm votes 9&ndash;4 in favour</td><td>Regulatory &mdash; Advisory Committee</td>
+                <td class="chg up">+14</td><td class="pct">78%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-h"><h2>Upcoming Catalysts</h2>
+          <span class="sub">Next 2 quarters</span>
+          <span class="right"><button class="link-btn">View More &rsaquo;</button></span></div>
+        <div class="scroll-x">
+          <table>
+            <thead><tr><th>Expected Date Range</th><th>Lead Company</th><th>Drug</th><th>Expected Catalyst</th></tr></thead>
+            <tbody>
+              <tr><td class="num">Dec 2026 &ndash; Jan 2027</td><td class="co">Calloway Therapeutics</td>
+                <td>Obrenitib</td><td>Regulatory &mdash; NDA Submission</td></tr>
+              <tr><td class="num">Q1 2027</td><td class="co">Arvexia Bio</td>
+                <td>Zalcivumab</td><td>Regulatory &mdash; PDUFA Date</td></tr>
+              <tr><td class="num">Feb 2027</td><td class="co">Halcyon Bio</td>
+                <td>Vanzatinib</td><td>Clinical &mdash; Phase II Interim</td></tr>
+              <tr><td class="num">Q1 &ndash; Q2 2027</td><td class="co">Lentara Sciences</td>
+                <td>Pemrolast</td><td>Company &mdash; Analyst/R&amp;D Update</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- EMBED 5 — Ask Ella answers, with the training behind the answer -->
+      <section class="card">
+        <div class="card-h"><h2>Ask Ella</h2><span class="sub">Sourced, citable answers</span></div>
+        <div class="ella-q">
+          <input id="ellaBox" value="Which Phase 2 oncology assets have reported data in the last 6 months?" />
+          <button class="btn primary">Ask</button>
+        </div>
+        <div class="ella-a">
+          <p>Fourteen Phase II oncology assets reported in the window. Six raised their
+            likelihood-of-approval score by 5 points or more, led by <strong>Zalcivumab</strong>
+            (Arvexia Bio, +14) following a favourable advisory committee vote.</p>
+          <div class="ella-cite">Sources: 14 Impact Events &middot; 9 company filings &middot; 3 conference abstracts</div>
+        </div>
+        <div class="ella-learn" id="ellaLearn"></div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════════
+           Under the hood — collapsed on load.
+      ═════════════════════════════════════════════════════ -->
+      <div>
+        <div class="uth-h">Under the hood
+          <span class="uth-sub">Open these to show how Absorb and this platform actually talk</span></div>
+
+        <details class="api apiD" id="panelCatalog">
+          <summary class="api-h"><h2>1 &mdash; Catalog, in the platform's own brand</h2>
+            <span class="tag">Request / response</span><span class="chev">&#9656;</span></summary>
+          <div class="api-b">
+            <div class="api-blk"><div class="api-k">What this proves</div>
+              <pre class="plain">Every course on this page came from Absorb a moment ago, through this
+platform's own origin. Nothing is hard-coded. An admin adding a course in
+Absorb changes this screen with no deployment, and the analyst never sees
+an LMS to get it.</pre></div>
+            <div class="api-blk"><div class="api-k">1 &bull; The platform asks, on the analyst's behalf</div>
+              <pre id="apiCatReq">&mdash;</pre></div>
+            <div class="api-blk"><div class="api-k">2 &bull; Absorb answers <span id="apiCatTag"></span></div>
+              <pre id="apiCatRes">&mdash;</pre></div>
+          </div>
+        </details>
+
+        <details class="api apiD" id="panelGate">
+          <summary class="api-h"><h2>2 &mdash; Clearance check behind the export lock</h2>
+            <span class="tag">Fails closed</span><span class="chev">&#9656;</span></summary>
+          <div class="api-b">
+            <div class="api-blk"><div class="api-k">What this proves</div>
+              <pre class="plain">Selecting a due-diligence pack makes this platform ask Absorb one
+question: has this analyst completed the methodology training that
+governs client-facing output? The answer is what locks or clears Export
+above — the same call your own system would make before a valuation memo
+leaves the building.
+
+Three outcomes, not two. If Absorb cannot be reached the verdict is
+<span class="w">unknown</span>, which still holds the export but is shown differently:
+telling an analyst they are uncertified when the truth is that a call
+failed is its own bug.</pre></div>
+            <div class="api-blk"><div class="api-k">1 &bull; The platform asks</div>
+              <pre id="apiGateReq">Select a pack and this fills in.</pre></div>
+            <div class="api-blk"><div class="api-k">2 &bull; Verdict <span id="apiGateTag"></span></div>
+              <pre id="apiGateRes">&mdash;</pre></div>
+            <div class="api-blk"><div class="api-k">In production</div>
+              <pre class="plain">This demo reads completion from the lesson tree. A production gate reads
+the <span class="f">certificates</span> collection instead — a certificate is the credential,
+it has its own expiry, and an admin can revoke one without touching the
+enrollment. That is what <span class="f">/api/silfab/cert-check</span> does in the installer
+portal on this same server.</pre></div>
+          </div>
+        </details>
+
+        <details class="api apiD" id="panelLog">
+          <summary class="api-h"><h2>3 &mdash; Live API call log</h2>
+            <span class="tag">Every request</span><span class="chev">&#9656;</span></summary>
+          <div class="api-b">
+            <div class="api-blk"><div class="api-k">What this proves</div>
+              <pre class="plain">Every call this page makes, as it happens. Note what is <em>not</em> here: the
+browser only ever talks to this platform's own origin. The Absorb API key
+and the analyst's token live on the server and never reach the device.</pre></div>
+            <div class="api-blk"><div class="api-k">Browser &rarr; platform server</div>
+              <pre id="apiCallLog">No calls recorded yet.</pre></div>
+          </div>
+        </details>
+
+        <details class="api apiD" id="panelDeliver">
+          <summary class="api-h"><h2>4 &mdash; Content delivery handshake</h2>
+            <span class="tag">Embedded player</span><span class="chev">&#9656;</span></summary>
+          <div class="api-b">
+            <div class="api-blk"><div class="api-k">What this proves</div>
+              <pre class="plain">Launching a course does not hand the analyst an Absorb login. The server
+mints a single-use player URL and this page renders it in place. The
+learner stays inside the platform for the whole thing.</pre></div>
+            <div class="api-blk"><div class="api-k">The exchange</div>
+              <pre id="apiDeliver">Open a course and this fills in.</pre></div>
+          </div>
+        </details>
+      </div>
+
+      <p class="foot">Drugs, companies, scores, events and catalysts shown here are fictitious and
+        for demonstration only. Course content, enrolment state and completion are real and are read
+        live from Absorb for the signed-in learner.</p>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════
+         EMBED 3 + 4 — contextual rail and certification widget.
+    ═════════════════════════════════════════════════════ -->
+    <aside class="stack">
+      <section class="card">
+        <div class="card-h"><h2>Learning for this view</h2><span class="sub" id="ctxWhy">Oncology &middot; Phase III</span></div>
+        <div id="ctxList"><div class="ctx-empty">Loading&hellip;</div></div>
+      </section>
+
+      <section class="card">
+        <div class="card-h"><h2>Analyst certification</h2><span class="sub">FY26</span></div>
+        <div class="ring-wrap">
+          <svg class="ring" viewBox="0 0 100 100" role="img" aria-label="14 of 20 continuing-education hours complete">
+            <circle cx="50" cy="50" r="41" fill="none" stroke="#E1E3E7" stroke-width="10"/>
+            <circle cx="50" cy="50" r="41" fill="none" stroke="#63428C" stroke-width="10"
+                    stroke-linecap="round" stroke-dasharray="258" stroke-dashoffset="77"
+                    transform="rotate(-90 50 50)"/>
+            <text x="50" y="56" text-anchor="middle" font-size="21" font-weight="600" fill="#14123B">70%</text>
+          </svg>
+          <div>
+            <div class="ring-n">14 / 20 hrs</div>
+            <div class="ring-s">Research standards training, plan year to date. 6 hours remain before 31 Dec.</div>
+          </div>
+        </div>
+        <div id="ringList"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-h"><h2>Report Library</h2>
+          <span class="right"><button class="link-btn">View More &rsaquo;</button></span></div>
+        <div class="rep"><div class="rep-th"></div><div><div class="rep-t">KRAS G12C Competitive Landscape</div><div class="rep-s">Disease area report &middot; Nov 2026</div></div></div>
+        <div class="rep"><div class="rep-th"></div><div><div class="rep-t">NSCLC KOL Interview &mdash; Germany</div><div class="rep-s">KOL insights &middot; Oct 2026</div></div></div>
+        <div class="rep"><div class="rep-th"></div><div><div class="rep-t">Q4 2026 Quarterly Outlook</div><div class="rep-s">Industry trends &middot; Oct 2026</div></div></div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<!-- ── Player modal ── -->
+<div class="mp" id="playerModal" onclick="if(event.target===this)closePlayerModal()">
+  <div class="mp-box">
+    <div class="mp-h">
+      <h3 id="modalTitle">Course</h3>
+      <span id="modalBadge">Online Course</span>
+      <button class="mp-x" onclick="closePlayerModal()" aria-label="Close player">&#10005;</button>
+    </div>
+    <div class="mp-body">
+      <div class="mp-side" id="modalLessonList"></div>
+      <div class="mp-main"><iframe id="mpFrame" class="mp-frame-el" src="about:blank" allowfullscreen allow="autoplay; fullscreen"></iframe></div>
+    </div>
+    <details class="mp-uth" id="mpDeliverPanel">
+      <summary><span class="mp-uth-t">Under the hood &mdash; content delivery handshake</span>
+        <span class="tag">Embedded player</span><span class="chev">&#9656;</span></summary>
+      <div class="mp-uth-b"><pre id="mpDeliver">Open a lesson and this fills in.</pre></div>
+    </details>
+  </div>
+</div>
+
+<div class="toast" id="toast"><b id="toastT"></b><span id="toastS"></span></div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* Sample due-diligence packs. `gated: true` is the beat that matters:
+     client-facing output is held until the analyst holds current
+     methodology training. No pack carries a hard-coded course — the
+     governing course is resolved from the live Absorb catalog at run time. */
+  var JOBS = [
+    { id:'DD-8812', title:'Obrenitib — licensing due diligence pack',
+      sub:'Client-facing · 62 pp · Calloway Therapeutics · due 04 Dec', value:'Client-facing',
+      gated:true, state:'bad', badge:'Export blocked' },
+    { id:'DD-8807', title:'KRAS G12C comparator model refresh',
+      sub:'Internal · methodology recert due in 23 days', value:'Internal',
+      gated:false, state:'warn', badge:'Renewal due' },
+    { id:'DD-8791', title:'Zalcivumab AdComm readout memo',
+      sub:'Client-facing · cleared 06 Nov', value:'Client-facing',
+      gated:false, state:'good', badge:'Cleared' },
+    { id:'DD-8764', title:'Q3 oncology catalyst calendar',
+      sub:'Delivered 29 Oct · Arvexia Bio', value:'Client-facing',
+      gated:false, state:'done', badge:'Delivered' }
+  ];
+
+  var CATALOG = [], GATE_COURSE = null, REC_COURSE = null, ELLA_COURSE = null;
+  var apiLog = [], selectedJob = JOBS[0].id;
+  var clearance = { verdict:'pending', detail:'' };
+
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+    });
+  }
+  function byId(id){ return document.getElementById(id); }
+
+  function showToast(title, sub){
+    byId('toastT').textContent = title;
+    byId('toastS').textContent = sub || '';
+    var t = byId('toast'); t.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function(){ t.classList.remove('show'); }, 5200);
+  }
+
+  /* ── Instrumentation ─────────────────────────────────────── */
+
+  function pulsePanel(id){
+    var el = byId(id); if (!el) return;
+    el.classList.add('api-upd');
+    setTimeout(function(){ el.classList.remove('api-upd'); }, 2200);
+  }
+
+  function recordCall(method, url, status, t0){
+    var now = (window.performance && performance.now) ? performance.now() : Date.now();
+    var path = String(url);
+    try { var u = new URL(url, window.location.origin); path = u.pathname + (u.search || ''); } catch (e) {}
+    apiLog.unshift({ method:String(method || 'GET').toUpperCase(), path:path,
+                     status:status, ms:Math.max(0, Math.round(now - t0)) });
+    if (apiLog.length > 14) apiLog.length = 14;
+    paintApiLog();
+  }
+
+  function paintApiLog(){
+    var el = byId('apiCallLog'); if (!el) return;
+    if (!apiLog.length) { el.textContent = 'No calls recorded yet.'; return; }
+    el.innerHTML = apiLog.map(function(c){
+      var cls = (c.status >= 200 && c.status < 300) ? 'f' : 'x';
+      return '<span class="m">' + esc(c.method) + '</span> ' + esc(c.path) +
+        '  <span class="' + cls + '">' + (c.status || 'ERR') + '</span>' +
+        ' <span class="d">' + c.ms + 'ms</span>';
+    }).join('\n');
+    pulsePanel('panelLog');
+  }
+
+  (function instrumentFetch(){
+    if (!window.fetch) return;
+    var orig = window.fetch.bind(window);
+    window.fetch = function(input, init){
+      var url = (typeof input === 'string') ? input : (input && input.url) || String(input);
+      var method = (init && init.method) || (input && input.method) || 'GET';
+      var t0 = (window.performance && performance.now) ? performance.now() : Date.now();
+      return orig(input, init).then(function(resp){ recordCall(method, url, resp.status, t0); return resp; },
+        function(err){ recordCall(method, url, 0, t0); throw err; });
+    };
+  })();
+
+  /* Mask anything token-shaped before showing a minted URL on screen. */
+  function redactUrl(u){
+    if (!u) return '(none)';
+    try {
+      var x = new URL(u, window.location.origin), keys = [];
+      x.searchParams.forEach(function(v, k){ keys.push(k); });
+      keys.forEach(function(k){
+        if (/token|jwt|sig|auth|key|ticket|sso/i.test(k)) x.searchParams.set(k, 'REDACTED');
+      });
+      return x.origin + x.pathname + (x.search || '');
+    } catch (e) {
+      return String(u).replace(/([?&][^=&]*(?:token|jwt|sig|auth|key|ticket|sso)[^=&]*=)[^&]*/gi, '$1REDACTED');
+    }
+  }
+
+  function paintDelivery(reqPath, payload){
+    var html =
+      '<span class="m">GET</span> <span class="f">' + esc(reqPath) + '</span>\n' +
+      '   → platform server authenticates to Absorb (API key + learner token,\n' +
+      '     both server-side only)\n' +
+      '   ← Absorb mints a single-use player URL\n\n' +
+      '<span class="m">iframe src</span>\n  ' + esc(redactUrl(payload && payload.playerUrl)) + '\n' +
+      (payload && payload.lessonId ? '\n<span class="m">lessonId</span> ' + esc(payload.lessonId) + '\n' : '') +
+      '\nRendered into the modal on this page. The analyst never leaves\n' +
+      'Biomedtracker and never holds an Absorb credential.';
+    var page = byId('apiDeliver'); if (page) page.innerHTML = html;
+    var modal = byId('mpDeliver'); if (modal) modal.innerHTML = html;
+    pulsePanel('panelDeliver');
+  }
+
+  /* ── Catalog ─────────────────────────────────────────────── */
+
+  function courseTypeLabel(t){
+    if (t === 'Curriculum') return 'Curriculum';
+    if (t === 'InstructorLedCourse') return 'Instructor-Led';
+    return 'Online Course';
+  }
+  function courseName(c){ return c.name || c.title || 'Course'; }
+  function courseBlurb(c){ return String(c.description || '').replace(/<[^>]*>/g, '').trim(); }
+
+  /* Score the live catalog. Name hits beat description hits, so a course
+     actually about the topic wins over one that merely mentions it. */
+  function pickCourse(keywords, exclude){
+    var best = null, bestScore = 0;
+    CATALOG.forEach(function(c){
+      if (exclude && exclude.indexOf(c.id) !== -1) return;
+      var n = courseName(c).toLowerCase(), d = courseBlurb(c).toLowerCase(), score = 0;
+      keywords.forEach(function(k, i){
+        var w = keywords.length - i;
+        if (n.indexOf(k) !== -1) score += 10 * w;
+        else if (d.indexOf(k) !== -1) score += 3 * w;
+      });
+      if ((c.courseType || c.type) === 'Curriculum') score += 2;
+      if (score > bestScore) { bestScore = score; best = c; }
+    });
+    return best;
+  }
+
+  async function loadCatalog(){
+    byId('apiCatReq').innerHTML =
+      '<span class="m">GET</span> <span class="f">/api/psbi/catalog</span>\n' +
+      '   credentials: include   (platform session cookie, HttpOnly)';
+    try {
+      var resp = await fetch('/api/psbi/catalog', { credentials:'include' });
+      if (resp.status === 401) {
+        byId('apiCatTag').innerHTML = '<span class="x">401</span>';
+        byId('apiCatRes').innerHTML = '<span class="x">401 Not authenticated</span>\n\n' +
+          'No platform session. Sign in and this page fills with the\nlearner\'s own catalog.';
+        signedOut(); return;
+      }
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var data = await resp.json();
+      CATALOG = (data._embedded && data._embedded.courses) || [];
+
+      byId('apiCatTag').innerHTML = '<span class="f">200</span>';
+      byId('apiCatRes').innerHTML = '<span class="f">200 OK</span>  ' + CATALOG.length + ' courses\n\n' +
+        CATALOG.slice(0, 6).map(function(c){
+          return '  <span class="d">·</span> ' + esc(courseName(c)) +
+                 '  <span class="d">' + esc(courseTypeLabel(c.courseType || c.type)) + '</span>';
+        }).join('\n') +
+        (CATALOG.length > 6 ? '\n  <span class="d">… and ' + (CATALOG.length - 6) + ' more</span>' : '');
+      pulsePanel('panelCatalog');
+
+      GATE_COURSE = pickCourse(['methodolog','standard','compliance','research','certif']) || CATALOG[0] || null;
+      var used = GATE_COURSE ? [GATE_COURSE.id] : [];
+      REC_COURSE = pickCourse(['approval','likelihood','score','regulat','pipeline'], used) || CATALOG[1] || CATALOG[0] || null;
+      if (REC_COURSE) used.push(REC_COURSE.id);
+      ELLA_COURSE = pickCourse(['search','data','analys','report','ai'], used) || null;
+
+      renderRecord(); renderElla(); renderContext(); renderRing(); selectJob(selectedJob);
+    } catch (err) {
+      byId('apiCatTag').innerHTML = '<span class="x">error</span>';
+      byId('apiCatRes').innerHTML = '<span class="x">' + esc(err.message) + '</span>';
+      signedOut(err.message);
+    }
+  }
+
+  function signedOut(msg){
+    var note = msg ? 'Could not reach the catalog: ' + msg : 'Sign in to load this analyst\'s learning.';
+    byId('recLearn').innerHTML = '<div class="rl-m"><div class="rl-t">' + esc(note) + '</div>' +
+      '<div class="rl-s"><a href="/signin">Sign in</a> to show live Absorb content.</div></div>';
+    byId('ctxList').innerHTML = '<div class="ctx-empty">' + esc(note) + ' <a href="/signin">Sign in</a>.</div>';
+    byId('ellaLearn').innerHTML = '';
+    clearance = { verdict:'unknown', detail:note };
+    renderQueue(); renderGate();
+  }
+
+  /* ── Queue + gate ────────────────────────────────────────── */
+
+  function renderQueue(){
+    var list = byId('qList'); list.innerHTML = '';
+    JOBS.forEach(function(j){
+      var row = document.createElement('div');
+      row.className = 'q-row' + (j.id === selectedJob ? ' sel' : '');
+      row.innerHTML = '<span class="q-dot ' + j.state + '"></span>' +
+        '<span><span class="q-t">' + esc(j.title) + '</span>' +
+        '<div class="q-s">' + esc(j.id) + ' &middot; ' + esc(j.sub) + '</div></span>' +
+        '<span class="badge ' + j.state + '">' + esc(j.badge) + '</span>';
+      row.addEventListener('click', function(){ selectJob(j.id); });
+      list.appendChild(row);
+    });
+  }
+
+  function currentJob(){
+    for (var i = 0; i < JOBS.length; i++) if (JOBS[i].id === selectedJob) return JOBS[i];
+    return JOBS[0];
+  }
+
+  function selectJob(id){
+    selectedJob = id; renderQueue();
+    var job = currentJob();
+    if (job.gated) checkClearance(job);
+    else { clearance = { verdict:'n/a', detail:'' }; renderGate(); }
+  }
+
+  /* Clearance comes from Absorb, not from this page. The player route
+     returns the chapter/lesson tree with the learner's own enrollment
+     status on each lesson, so "complete" is the LMS's answer. */
+  async function checkClearance(job){
+    if (!GATE_COURSE) {
+      clearance = { verdict:'unknown', detail:'No governing course found in the catalog.' };
+      renderGate(); return;
+    }
+    var path = '/api/psbi/player?courseId=' + encodeURIComponent(GATE_COURSE.id) + '&mode=course';
+    byId('apiGateReq').innerHTML =
+      '<span class="m">GET</span> <span class="f">' + esc(path) + '</span>\n' +
+      '   pack        ' + esc(job.id) + '  (' + esc(job.value) + ')\n' +
+      '   governing course resolved from the catalog, not hard-coded:\n' +
+      '   <span class="f">' + esc(courseName(GATE_COURSE)) + '</span>';
+    byId('apiGateRes').innerHTML = 'Checking&hellip;';
+    clearance = { verdict:'pending', detail:'' }; renderGate();
+
+    try {
+      var resp = await fetch(path, { credentials:'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+
+      var total = 0, done = 0;
+      (payload.chapters || []).forEach(function(ch){
+        ((ch._embedded && ch._embedded.lessons) || []).forEach(function(l){
+          total++;
+          if (String((l.enrollment && l.enrollment.status) || '').toLowerCase() === 'complete') done++;
+        });
+      });
+
+      if (total === 0) clearance = { verdict:'unknown', detail:'Course returned no lessons to assess.', done:0, total:0 };
+      else if (done === total) clearance = { verdict:'cleared', done:done, total:total };
+      else clearance = { verdict:'held', done:done, total:total };
+
+      var tagCls = clearance.verdict === 'cleared' ? 'f' : clearance.verdict === 'held' ? 'x' : 'w';
+      byId('apiGateTag').innerHTML = '<span class="f">200</span>';
+      byId('apiGateRes').innerHTML = '{\n' +
+        '  "course":      <span class="f">"' + esc(courseName(GATE_COURSE)) + '"</span>,\n' +
+        '  "lessons":     ' + done + ' / ' + total + ' complete,\n' +
+        '  "verdict":     <span class="' + tagCls + '">"' + clearance.verdict + '"</span>,\n' +
+        '  "exportHold":  <span class="' + (clearance.verdict === 'cleared' ? 'f' : 'x') + '">' +
+          (clearance.verdict !== 'cleared') + '</span>\n}';
+      pulsePanel('panelGate');
+    } catch (err) {
+      clearance = { verdict:'unknown', detail:err.message };
+      byId('apiGateTag').innerHTML = '<span class="x">error</span>';
+      byId('apiGateRes').innerHTML = '{\n' +
+        '  "verdict":     <span class="w">"unknown"</span>,\n' +
+        '  "reason":      <span class="x">"' + esc(err.message) + '"</span>,\n' +
+        '  "exportHold":  <span class="x">true</span>   <span class="d">// fails closed</span>\n}';
+      pulsePanel('panelGate');
+    }
+    renderGate();
+  }
+
+  function renderGate(){
+    var slot = byId('gateSlot'), job = currentJob();
+    if (!job.gated) { slot.innerHTML = ''; setExport(true); return; }
+
+    var v = clearance.verdict;
+    var cls = v === 'cleared' ? 'cleared' : v === 'unknown' ? 'unknown' : '';
+    var head, body;
+
+    if (v === 'pending') {
+      head = 'Checking certification&hellip;';
+      body = '<p>Asking Absorb whether this analyst holds current research-standards training.</p>';
+    } else if (v === 'cleared') {
+      head = 'Export cleared — methodology certification current';
+      body = '<p>' + esc(courseName(GATE_COURSE)) + ' is complete, so ' + esc(job.id) +
+             ' can be released to the client.</p>';
+    } else if (v === 'unknown') {
+      head = 'Export held — certification could not be confirmed';
+      body = '<p>Absorb could not be asked' + (clearance.detail ? ': ' + esc(clearance.detail) : '') +
+             '. The hold stays on, because an unreadable answer is not a pass.</p>';
+    } else {
+      head = 'Export locked — certification required';
+      body = '<p>' + esc(job.id) + ' is client-facing, so it is held until ' +
+             esc(courseName(GATE_COURSE)) + ' is complete' +
+             (clearance.total ? ' (' + clearance.done + ' of ' + clearance.total + ' lessons done)' : '') +
+             '. The training is in the way of the work, not in a separate tab.</p>';
+    }
+
+    var courseRow = '';
+    if (GATE_COURSE && v !== 'pending') {
+      courseRow = '<div class="gate-course"><div class="gc-m">' +
+        '<div class="gc-t">' + esc(courseName(GATE_COURSE)) + '</div>' +
+        '<div class="gc-s">' + esc(courseTypeLabel(GATE_COURSE.courseType || GATE_COURSE.type)) +
+        ' &middot; from Absorb' + (clearance.total ? ' &middot; ' + clearance.done + '/' + clearance.total + ' lessons' : '') +
+        '</div></div><button class="btn primary" id="gateStart">' +
+        (v === 'cleared' ? 'Review training' : 'Start training') + '</button></div>';
+    }
+
+    slot.innerHTML = '<div class="gate ' + cls + '"><div class="gate-h"><strong>' + head + '</strong>' +
+      '<span class="badge ' + (v === 'cleared' ? 'good' : v === 'unknown' ? 'warn' : 'bad') +
+      '" style="margin-left:auto">' + esc(job.value) + '</span></div>' +
+      '<div class="gate-b">' + body + courseRow + '</div></div>';
+
+    var start = byId('gateStart');
+    if (start && GATE_COURSE) start.addEventListener('click', function(){
+      openPlayerModal(GATE_COURSE.id, courseName(GATE_COURSE), GATE_COURSE.courseType || GATE_COURSE.type);
+    });
+
+    setExport(v === 'cleared');
+    var blocked = (v === 'cleared') ? 0 : 1;
+    byId('qSummary').textContent = blocked ? blocked + ' blocked' : 'All clear';
+    byId('qSummary').className = 'badge ' + (blocked ? 'bad' : 'good');
+  }
+
+  function setExport(allowed){
+    var btn = byId('exportBtn');
+    btn.className = 'btn ghost-light' + (allowed ? '' : ' locked');
+    btn.innerHTML = allowed
+      ? '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 11l5 5 5-5M4 21h16"/></svg>Export pack'
+      : '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>Export pack';
+  }
+
+  window.focusQueue = function(){
+    byId('queue').scrollIntoView({ behavior:'smooth', block:'start' });
+    if (currentJob().gated && clearance.verdict !== 'cleared') {
+      showToast('Export is held', 'Research-standards certification is required before client-facing output leaves the platform.');
+    }
+  };
+
+  /* ── Embed 1: learning on the drug record ────────────────── */
+
+  function renderRecord(){
+    var el = byId('recLearn');
+    if (!REC_COURSE) {
+      el.innerHTML = '<div class="rl-m"><div class="rl-t">No matching course in this catalog</div>' +
+        '<div class="rl-s">Add one in Absorb and it appears here with no deployment.</div></div>';
+      return;
+    }
+    el.innerHTML =
+      '<div class="rl-ic"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+      '<path d="M12 3L2 8l10 5 10-5zM6 11v5c0 1 3 2 6 2s6-1 6-2v-5"/></svg></div>' +
+      '<div class="rl-m"><div class="rl-t">' + esc(courseName(REC_COURSE)) + '</div>' +
+      '<div class="rl-s">Attached to the Likelihood of Approval score &middot; ' +
+      esc(courseTypeLabel(REC_COURSE.courseType || REC_COURSE.type)) + '</div></div>' +
+      '<button class="btn" id="recStart">Open</button>';
+    byId('recStart').addEventListener('click', function(){
+      openPlayerModal(REC_COURSE.id, courseName(REC_COURSE), REC_COURSE.courseType || REC_COURSE.type);
+    });
+  }
+
+  /* ── Embed 5: training behind the Ask Ella answer ────────── */
+
+  function renderElla(){
+    var el = byId('ellaLearn');
+    if (!ELLA_COURSE) { el.innerHTML = ''; return; }
+    el.innerHTML =
+      '<div class="rl-ic"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+      '<path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></svg></div>' +
+      '<div class="rl-m"><div class="rl-t">' + esc(courseName(ELLA_COURSE)) + '</div>' +
+      '<div class="rl-s">Behind this answer &mdash; how the underlying data is sourced and scored</div></div>' +
+      '<button class="btn" id="ellaStart">Open</button>';
+    byId('ellaStart').addEventListener('click', function(){
+      openPlayerModal(ELLA_COURSE.id, courseName(ELLA_COURSE), ELLA_COURSE.courseType || ELLA_COURSE.type);
+    });
+  }
+
+  /* ── Embed 3: contextual rail ────────────────────────────── */
+
+  function renderContext(){
+    var el = byId('ctxList');
+    var used = [];
+    [GATE_COURSE, REC_COURSE, ELLA_COURSE].forEach(function(c){ if (c) used.push(c.id); });
+
+    var picks = [];
+    [
+      { keys:['oncolog','cancer','tumour','tumor'], why:'Therapeutic area on screen: Oncology' },
+      { keys:['trial','phase','clinical','endpoint'], why:'Record is in Phase III' },
+      { keys:['regulat','fda','approval','submission'], why:'Next catalyst is an NDA submission' }
+    ].forEach(function(f){
+      var c = pickCourse(f.keys, used.concat(picks.map(function(p){ return p.c.id; })));
+      if (c) picks.push({ c:c, why:f.why });
+    });
+    CATALOG.forEach(function(c){
+      if (picks.length >= 3) return;
+      if (used.indexOf(c.id) !== -1) return;
+      if (picks.some(function(p){ return p.c.id === c.id; })) return;
+      picks.push({ c:c, why:'Available in your catalog' });
+    });
+
+    if (!picks.length) { el.innerHTML = '<div class="ctx-empty">No further courses in this catalog.</div>'; return; }
+
+    el.innerHTML = '';
+    picks.slice(0, 3).forEach(function(p, i){
+      var row = document.createElement('div');
+      row.className = 'ctx-item';
+      var blurb = courseBlurb(p.c).slice(0, 92);
+      row.innerHTML = '<div class="ctx-ic">' + (i + 1) + '</div><div class="ctx-m">' +
+        '<div class="ctx-t">' + esc(courseName(p.c)) + '</div>' +
+        (blurb ? '<div class="ctx-s">' + esc(blurb) + '</div>' : '') +
+        '<div class="ctx-why">' + esc(p.why) + '</div>' +
+        '<button class="link-btn">Open &rsaquo;</button></div>';
+      row.querySelector('.link-btn').addEventListener('click', function(){
+        openPlayerModal(p.c.id, courseName(p.c), p.c.courseType || p.c.type);
+      });
+      el.appendChild(row);
+    });
+  }
+
+  /* ── Embed 4: certification list ─────────────────────────── */
+
+  function renderRing(){
+    var el = byId('ringList'), rows = [];
+    if (GATE_COURSE) rows.push({ t:courseName(GATE_COURSE), v:'Governs export' });
+    if (REC_COURSE) rows.push({ t:courseName(REC_COURSE), v:'Record-attached' });
+    CATALOG.forEach(function(c){
+      if (rows.length >= 4) return;
+      if (GATE_COURSE && c.id === GATE_COURSE.id) return;
+      if (REC_COURSE && c.id === REC_COURSE.id) return;
+      rows.push({ t:courseName(c), v:courseTypeLabel(c.courseType || c.type) });
+    });
+    el.innerHTML = rows.map(function(r){
+      return '<div class="ring-row"><span class="rr-t">' + esc(r.t) +
+             '</span><span class="rr-v">' + esc(r.v) + '</span></div>';
+    }).join('');
+  }
+
+  /* ══════════════════════════════════════════
+     Player modal — the proven implementation.
+  ══════════════════════════════════════════ */
+
+  window.openPlayerModal = async function(courseId, courseTitle, courseType){
+    byId('modalTitle').textContent = courseTitle || 'Loading…';
+    byId('modalBadge').textContent = courseTypeLabel(courseType);
+    byId('playerModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    var list = byId('modalLessonList'), frame = byId('mpFrame');
+    list.innerHTML = '<div style="padding:16px;color:rgba(255,255,255,0.4);font-size:12px;">Loading…</div>';
+    frame.src = 'about:blank';
+    if (courseType === 'Curriculum') await openPlayerModalCurriculum(courseId, courseTitle, list, frame);
+    else await openPlayerModalOnline(courseId, courseTitle, list, frame);
+  };
+
+  async function openPlayerModalCurriculum(curriculumId, curriculumTitle, list, frame){
+    var path = '/api/psbi/curriculum/' + encodeURIComponent(curriculumId);
+    try {
+      var resp = await fetch(path, { credentials:'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+      var children = payload.courses || [];
+      list.innerHTML = '';
+      var rows = [];
+      children.forEach(function(child, idx){
+        var row = buildLessonRow(child.id, courseName(child), idx === 0 ? 'playing' : 'next');
+        row.courseId = child.id; row.courseType = child.courseType || child.type;
+        list.appendChild(row.el); rows.push(row);
+      });
+      rows.forEach(function(row){
+        row.el.addEventListener('click', function(){
+          rows.forEach(function(r){ r.el.classList.remove('il-active'); });
+          row.el.classList.add('il-active'); ilLoadCourse(row.courseId);
+        });
+      });
+      var firstOnline = rows.filter(function(r){ return r.courseType !== 'InstructorLedCourse'; })[0];
+      if (firstOnline) {
+        rows.forEach(function(r){ r.el.classList.remove('il-active'); });
+        firstOnline.el.classList.add('il-active'); ilLoadCourse(firstOnline.courseId);
+      }
+    } catch (err) {
+      list.innerHTML = '<div style="padding:16px;color:#f87171;font-size:12px;">Error: ' + esc(err.message) + '</div>';
+    }
+  }
+
+  async function openPlayerModalOnline(courseId, courseTitle, list, frame){
+    var path = '/api/psbi/player?courseId=' + encodeURIComponent(courseId) + '&mode=course';
+    try {
+      var resp = await fetch(path, { credentials:'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+
+      var chapters = payload.chapters || [];
+      list.innerHTML = '';
+      var lessonEls = [], firstLessonId = payload.lessonId;
+
+      if (chapters.length === 0) {
+        var only = buildLessonRow(null, courseTitle, 'playing');
+        list.appendChild(only.el); lessonEls.push(only);
+      } else {
+        chapters.forEach(function(chapter){
+          var lessons = (chapter._embedded && chapter._embedded.lessons) || [];
+          if (chapters.length > 1) {
+            var header = document.createElement('div');
+            header.className = 'il-chapter';
+            header.textContent = chapter.name || chapter.title || 'Chapter';
+            list.appendChild(header);
+          }
+          lessons.forEach(function(lesson){
+            var st = (lesson.enrollment && lesson.enrollment.status) || '';
+            var isComplete = String(st).toLowerCase() === 'complete';
+            var state = isComplete ? 'done' : (lesson.id === firstLessonId ? 'playing' : 'next');
+            var row = buildLessonRow(lesson.id, lesson.name || lesson.title || 'Lesson', state);
+            list.appendChild(row.el); lessonEls.push(row);
+          });
+        });
+      }
+
+      lessonEls.forEach(function(row){
+        row.el.addEventListener('click', function(){
+          lessonEls.forEach(function(r){ r.el.classList.remove('il-active'); });
+          row.el.classList.add('il-active'); mpLoadLesson(courseId, row.lessonId);
+        });
+      });
+      if (lessonEls.length) {
+        var activeIdx = 0;
+        for (var i = 0; i < lessonEls.length; i++) if (lessonEls[i].state === 'playing') { activeIdx = i; break; }
+        lessonEls.forEach(function(r){ r.el.classList.remove('il-active'); });
+        lessonEls[activeIdx].el.classList.add('il-active');
+      }
+
+      frame.src = payload.playerUrl;
+      paintDelivery(path, payload);
+    } catch (err) {
+      list.innerHTML = '<div style="padding:16px;color:#f87171;font-size:12px;">Error: ' + esc(err.message) + '</div>';
+    }
+  }
+
+  function buildLessonRow(lessonId, name, state){
+    var el = document.createElement('div');
+    el.className = 'il-lesson' + (state === 'playing' ? ' il-active' : '');
+    var arrowClass = state === 'done' ? 'done' : state === 'playing' ? 'playing' : 'next';
+    var arrowLabel = state === 'done' ? '✓' : '▶';
+    var dur = state === 'done' ? '· Complete' : state === 'playing' ? '· In progress' : '';
+    el.innerHTML = '<div class="il-arrow ' + arrowClass + '">' + arrowLabel + '</div>' +
+      '<div><div class="il-title">' + esc(name) + '</div><div class="il-dur">' + dur + '</div></div>';
+    return { el:el, lessonId:lessonId, state:state };
+  }
+
+  async function mpLoadLesson(courseId, lessonId){
+    var frame = byId('mpFrame'); frame.src = 'about:blank';
+    var qs = lessonId
+      ? 'courseId=' + encodeURIComponent(courseId) + '&lessonId=' + encodeURIComponent(lessonId)
+      : 'courseId=' + encodeURIComponent(courseId);
+    var path = '/api/psbi/player?' + qs;
+    try {
+      var resp = await fetch(path, { credentials:'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+      frame.src = payload.playerUrl; paintDelivery(path, payload);
+    } catch (err) { console.error('mpLoadLesson error:', err); }
+  }
+
+  async function ilLoadCourse(courseId){
+    var frame = byId('mpFrame'); frame.src = 'about:blank';
+    var path = '/api/psbi/player?courseId=' + encodeURIComponent(courseId);
+    try {
+      var resp = await fetch(path, { credentials:'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+      frame.src = payload.playerUrl; paintDelivery(path, payload);
+    } catch (err) { console.error('ilLoadCourse error:', err); }
+  }
+
+  window.closePlayerModal = function(){
+    byId('playerModal').classList.remove('open');
+    document.body.style.overflow = '';
+    byId('mpFrame').src = 'about:blank';
+    /* Finishing the course is exactly when the verdict changes — the hold
+       should clear while the analyst is still on the page. */
+    var job = currentJob();
+    if (job.gated) checkClearance(job);
+  };
+
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && byId('playerModal').classList.contains('open')) closePlayerModal();
+  });
+
+  renderQueue(); renderGate(); loadCatalog();
+})();
+</script>
+</body>
+</html>
