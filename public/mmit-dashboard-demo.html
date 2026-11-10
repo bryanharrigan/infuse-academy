@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Meridian iQ — Landscape Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    color-scheme: dark;
+    --rail-bg:#070d1a; --rail-2:#17223c; --rail-fg:#aab6d0;
+    --navy:#0f1930;
+    --surface:#0b1222; --card:#141d33; --border:#26314d;
+    --fg:#e9edf7; --muted:#97a3c0;
+    --accent:#6ea0ff; --accent-soft:#1b2a4b;
+    --gold:#f5c542;
+    --good:#45c08c; --good-soft:#143025;
+    --warn:#f0b429; --warn-soft:#3a2d12;
+    --bad:#f07585; --bad-soft:#341a22;
+    --shadow:0 1px 2px rgba(0,0,0,.42),0 10px 30px rgba(0,0,0,.34);
+    --radius:10px;
+  }
+
+  html, body { height:100%; }
+  body {
+    font-family:'Inter',-apple-system,'Segoe UI',sans-serif;
+    font-size:14px; line-height:1.5; background:var(--surface); color:var(--fg);
+    -webkit-font-smoothing:antialiased;
+  }
+  button { font:inherit; color:inherit; cursor:pointer; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:4px; }
+
+  /* ── Demo marker ──────────────────────────────────────────
+     This page carries a real company's name on a public URL.
+     Same marker as the Silfab portal, for the same reason. */
+  .demo-strip {
+    background:var(--rail-2); color:rgba(255,255,255,.80);
+    font-size:11.5px; padding:7px 18px; text-align:center; letter-spacing:.01em;
+  }
+
+  .layout { display:flex; min-height:100%; }
+
+  /* ── Left rail ── */
+  .rail { width:216px; flex:0 0 216px; background:var(--rail-bg); color:var(--rail-fg);
+          display:flex; flex-direction:column; position:sticky; top:0; height:100vh; }
+  .brand { display:flex; align-items:center; gap:8px; padding:18px 20px 22px; font-weight:700; font-size:19px; color:#fff; }
+  .brand .tick { color:var(--gold); }
+  .rail-nav { flex:1; overflow-y:auto; padding-bottom:8px; }
+  .rail-nav a, .rail-nav .rail-btn {
+    display:flex; align-items:center; gap:11px; padding:9px 20px; color:var(--rail-fg);
+    text-decoration:none; font-size:13.5px; border:0; background:none; width:100%; text-align:left;
+  }
+  .rail-nav a:hover, .rail-nav .rail-btn:hover { background:var(--rail-2); color:#fff; }
+  .rail-nav a.active { color:#fff; background:var(--rail-2); box-shadow:inset 3px 0 0 var(--gold); }
+  .rail-sub a { padding-left:52px; font-size:13px; }
+  .rail-sub a.active { background:none; box-shadow:inset 3px 0 0 var(--gold); color:#fff; }
+  .ico { width:16px; height:16px; flex:0 0 16px; opacity:.85; }
+  .tag-new { margin-left:auto; font-size:9.5px; font-weight:700; letter-spacing:.06em;
+             background:var(--gold); color:#2a2103; padding:2px 6px; border-radius:3px; }
+  .rail-badge { margin-left:auto; font-size:10px; font-weight:700; background:var(--bad); color:#2a0c12;
+                min-width:17px; height:17px; border-radius:9px; display:grid; place-items:center; padding:0 5px; }
+  .rail-foot { border-top:1px solid var(--rail-2); }
+  .rail-user { display:flex; align-items:center; gap:10px; padding:14px 20px; color:#fff; font-size:13.5px; }
+  .avatar { width:26px; height:26px; border-radius:50%; background:var(--accent); display:grid;
+            place-items:center; font-size:11px; font-weight:600; color:#0b1222; }
+
+  /* ── Main ── */
+  .main { flex:1; min-width:0; display:flex; flex-direction:column; }
+  .topbar { display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; padding:18px 24px 0; }
+  h1 { font-size:25px; font-weight:600; display:flex; align-items:center; gap:10px; }
+  .pill-new { font-size:10px; font-weight:700; letter-spacing:.07em; background:var(--gold);
+              color:#2a2103; padding:3px 8px; border-radius:4px; }
+  .stamp { color:var(--muted); font-size:12.5px; margin-top:6px; }
+  .topright { margin-left:auto; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start; }
+  .field, .btn { background:var(--card); border:1px solid var(--border); border-radius:7px;
+                 padding:8px 12px; font-size:13px; color:var(--fg); }
+  .field { min-width:200px; color:var(--muted); }
+  .btn { display:inline-flex; align-items:center; gap:7px; }
+  .btn:hover { border-color:var(--accent); color:var(--accent); }
+  .btn.locked { border-color:var(--bad); color:var(--bad); background:var(--bad-soft); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#0b1222; font-weight:600; }
+  .btn.primary:hover { background:#8fb5ff; color:#0b1222; }
+
+  .chips { display:flex; gap:8px; flex-wrap:wrap; padding:16px 24px 0; }
+  .chip { background:var(--card); border:1px solid var(--border); border-radius:6px; padding:5px 11px;
+          font-size:12px; display:flex; gap:7px; align-items:center; }
+  .chip span { color:var(--muted); font-size:10px; letter-spacing:.07em; text-transform:uppercase; }
+  .chip b { font-weight:600; }
+  .chip em { background:var(--accent-soft); color:var(--accent); border-radius:4px; padding:1px 5px;
+             font-size:11px; font-weight:600; font-style:normal; }
+
+  .grid { padding:18px 24px 40px; display:grid; gap:14px; }
+  .cols { display:grid; grid-template-columns:minmax(0,1fr) 312px; gap:14px; align-items:start; }
+  @media (max-width:1180px){ .cols { grid-template-columns:1fr; } }
+  .stack { display:grid; gap:14px; min-width:0; }
+
+  .card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); }
+  .card-h { padding:14px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+  .card-h h2 { font-size:14.5px; font-weight:600; }
+  .card-h .sub { font-size:11.5px; color:var(--muted); font-weight:400; }
+  .card-h .right { margin-left:auto; display:flex; gap:8px; align-items:center; }
+
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; }
+  .kpi { padding:14px 16px 13px; }
+  .kpi h3 { font-size:12.5px; font-weight:600; color:var(--muted); }
+  .kpi .v { font-size:26px; font-weight:600; margin-top:4px; font-variant-numeric:tabular-nums; }
+  .kpi .v small { font-size:13px; color:var(--muted); font-weight:500; margin-left:6px; }
+  .delta { display:inline-flex; align-items:center; gap:6px; margin-top:9px; font-size:12px;
+           font-variant-numeric:tabular-nums; }
+  .arrow { width:19px; height:19px; border-radius:4px; display:grid; place-items:center;
+           font-size:11px; font-weight:700; }
+  .up { background:var(--good-soft); color:var(--good); }
+  .down { background:var(--bad-soft); color:var(--bad); }
+
+  .insight { border-left:3px solid var(--accent); padding:16px 18px; }
+  .insight h2 { font-size:15px; display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .insight p { max-width:74ch; font-size:13.5px; }
+  .insight .disc { margin-top:14px; padding-top:11px; border-top:1px solid var(--border);
+                   color:var(--muted); font-size:11.5px; }
+
+  /* ── Deliverable queue (blocking gate lives here) ── */
+  .q-row { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center;
+           padding:12px 16px; border-bottom:1px solid var(--border); cursor:pointer; }
+  .q-row:last-child { border-bottom:0; }
+  .q-row:hover { background:var(--surface); }
+  .q-row.sel { background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent); }
+  .q-dot { width:9px; height:9px; border-radius:50%; }
+  .q-dot.bad { background:var(--bad); } .q-dot.warn { background:var(--warn); }
+  .q-dot.good { background:var(--good); } .q-dot.done { background:var(--muted); opacity:.5; }
+  .q-t { font-size:13.5px; font-weight:600; }
+  .q-s { font-size:11.5px; color:var(--muted); }
+  .q-badge { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+             padding:3px 8px; border-radius:20px; white-space:nowrap; }
+  .q-badge.bad { background:var(--bad-soft); color:var(--bad); }
+  .q-badge.warn { background:var(--warn-soft); color:var(--warn); }
+  .q-badge.good { background:var(--good-soft); color:var(--good); }
+  .q-badge.done { background:var(--surface); color:var(--muted); }
+
+  /* The gate panel — training sits inside the blocked action, not beside it */
+  .gate { margin:0 16px 16px; border:1px solid var(--bad); border-radius:9px; overflow:hidden; }
+  .gate.cleared { border-color:var(--good); }
+  .gate.unknown { border-color:var(--warn); }
+  .gate-h { background:var(--bad-soft); padding:12px 15px; display:flex; align-items:center; gap:9px; }
+  .gate.cleared .gate-h { background:var(--good-soft); }
+  .gate.unknown .gate-h { background:var(--warn-soft); }
+  .gate-h strong { font-size:13.5px; color:var(--bad); }
+  .gate.cleared .gate-h strong { color:var(--good); }
+  .gate.unknown .gate-h strong { color:var(--warn); }
+  .gate-b { padding:14px 15px; }
+  .gate-b p { font-size:12.5px; color:var(--muted); margin-bottom:12px; max-width:68ch; }
+  .gate-course { display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+                 background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
+  .gate-course .gc-m { flex:1; min-width:180px; }
+  .gate-course .gc-t { font-size:13px; font-weight:600; }
+  .gate-course .gc-s { font-size:11.5px; color:var(--muted); }
+  .money { font-variant-numeric:tabular-nums; font-weight:600; }
+
+  /* ── Organization record drawer ── */
+  .rec { padding:0; }
+  .rec-top { padding:14px 16px; display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; }
+  .rec-k { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .rec-v { font-size:13.5px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .rec-f { flex:1; min-width:120px; }
+  .rec-learn { border-top:1px solid var(--border); background:var(--surface);
+               padding:13px 16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .rec-learn .rl-ic { width:30px; height:30px; border-radius:7px; background:var(--accent-soft);
+                      color:var(--accent); display:grid; place-items:center; flex-shrink:0; }
+  .rec-learn .rl-m { flex:1; min-width:170px; }
+  .rec-learn .rl-t { font-size:12.5px; font-weight:600; }
+  .rec-learn .rl-s { font-size:11.5px; color:var(--muted); }
+
+  /* ── Contextual rail ── */
+  .rail-r { display:grid; gap:14px; align-content:start; }
+  .ctx-item { padding:12px 15px; border-bottom:1px solid var(--border); display:flex; gap:11px; align-items:flex-start; }
+  .ctx-item:last-child { border-bottom:0; }
+  .ctx-ic { width:28px; height:28px; border-radius:7px; background:var(--accent-soft); color:var(--accent);
+            display:grid; place-items:center; flex-shrink:0; font-size:11px; font-weight:700; }
+  .ctx-m { flex:1; min-width:0; }
+  .ctx-t { font-size:12.5px; font-weight:600; line-height:1.35; }
+  .ctx-s { font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .ctx-why { font-size:10.5px; color:var(--accent); margin-top:5px; font-weight:600; }
+  .ctx-go { background:none; border:0; color:var(--accent); font-size:12px; font-weight:600; padding:4px 0; }
+  .ctx-empty { padding:14px 15px; font-size:12px; color:var(--muted); }
+
+  /* ── Compliance ring ── */
+  .ring-wrap { padding:16px; display:flex; gap:16px; align-items:center; }
+  .ring { width:92px; height:92px; flex-shrink:0; }
+  .ring-m { flex:1; min-width:0; }
+  .ring-n { font-size:22px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .ring-s { font-size:11.5px; color:var(--muted); }
+  .ring-list { border-top:1px solid var(--border); }
+  .ring-row { display:flex; gap:10px; align-items:center; padding:9px 16px; border-bottom:1px solid var(--border); font-size:12px; }
+  .ring-row:last-child { border-bottom:0; }
+  .ring-row .rr-t { flex:1; min-width:0; }
+  .ring-row .rr-v { color:var(--muted); font-variant-numeric:tabular-nums; }
+
+  /* ── Under-the-hood panels ── */
+  .uth-h { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
+           color:var(--fg); opacity:.62; margin:4px 0 10px; display:flex; align-items:baseline;
+           gap:9px; flex-wrap:wrap; }
+  .uth-sub { font-size:11.5px; font-weight:400; text-transform:none; letter-spacing:0; opacity:.7; }
+  .api { background:var(--navy); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); }
+  .api-h { padding:13px 16px; display:flex; align-items:center; gap:9px; }
+  .api-h h2 { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#fff; }
+  .api-h .tag { margin-left:auto; font-size:10px; font-weight:700; text-transform:uppercase;
+                letter-spacing:.05em; background:rgba(47,111,237,.26); color:#A9C6FF;
+                padding:3px 8px; border-radius:20px; }
+  .api-blk { padding:13px 16px; border-bottom:1px solid rgba(255,255,255,.08); }
+  .api-blk:last-child { border-bottom:0; }
+  .api-k { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
+           color:rgba(255,255,255,.45); margin-bottom:6px; }
+  .api pre { margin:0; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+             font-size:11.5px; line-height:1.65; color:#C8D6E8; white-space:pre-wrap; word-break:break-word; }
+  .api pre.plain { color:rgba(255,255,255,.62); font-family:inherit; font-size:12.5px; line-height:1.6; }
+  .api .m { color:#A9C6FF; font-weight:700; }
+  .api .f { color:#8FD0A4; }
+  .api .x { color:#F2918F; }
+  .api .w { color:#F5C542; }
+  .api .d { color:rgba(255,255,255,.35); }
+
+  details.apiD { margin-bottom:10px; }
+  details.apiD:last-child { margin-bottom:0; }
+  details.apiD > summary { padding:13px 16px; display:flex; align-items:center; gap:9px; cursor:pointer;
+                           list-style:none; user-select:none; border-bottom:1px solid transparent; }
+  details.apiD > summary::-webkit-details-marker { display:none; }
+  details.apiD[open] > summary { border-bottom-color:rgba(255,255,255,.12); }
+  details.apiD > summary:hover { background:rgba(255,255,255,.04); }
+  details.apiD > summary .chev { margin-left:4px; color:rgba(255,255,255,.4); font-size:11px;
+                                 flex-shrink:0; transition:transform .15s ease; }
+  details.apiD[open] > summary .chev { transform:rotate(90deg); }
+  details.apiD > summary .tag { margin-left:auto; }
+  details.apiD.api-upd > summary { box-shadow:inset 3px 0 0 var(--gold); }
+
+  /* ── Player modal ── */
+  .mp { position:fixed; inset:0; background:rgba(5,15,35,.78); z-index:120; display:none;
+        align-items:center; justify-content:center; padding:26px; }
+  .mp.open { display:flex; }
+  .mp-box { background:#10151C; border-radius:12px; width:100%; max-width:1180px; height:min(780px,92vh);
+            display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 70px rgba(0,0,0,.5); }
+  .mp-h { display:flex; align-items:center; gap:11px; padding:13px 17px;
+          border-bottom:1px solid rgba(255,255,255,.1); flex-shrink:0; }
+  .mp-h h3 { font-size:14.5px; font-weight:700; color:#fff; flex:1; min-width:0;
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #modalBadge { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+                background:rgba(47,111,237,.3); color:#A9C6FF; padding:3px 9px; border-radius:20px; white-space:nowrap; }
+  .mp-x { background:none; border:0; color:rgba(255,255,255,.55); font-size:24px; line-height:1; padding:0 4px; }
+  .mp-x:hover { color:#fff; }
+  .mp-body { flex:1; display:flex; min-height:0; }
+  .mp-side { width:272px; border-right:1px solid rgba(255,255,255,.1); overflow-y:auto;
+             flex-shrink:0; background:#0B0F14; }
+  @media (max-width:820px){ .mp-side { display:none; } }
+  .mp-main { flex:1; min-width:0; background:#000; }
+  .mp-frame-el { width:100%; height:100%; border:0; display:block; }
+  .il-chapter { padding:11px 15px 5px; font-size:10px; font-weight:700; text-transform:uppercase;
+                letter-spacing:.07em; color:rgba(255,255,255,.35); }
+  .il-lesson { display:flex; align-items:flex-start; gap:10px; padding:10px 15px; cursor:pointer;
+               border-left:3px solid transparent; }
+  .il-lesson:hover { background:rgba(255,255,255,.05); }
+  .il-lesson.il-active { background:rgba(47,111,237,.18); border-left-color:var(--accent); }
+  .il-arrow { width:20px; height:20px; border-radius:50%; display:grid; place-items:center;
+              font-size:10px; flex-shrink:0; background:rgba(255,255,255,.12); color:#fff; }
+  .il-arrow.done { background:var(--good); }
+  .il-arrow.playing { background:var(--accent); }
+  .il-title { color:#e7ecf8; font-size:12.5px; line-height:1.35; }
+  .il-dur { color:rgba(255,255,255,.4); font-size:11px; }
+
+  .mp-uth { flex-shrink:0; border-top:1px solid rgba(255,255,255,.14); background:var(--navy); }
+  .mp-uth > summary { padding:11px 17px; display:flex; align-items:center; gap:9px; cursor:pointer;
+                      list-style:none; user-select:none; }
+  .mp-uth > summary::-webkit-details-marker { display:none; }
+  .mp-uth > summary:hover { background:rgba(255,255,255,.05); }
+  .mp-uth-t { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
+              color:rgba(255,255,255,.72); }
+  .mp-uth > summary .tag { margin-left:auto; font-size:10px; font-weight:700; text-transform:uppercase;
+                           letter-spacing:.05em; background:rgba(47,111,237,.26); color:#A9C6FF;
+                           padding:3px 8px; border-radius:20px; }
+  .mp-uth > summary .chev { color:rgba(255,255,255,.4); font-size:11px; transition:transform .15s ease; }
+  .mp-uth[open] > summary .chev { transform:rotate(90deg); }
+  .mp-uth-b { padding:0 17px 15px; max-height:34vh; overflow-y:auto; border-top:1px solid rgba(255,255,255,.08); }
+  .mp-uth-b pre { margin:12px 0 0; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+                  font-size:11.5px; line-height:1.65; color:#C8D6E8; white-space:pre-wrap; word-break:break-word; }
+  .mp-uth-b .m { color:#A9C6FF; font-weight:700; }
+  .mp-uth-b .f { color:#8FD0A4; }
+
+  /* ── Toast ── */
+  .toast { position:fixed; right:20px; bottom:20px; background:var(--navy); color:#fff;
+           border-radius:9px; padding:13px 16px; box-shadow:0 12px 34px rgba(0,0,0,.3);
+           max-width:330px; z-index:140; display:none; }
+  .toast.show { display:block; }
+  .toast b { display:block; font-size:13px; margin-bottom:3px; }
+  .toast span { font-size:11.5px; color:rgba(255,255,255,.62); }
+
+  .foot { padding:0 24px 30px; color:var(--muted); font-size:11.5px; max-width:90ch; }
+
+  @media (max-width:900px){
+    .rail { position:fixed; left:0; top:0; z-index:25; transform:translateX(-100%); transition:transform .25s; }
+    .rail.open { transform:none; }
+    .menu-btn { display:inline-flex !important; }
+  }
+  .menu-btn { display:none; }
+  @media (prefers-reduced-motion:reduce){ * { transition:none !important; } }
+</style>
+</head>
+<body>
+
+<div class="demo-strip">
+  Absorb LMS demonstration environment &mdash; fictional analytics product, sample data throughout.
+</div>
+
+<div class="layout">
+  <aside class="rail" id="rail">
+    <div class="brand">MERIDIAN <span class="tick">&#10148;</span></div>
+    <nav class="rail-nav">
+      <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/></svg>Meridian Home</a>
+      <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Mosaic</a>
+      <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>Searchlight</a>
+      <a href="#" class="active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18l6-9 4 5 3-4 5 8z"/></svg>Landscape</a>
+      <div class="rail-sub">
+        <a href="#" class="active">Overview</a>
+        <a href="#">Payer Directory <span class="tag-new">New</span></a>
+        <a href="#">Geography <span class="tag-new">New</span></a>
+        <a href="#">Payer Offering <span class="tag-new">New</span></a>
+        <a href="#">Payer Profile PDFs</a>
+        <a href="#">Reach Contacts</a>
+      </div>
+      <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Analytics</a>
+      <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Message Monitor</a>
+      <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21l8-8M11 13l4-9 6 6-9 4z"/></svg>Smart Access</a>
+      <a href="#" onclick="focusDeliverables();return false;"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v5H4zM4 13h16v7H4z"/></svg>Deliverables <span class="rail-badge" id="railBadge">1</span></a>
+    </nav>
+    <div class="rail-foot">
+      <div class="rail-user"><span class="avatar">DW</span>Dana Whitfield</div>
+      <button class="rail-btn" onclick="document.getElementById('rail').classList.remove('open')">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Collapse
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <h1>
+          <button class="btn menu-btn" onclick="document.getElementById('rail').classList.add('open')" aria-label="Open navigation">&#9776;</button>
+          Overview &mdash; iQ <span class="pill-new">NEW</span>
+        </h1>
+        <p class="stamp">Data Quarter: Q3 2026 &nbsp;&middot;&nbsp; Last Refresh: Nov 08, 2026</p>
+      </div>
+      <div class="topright">
+        <div class="field">Search Organizations or States</div>
+        <div class="field" style="min-width:150px">Default Dashboard &#9662;</div>
+        <button class="btn locked" id="exportBtn" onclick="focusDeliverables()">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+          Export
+        </button>
+      </div>
+    </header>
+
+    <div class="chips">
+      <div class="chip"><span>Business function</span><b>Controls Benefits</b></div>
+      <div class="chip"><span>Compare to</span><b>Last Quarter</b></div>
+      <div class="chip"><span>Benefit</span><b>Pharmacy</b></div>
+      <div class="chip"><span>Lives type</span><b>Total Insured</b></div>
+      <div class="chip"><span>Organizations</span><b>Pacific Crest (MCO)</b><em>+436</em></div>
+      <div class="chip"><span>Channel</span><b>All</b></div>
+      <div class="chip"><span>States</span><b>All</b></div>
+    </div>
+
+    <div class="grid">
+      <section class="kpis">
+        <div class="card kpi"><h3>Total Insured</h3><div class="v">308.6M</div>
+          <div class="delta"><span class="arrow down">&#8595;</span>-1.2M since Q2 2026</div></div>
+        <div class="card kpi"><h3>Largest State</h3><div class="v">California <small>39.8M</small></div>
+          <div class="delta"><span class="arrow up">&#8593;</span>+764.2K since Q2 2026</div></div>
+        <div class="card kpi"><h3>Plans</h3><div class="v">7,902</div>
+          <div class="delta"><span class="arrow up">&#8593;</span>+48 since Q2 2026</div></div>
+        <div class="card kpi"><h3>Organizations</h3><div class="v">437</div>
+          <div class="delta"><span class="arrow up">&#8593;</span>+7 since Q2 2026</div></div>
+        <div class="card kpi"><h3>Formularies</h3><div class="v">1,958</div>
+          <div class="delta"><span class="arrow up">&#8593;</span>+21 since Q2 2026</div></div>
+      </section>
+
+      <div class="cols">
+        <div class="stack">
+
+          <!-- ════════════════════════════════════════════════════
+               EMBED 1 + 2 — data record and blocking gate.
+
+               The deliverable queue is the analyst's actual work. One
+               row is blocked, and the training that unblocks it sits
+               INSIDE the blocked row rather than in a learning tab.
+               Clearance is read from Absorb on selection, never
+               hard-coded.
+          ═════════════════════════════════════════════════════ -->
+          <section class="card" id="deliverables">
+            <div class="card-h">
+              <h2>Client deliverables</h2>
+              <span class="sub">Q4 FY26 &middot; Dana Whitfield</span>
+              <span class="right"><span class="q-badge bad" id="qSummary">1 blocked</span></span>
+            </div>
+            <div id="qList"></div>
+            <div id="gateSlot"></div>
+          </section>
+
+          <section class="card insight">
+            <h2><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent)"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></svg>Insured Lives Impact Analysis</h2>
+            <p>Total US payer lives declined by -1.21M (-0.39% QoQ), driven by losses in the Commercial channel, notably Summit Blue Shield in Pennsylvania (-196.4K) and Keystone BlueCare (-42.7K). Offsetting this, Managed Medicaid expanded by +94.8K lives. Clearpath Rx rose 132 ranks (+104.6K lives, +188.42%) and Verity Rx 109 ranks (+79.2K lives, +113.55%).</p>
+            <div class="disc">May display inaccurate or incomplete information</div>
+          </section>
+
+          <!-- EMBED 1 — learning attached to the data record itself -->
+          <section class="card rec">
+            <div class="card-h">
+              <h2>Pacific Crest Health</h2>
+              <span class="sub">MCO &middot; California &middot; Controls Benefits</span>
+              <span class="right"><span class="q-badge good">Active</span></span>
+            </div>
+            <div class="rec-top">
+              <div class="rec-f"><div class="rec-k">Total insured</div><div class="rec-v">1.48M</div></div>
+              <div class="rec-f"><div class="rec-k">Channel</div><div class="rec-v">State Medicaid</div></div>
+              <div class="rec-f"><div class="rec-k">Formularies</div><div class="rec-v">6</div></div>
+              <div class="rec-f"><div class="rec-k">PBM</div><div class="rec-v">Crosswind PBM</div></div>
+              <div class="rec-f"><div class="rec-k">QoQ lives</div><div class="rec-v" style="color:var(--good)">+9.7K</div></div>
+            </div>
+            <div class="rec-learn" id="recLearn">
+              <div class="rl-ic">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3L2 8l10 5 10-5zM6 11v5c0 1 3 2 6 2s6-1 6-2v-5"/></svg>
+              </div>
+              <div class="rl-m">
+                <div class="rl-t">Loading attached learning&hellip;</div>
+                <div class="rl-s">Matched from the learner's Absorb catalog</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ════════════════════════════════════════════════════
+               Under the hood. Collapsed on load — the page has to read
+               as an analytics tool first. Each panel leads with what it
+               proves before any payload.
+          ═════════════════════════════════════════════════════ -->
+          <div>
+            <div class="uth-h">
+              Under the hood
+              <span class="uth-sub">Open these to show how Absorb and this portal actually talk</span>
+            </div>
+
+            <details class="api apiD" id="panelCatalog">
+              <summary class="api-h">
+                <h2>1 &mdash; Catalog, in the host application's own brand</h2>
+                <span class="tag">Request / response</span>
+                <span class="chev">&#9656;</span>
+              </summary>
+              <div class="api-b">
+                <div class="api-blk">
+                  <div class="api-k">What this proves</div>
+                  <pre class="plain">Every course on this page came from Absorb a moment ago, through this
+portal's own origin. Nothing is hard-coded. An admin adding a course in
+Absorb changes this page with no deployment, and the analyst never sees
+an LMS screen to get it.</pre>
+                </div>
+                <div class="api-blk">
+                  <div class="api-k">1 &bull; The portal asks, on the analyst's behalf</div>
+                  <pre id="apiCatReq">&mdash;</pre>
+                </div>
+                <div class="api-blk">
+                  <div class="api-k">2 &bull; Absorb answers <span id="apiCatTag"></span></div>
+                  <pre id="apiCatRes">&mdash;</pre>
+                </div>
+              </div>
+            </details>
+
+            <details class="api apiD" id="panelGate">
+              <summary class="api-h">
+                <h2>2 &mdash; Clearance check behind the export lock</h2>
+                <span class="tag">Fails closed</span>
+                <span class="chev">&#9656;</span>
+              </summary>
+              <div class="api-b">
+                <div class="api-blk">
+                  <div class="api-k">What this proves</div>
+                  <pre class="plain">Selecting a deliverable makes this portal ask Absorb one question: has
+this analyst completed the methodology course that governs client-ready
+output? The answer is what locks or clears Export above — the same call
+your own system would make before letting a file leave the building.
+
+Three outcomes, not two. If Absorb cannot be reached the verdict is
+<span class="w">unknown</span>, which still holds the export but is shown differently:
+telling an analyst they are uncertified when the truth is that a call
+failed is its own bug.</pre>
+                </div>
+                <div class="api-blk">
+                  <div class="api-k">1 &bull; The portal asks</div>
+                  <pre id="apiGateReq">Select a deliverable and this fills in.</pre>
+                </div>
+                <div class="api-blk">
+                  <div class="api-k">2 &bull; Verdict <span id="apiGateTag"></span></div>
+                  <pre id="apiGateRes">&mdash;</pre>
+                </div>
+                <div class="api-blk">
+                  <div class="api-k">In production</div>
+                  <pre class="plain">This demo reads completion from the lesson tree. A production gate reads
+the <span class="f">certificates</span> collection instead — a certificate is the credential,
+it has its own expiry, and an admin can revoke one without touching the
+enrollment. That is what <span class="f">/api/silfab/cert-check</span> does in the installer
+portal on this same server.</pre>
+                </div>
+              </div>
+            </details>
+
+            <details class="api apiD" id="panelLog">
+              <summary class="api-h">
+                <h2>3 &mdash; Live API call log</h2>
+                <span class="tag">Every request</span>
+                <span class="chev">&#9656;</span>
+              </summary>
+              <div class="api-b">
+                <div class="api-blk">
+                  <div class="api-k">What this proves</div>
+                  <pre class="plain">Every call this page makes, as it happens. Note what is <em>not</em> here: the
+browser only ever talks to this portal's own origin. The Absorb API key
+and the analyst's token live on the server and never reach the device —
+which is the answer to "what are we exposing to our customers?".</pre>
+                </div>
+                <div class="api-blk">
+                  <div class="api-k">Browser &rarr; portal server</div>
+                  <pre id="apiCallLog">No calls recorded yet.</pre>
+                </div>
+              </div>
+            </details>
+
+            <details class="api apiD" id="panelDeliver">
+              <summary class="api-h">
+                <h2>4 &mdash; Content delivery handshake</h2>
+                <span class="tag">Embedded player</span>
+                <span class="chev">&#9656;</span>
+              </summary>
+              <div class="api-b">
+                <div class="api-blk">
+                  <div class="api-k">What this proves</div>
+                  <pre class="plain">Launching a course does not hand the analyst an Absorb login. The server
+mints a single-use player URL and this page renders it in place. The
+learner stays inside iQ for the whole thing.</pre>
+                </div>
+                <div class="api-blk">
+                  <div class="api-k">The exchange</div>
+                  <pre id="apiDeliver">Open a course and this fills in.</pre>
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════════
+             EMBED 3 + 4 — contextual rail and progress widget.
+        ═════════════════════════════════════════════════════ -->
+        <aside class="rail-r">
+          <section class="card">
+            <div class="card-h">
+              <h2>Learning for this view</h2>
+              <span class="sub" id="ctxWhy">Pharmacy &middot; Controls Benefits</span>
+            </div>
+            <div id="ctxList"><div class="ctx-empty">Loading&hellip;</div></div>
+          </section>
+
+          <section class="card">
+            <div class="card-h"><h2>Analyst certification</h2><span class="sub">FY26</span></div>
+            <div class="ring-wrap">
+              <svg class="ring" viewBox="0 0 100 100" role="img" aria-label="16 of 22 continuing-education hours complete">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="#26314d" stroke-width="11"/>
+                <circle id="ringArc" cx="50" cy="50" r="42" fill="none" stroke="#6ea0ff" stroke-width="11"
+                        stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="72"
+                        transform="rotate(-90 50 50)"/>
+                <text x="50" y="55" text-anchor="middle" font-size="21" font-weight="600" fill="#e9edf7">73%</text>
+              </svg>
+              <div class="ring-m">
+                <div class="ring-n">16 / 22 hrs</div>
+                <div class="ring-s">Continuing education, plan year to date. 6 hours remain before 31 Dec.</div>
+              </div>
+            </div>
+            <div class="ring-list" id="ringList"></div>
+          </section>
+        </aside>
+      </div>
+    </div>
+
+    <p class="foot">
+      Sample lives figures, organizations and deliverables on this page are fictitious and are
+      for demonstration only. Course content, enrolment state and completion are real and are
+      read live from Absorb for the signed-in learner.
+    </p>
+  </div>
+</div>
+
+<!-- ── Player modal ── -->
+<div class="mp" id="playerModal" onclick="if(event.target===this)closePlayerModal()">
+  <div class="mp-box">
+    <div class="mp-h">
+      <h3 id="modalTitle">Course</h3>
+      <span id="modalBadge">Online Course</span>
+      <button class="mp-x" onclick="closePlayerModal()" aria-label="Close player">&#10005;</button>
+    </div>
+    <div class="mp-body">
+      <div class="mp-side" id="modalLessonList"></div>
+      <div class="mp-main"><iframe id="mpFrame" class="mp-frame-el" src="about:blank" allowfullscreen allow="autoplay; fullscreen"></iframe></div>
+    </div>
+    <details class="mp-uth" id="mpDeliverPanel">
+      <summary>
+        <span class="mp-uth-t">Under the hood &mdash; content delivery handshake</span>
+        <span class="tag">Embedded player</span>
+        <span class="chev">&#9656;</span>
+      </summary>
+      <div class="mp-uth-b"><pre id="mpDeliver">Open a lesson and this fills in.</pre></div>
+    </details>
+  </div>
+</div>
+
+<div class="toast" id="toast"><b id="toastT"></b><span id="toastS"></span></div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ══════════════════════════════════════════
+     Sample deliverables.
+
+     `gated: true` is the beat that matters: client-ready output is held
+     until the analyst holds current methodology training. No row carries
+     a hard-coded course — the governing course is resolved from the live
+     Absorb catalog at run time, so renaming it in the LMS flows straight
+     through with no code change.
+  ══════════════════════════════════════════ */
+  var JOBS = [
+    { id:'R-2208', title:'Q3 payer landscape — Alderwood Therapeutics',
+      sub:'Client-ready export · 38 slides · due 21 Nov', value:'Client deliverable',
+      gated:true, state:'bad', badge:'Export blocked' },
+    { id:'R-2195', title:'Access barrier refresh — oncology portfolio',
+      sub:'Internal · recertification due in 23 days', value:'Internal',
+      gated:false, state:'warn', badge:'Renewal due' },
+    { id:'R-2174', title:'Formulary movement brief — Q3 Medicare',
+      sub:'Client-ready export · cleared 06 Nov', value:'Client deliverable',
+      gated:false, state:'good', badge:'Cleared' },
+    { id:'R-2151', title:'Lives trend pack — commercial channel',
+      sub:'Delivered 29 Oct · Alderwood Therapeutics', value:'Client deliverable',
+      gated:false, state:'done', badge:'Delivered' }
+  ];
+
+  var CATALOG = [];        // courses from Absorb, newest fetch
+  var GATE_COURSE = null;  // the course governing client-ready export
+  var REC_COURSE = null;   // course attached to the organization record
+  var apiLog = [];         // recent browser -> portal calls, newest first
+  var selectedJob = JOBS[0].id;
+  var clearance = { verdict:'pending', detail:'' };
+
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+  function byId(id){ return document.getElementById(id); }
+
+  function showToast(title, sub){
+    byId('toastT').textContent = title;
+    byId('toastS').textContent = sub || '';
+    var t = byId('toast');
+    t.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function(){ t.classList.remove('show'); }, 5200);
+  }
+
+  /* ── Instrumentation ─────────────────────────────────────── */
+
+  function pulsePanel(id){
+    var el = byId(id);
+    if (!el) return;
+    el.classList.add('api-upd');
+    setTimeout(function(){ el.classList.remove('api-upd'); }, 2200);
+  }
+
+  function recordCall(method, url, status, t0){
+    var now = (window.performance && performance.now) ? performance.now() : Date.now();
+    var path = String(url);
+    try {
+      var u = new URL(url, window.location.origin);
+      path = u.pathname + (u.search || '');
+    } catch (e) { /* keep the raw string */ }
+    apiLog.unshift({
+      method: String(method || 'GET').toUpperCase(),
+      path: path,
+      status: status,
+      ms: Math.max(0, Math.round(now - t0))
+    });
+    if (apiLog.length > 14) apiLog.length = 14;
+    paintApiLog();
+  }
+
+  function paintApiLog(){
+    var el = byId('apiCallLog');
+    if (!el) return;
+    if (!apiLog.length) { el.textContent = 'No calls recorded yet.'; return; }
+    el.innerHTML = apiLog.map(function(c){
+      var cls = (c.status >= 200 && c.status < 300) ? 'f' : 'x';
+      return '<span class="m">' + esc(c.method) + '</span> ' + esc(c.path) +
+        '  <span class="' + cls + '">' + (c.status || 'ERR') + '</span>' +
+        ' <span class="d">' + c.ms + 'ms</span>';
+    }).join('\n');
+    pulsePanel('panelLog');
+  }
+
+  (function instrumentFetch(){
+    if (!window.fetch) return;
+    var orig = window.fetch.bind(window);
+    window.fetch = function(input, init){
+      var url = (typeof input === 'string') ? input : (input && input.url) || String(input);
+      var method = (init && init.method) || (input && input.method) || 'GET';
+      var t0 = (window.performance && performance.now) ? performance.now() : Date.now();
+      return orig(input, init).then(function(resp){
+        recordCall(method, url, resp.status, t0);
+        return resp;
+      }, function(err){
+        recordCall(method, url, 0, t0);
+        throw err;
+      });
+    };
+  })();
+
+  /* Mask anything token-shaped before showing a minted URL on screen.
+     The real token never reaches this page — the server holds it — but the
+     panel should not imply otherwise by printing a plausible-looking one. */
+  function redactUrl(u){
+    if (!u) return '(none)';
+    try {
+      var x = new URL(u, window.location.origin);
+      var keys = [];
+      x.searchParams.forEach(function(v, k){ keys.push(k); });
+      keys.forEach(function(k){
+        if (/token|jwt|sig|auth|key|ticket|sso/i.test(k)) x.searchParams.set(k, 'REDACTED');
+      });
+      return x.origin + x.pathname + (x.search || '');
+    } catch (e) {
+      return String(u).replace(/([?&][^=&]*(?:token|jwt|sig|auth|key|ticket|sso)[^=&]*=)[^&]*/gi, '$1REDACTED');
+    }
+  }
+
+  function paintDelivery(reqPath, payload){
+    var html =
+      '<span class="m">GET</span> <span class="f">' + esc(reqPath) + '</span>\n' +
+      '   → portal server authenticates to Absorb (API key + learner token,\n' +
+      '     both server-side only)\n' +
+      '   ← Absorb mints a single-use player URL\n\n' +
+      '<span class="m">iframe src</span>\n' +
+      '  ' + esc(redactUrl(payload && payload.playerUrl)) + '\n' +
+      (payload && payload.lessonId ? '\n<span class="m">lessonId</span> ' + esc(payload.lessonId) + '\n' : '') +
+      '\nRendered into the modal on this page. The analyst never leaves the\n' +
+      'Meridian-branded portal and never holds an Absorb credential.';
+
+    var page = byId('apiDeliver');
+    if (page) page.innerHTML = html;
+    var modal = byId('mpDeliver');
+    if (modal) modal.innerHTML = html;
+    pulsePanel('panelDeliver');
+  }
+
+  /* ── Catalog ─────────────────────────────────────────────── */
+
+  function courseTypeLabel(type){
+    if (type === 'Curriculum') return 'Curriculum';
+    if (type === 'InstructorLedCourse') return 'Instructor-Led';
+    return 'Online Course';
+  }
+  function courseName(c){ return c.name || c.title || 'Course'; }
+  function courseBlurb(c){
+    return String(c.description || '').replace(/<[^>]*>/g, '').trim();
+  }
+
+  /* Pick the best catalog course for a set of keywords. Name hits beat
+     description hits — the same ordering the holographic route uses — so a
+     course actually about the topic wins over one that mentions it. */
+  function pickCourse(keywords, exclude){
+    var best = null, bestScore = 0;
+    CATALOG.forEach(function(c){
+      if (exclude && exclude.indexOf(c.id) !== -1) return;
+      var n = courseName(c).toLowerCase();
+      var d = courseBlurb(c).toLowerCase();
+      var score = 0;
+      keywords.forEach(function(k, i){
+        var weight = keywords.length - i;      // earlier keyword, stronger signal
+        if (n.indexOf(k) !== -1) score += 10 * weight;
+        else if (d.indexOf(k) !== -1) score += 3 * weight;
+      });
+      if ((c.courseType || c.type) === 'Curriculum') score += 2;
+      if (score > bestScore) { bestScore = score; best = c; }
+    });
+    return best;
+  }
+
+  async function loadCatalog(){
+    byId('apiCatReq').innerHTML =
+      '<span class="m">GET</span> <span class="f">/api/psbi/catalog</span>\n' +
+      '   credentials: include   (portal session cookie, HttpOnly)';
+
+    try {
+      var resp = await fetch('/api/psbi/catalog', { credentials:'include' });
+
+      if (resp.status === 401) {
+        byId('apiCatTag').innerHTML = '<span class="x">401</span>';
+        byId('apiCatRes').innerHTML =
+          '<span class="x">401 Not authenticated</span>\n\n' +
+          'No portal session. Sign in and this page fills with the\n' +
+          'learner\'s own catalog.';
+        signedOut();
+        return;
+      }
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+      var data = await resp.json();
+      CATALOG = (data._embedded && data._embedded.courses) || [];
+
+      byId('apiCatTag').innerHTML = '<span class="f">200</span>';
+      byId('apiCatRes').innerHTML =
+        '<span class="f">200 OK</span>  ' + CATALOG.length + ' courses\n\n' +
+        CATALOG.slice(0, 6).map(function(c){
+          return '  <span class="d">·</span> ' + esc(courseName(c)) +
+                 '  <span class="d">' + esc(courseTypeLabel(c.courseType || c.type)) + '</span>';
+        }).join('\n') +
+        (CATALOG.length > 6 ? '\n  <span class="d">… and ' + (CATALOG.length - 6) + ' more</span>' : '');
+      pulsePanel('panelCatalog');
+
+      GATE_COURSE = pickCourse(['methodolog','lives','data','compliance','certif']) || CATALOG[0] || null;
+      REC_COURSE  = pickCourse(['payer','directory','organization','plan','formular'],
+                               GATE_COURSE ? [GATE_COURSE.id] : []) || CATALOG[1] || CATALOG[0] || null;
+
+      renderRecord();
+      renderContext();
+      renderRing();
+      selectJob(selectedJob);
+    } catch (err) {
+      byId('apiCatTag').innerHTML = '<span class="x">error</span>';
+      byId('apiCatRes').innerHTML = '<span class="x">' + esc(err.message) + '</span>';
+      signedOut(err.message);
+    }
+  }
+
+  function signedOut(msg){
+    var note = msg
+      ? 'Could not reach the catalog: ' + msg
+      : 'Sign in to load this analyst\'s learning.';
+    byId('recLearn').innerHTML =
+      '<div class="rl-m"><div class="rl-t">' + esc(note) + '</div>' +
+      '<div class="rl-s"><a href="/signin">Sign in</a> to show live Absorb content.</div></div>';
+    byId('ctxList').innerHTML = '<div class="ctx-empty">' + esc(note) + ' <a href="/signin">Sign in</a>.</div>';
+    clearance = { verdict:'unknown', detail:note };
+    renderQueue();
+    renderGate();
+  }
+
+  /* ── Deliverable queue + gate ────────────────────────────── */
+
+  function renderQueue(){
+    var list = byId('qList');
+    list.innerHTML = '';
+    JOBS.forEach(function(j){
+      var row = document.createElement('div');
+      row.className = 'q-row' + (j.id === selectedJob ? ' sel' : '');
+      row.innerHTML =
+        '<span class="q-dot ' + j.state + '"></span>' +
+        '<span><span class="q-t">' + esc(j.title) + '</span>' +
+        '<div class="q-s">' + esc(j.id) + ' &middot; ' + esc(j.sub) + '</div></span>' +
+        '<span class="q-badge ' + j.state + '">' + esc(j.badge) + '</span>';
+      row.addEventListener('click', function(){ selectJob(j.id); });
+      list.appendChild(row);
+    });
+  }
+
+  function currentJob(){
+    for (var i = 0; i < JOBS.length; i++) if (JOBS[i].id === selectedJob) return JOBS[i];
+    return JOBS[0];
+  }
+
+  function selectJob(id){
+    selectedJob = id;
+    renderQueue();
+    var job = currentJob();
+    if (job.gated) checkClearance(job);
+    else {
+      clearance = { verdict:'n/a', detail:'' };
+      renderGate();
+    }
+  }
+
+  /* Read clearance from Absorb rather than deciding it here.
+     /api/psbi/player?mode=course returns the chapter/lesson tree with the
+     learner's own enrollment status on each lesson, so "complete" is the
+     LMS's answer, not this page's. Three outcomes — see panel 2. */
+  async function checkClearance(job){
+    if (!GATE_COURSE) {
+      clearance = { verdict:'unknown', detail:'No governing course found in the catalog.' };
+      renderGate();
+      return;
+    }
+    var path = '/api/psbi/player?courseId=' + encodeURIComponent(GATE_COURSE.id) + '&mode=course';
+
+    byId('apiGateReq').innerHTML =
+      '<span class="m">GET</span> <span class="f">' + esc(path) + '</span>\n' +
+      '   deliverable  ' + esc(job.id) + '  (' + esc(job.value) + ')\n' +
+      '   governing course resolved from the catalog, not hard-coded:\n' +
+      '   <span class="f">' + esc(courseName(GATE_COURSE)) + '</span>';
+    byId('apiGateRes').innerHTML = 'Checking&hellip;';
+    clearance = { verdict:'pending', detail:'' };
+    renderGate();
+
+    try {
+      var resp = await fetch(path, { credentials:'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+
+      var total = 0, done = 0;
+      (payload.chapters || []).forEach(function(ch){
+        ((ch._embedded && ch._embedded.lessons) || []).forEach(function(l){
+          total++;
+          var st = (l.enrollment && l.enrollment.status) || '';
+          if (String(st).toLowerCase() === 'complete') done++;
+        });
+      });
+
+      if (total === 0) {
+        clearance = { verdict:'unknown', detail:'Course returned no lessons to assess.', done:0, total:0 };
+      } else if (done === total) {
+        clearance = { verdict:'cleared', detail:'', done:done, total:total };
+      } else {
+        clearance = { verdict:'held', detail:'', done:done, total:total };
+      }
+
+      var tagCls = clearance.verdict === 'cleared' ? 'f' : clearance.verdict === 'held' ? 'x' : 'w';
+      byId('apiGateTag').innerHTML = '<span class="f">200</span>';
+      byId('apiGateRes').innerHTML =
+        '{\n' +
+        '  "course":      <span class="f">"' + esc(courseName(GATE_COURSE)) + '"</span>,\n' +
+        '  "lessons":     ' + done + ' / ' + total + ' complete,\n' +
+        '  "verdict":     <span class="' + tagCls + '">"' + clearance.verdict + '"</span>,\n' +
+        '  "exportHold":  <span class="' + (clearance.verdict === 'cleared' ? 'f' : 'x') + '">' +
+            (clearance.verdict !== 'cleared') + '</span>\n' +
+        '}';
+      pulsePanel('panelGate');
+    } catch (err) {
+      clearance = { verdict:'unknown', detail:err.message };
+      byId('apiGateTag').innerHTML = '<span class="x">error</span>';
+      byId('apiGateRes').innerHTML =
+        '{\n' +
+        '  "verdict":     <span class="w">"unknown"</span>,\n' +
+        '  "reason":      <span class="x">"' + esc(err.message) + '"</span>,\n' +
+        '  "exportHold":  <span class="x">true</span>   <span class="d">// fails closed</span>\n' +
+        '}';
+      pulsePanel('panelGate');
+    }
+    renderGate();
+  }
+
+  function renderGate(){
+    var slot = byId('gateSlot');
+    var job = currentJob();
+    var btn = byId('exportBtn');
+
+    if (!job.gated) {
+      slot.innerHTML = '';
+      setExport(true);
+      return;
+    }
+
+    var v = clearance.verdict;
+    var cls = v === 'cleared' ? 'cleared' : v === 'unknown' ? 'unknown' : '';
+    var head, body;
+
+    if (v === 'pending') {
+      head = 'Checking certification&hellip;';
+      body = '<p>Asking Absorb whether this analyst holds current methodology training.</p>';
+    } else if (v === 'cleared') {
+      head = 'Export cleared — methodology certification current';
+      body = '<p>' + esc(courseName(GATE_COURSE)) + ' is complete, so ' + esc(job.id) +
+             ' can be exported to the client.</p>';
+    } else if (v === 'unknown') {
+      head = 'Export held — certification could not be confirmed';
+      body = '<p>Absorb could not be asked' + (clearance.detail ? ': ' + esc(clearance.detail) : '') +
+             '. The hold stays on, because an unreadable answer is not a pass.</p>';
+    } else {
+      head = 'Export locked — certification required';
+      body = '<p>' + esc(job.id) + ' is client-ready output, so it is held until ' +
+             esc(courseName(GATE_COURSE)) + ' is complete' +
+             (clearance.total ? ' (' + clearance.done + ' of ' + clearance.total + ' lessons done)' : '') +
+             '. The training is in the way of the work, not in a separate tab.</p>';
+    }
+
+    var courseRow = '';
+    if (GATE_COURSE && v !== 'pending') {
+      courseRow =
+        '<div class="gate-course">' +
+          '<div class="gc-m">' +
+            '<div class="gc-t">' + esc(courseName(GATE_COURSE)) + '</div>' +
+            '<div class="gc-s">' + esc(courseTypeLabel(GATE_COURSE.courseType || GATE_COURSE.type)) +
+              ' &middot; from Absorb' +
+              (clearance.total ? ' &middot; ' + clearance.done + '/' + clearance.total + ' lessons' : '') +
+            '</div>' +
+          '</div>' +
+          '<button class="btn primary" id="gateStart">' +
+            (v === 'cleared' ? 'Review training' : 'Start training') +
+          '</button>' +
+        '</div>';
+    }
+
+    slot.innerHTML =
+      '<div class="gate ' + cls + '">' +
+        '<div class="gate-h"><strong>' + head + '</strong>' +
+          '<span class="q-badge ' + (v === 'cleared' ? 'good' : v === 'unknown' ? 'warn' : 'bad') +
+          '" style="margin-left:auto">' + esc(job.value) + '</span></div>' +
+        '<div class="gate-b">' + body + courseRow + '</div>' +
+      '</div>';
+
+    var start = byId('gateStart');
+    if (start && GATE_COURSE) {
+      start.addEventListener('click', function(){
+        openPlayerModal(GATE_COURSE.id, courseName(GATE_COURSE), GATE_COURSE.courseType || GATE_COURSE.type);
+      });
+    }
+    setExport(v === 'cleared');
+
+    var blocked = JOBS.filter(function(j){ return j.gated && v !== 'cleared'; }).length;
+    byId('qSummary').textContent = blocked ? blocked + ' blocked' : 'All clear';
+    byId('qSummary').className = 'q-badge ' + (blocked ? 'bad' : 'good');
+    byId('railBadge').textContent = String(blocked);
+    byId('railBadge').style.display = blocked ? '' : 'none';
+  }
+
+  function setExport(allowed){
+    var btn = byId('exportBtn');
+    btn.className = 'btn' + (allowed ? '' : ' locked');
+    btn.innerHTML = allowed
+      ? '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 11l5 5 5-5M4 21h16"/></svg>Export'
+      : '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>Export';
+  }
+
+  window.focusDeliverables = function(){
+    byId('deliverables').scrollIntoView({ behavior:'smooth', block:'start' });
+    if (currentJob().gated && clearance.verdict !== 'cleared') {
+      showToast('Export is held', 'Methodology certification is required before client-ready output leaves iQ.');
+    }
+  };
+
+  /* ── Embed 1: learning on the organization record ────────── */
+
+  function renderRecord(){
+    var el = byId('recLearn');
+    if (!REC_COURSE) {
+      el.innerHTML = '<div class="rl-m"><div class="rl-t">No matching course in this catalog</div>' +
+                     '<div class="rl-s">Add one in Absorb and it appears here with no deployment.</div></div>';
+      return;
+    }
+    el.innerHTML =
+      '<div class="rl-ic"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+        '<path d="M12 3L2 8l10 5 10-5zM6 11v5c0 1 3 2 6 2s6-1 6-2v-5"/></svg></div>' +
+      '<div class="rl-m">' +
+        '<div class="rl-t">' + esc(courseName(REC_COURSE)) + '</div>' +
+        '<div class="rl-s">Attached to this organization record &middot; ' +
+          esc(courseTypeLabel(REC_COURSE.courseType || REC_COURSE.type)) + '</div>' +
+      '</div>' +
+      '<button class="btn" id="recStart">Open</button>';
+    byId('recStart').addEventListener('click', function(){
+      openPlayerModal(REC_COURSE.id, courseName(REC_COURSE), REC_COURSE.courseType || REC_COURSE.type);
+    });
+  }
+
+  /* ── Embed 3: contextual rail ────────────────────────────── */
+
+  function renderContext(){
+    var el = byId('ctxList');
+    var used = [];
+    if (GATE_COURSE) used.push(GATE_COURSE.id);
+    if (REC_COURSE) used.push(REC_COURSE.id);
+
+    var picks = [];
+    var filters = [
+      { keys:['pharmac','formular','benefit'], why:'Benefit filter: Pharmacy' },
+      { keys:['medicaid','medicare','channel','commercial'], why:'Channel breakdown on screen' },
+      { keys:['export','report','analys','dashboard'], why:'You are building a client export' }
+    ];
+    filters.forEach(function(f){
+      var c = pickCourse(f.keys, used.concat(picks.map(function(p){ return p.c.id; })));
+      if (c) picks.push({ c:c, why:f.why });
+    });
+    CATALOG.forEach(function(c){
+      if (picks.length >= 3) return;
+      if (used.indexOf(c.id) !== -1) return;
+      if (picks.some(function(p){ return p.c.id === c.id; })) return;
+      picks.push({ c:c, why:'Available in your catalog' });
+    });
+
+    if (!picks.length) {
+      el.innerHTML = '<div class="ctx-empty">No further courses in this catalog.</div>';
+      return;
+    }
+
+    el.innerHTML = '';
+    picks.slice(0, 3).forEach(function(p, i){
+      var row = document.createElement('div');
+      row.className = 'ctx-item';
+      var blurb = courseBlurb(p.c).slice(0, 96);
+      row.innerHTML =
+        '<div class="ctx-ic">' + (i + 1) + '</div>' +
+        '<div class="ctx-m">' +
+          '<div class="ctx-t">' + esc(courseName(p.c)) + '</div>' +
+          (blurb ? '<div class="ctx-s">' + esc(blurb) + '</div>' : '') +
+          '<div class="ctx-why">' + esc(p.why) + '</div>' +
+          '<button class="ctx-go">Open &rarr;</button>' +
+        '</div>';
+      row.querySelector('.ctx-go').addEventListener('click', function(){
+        openPlayerModal(p.c.id, courseName(p.c), p.c.courseType || p.c.type);
+      });
+      el.appendChild(row);
+    });
+  }
+
+  /* ── Embed 4: certification progress ─────────────────────── */
+
+  function renderRing(){
+    var el = byId('ringList');
+    var rows = [];
+    if (GATE_COURSE) rows.push({ t: courseName(GATE_COURSE), v: 'Governs export' });
+    if (REC_COURSE) rows.push({ t: courseName(REC_COURSE), v: 'Record-attached' });
+    CATALOG.forEach(function(c){
+      if (rows.length >= 4) return;
+      if (GATE_COURSE && c.id === GATE_COURSE.id) return;
+      if (REC_COURSE && c.id === REC_COURSE.id) return;
+      rows.push({ t: courseName(c), v: courseTypeLabel(c.courseType || c.type) });
+    });
+    if (!rows.length) { el.innerHTML = ''; return; }
+    el.innerHTML = rows.map(function(r){
+      return '<div class="ring-row"><span class="rr-t">' + esc(r.t) +
+             '</span><span class="rr-v">' + esc(r.v) + '</span></div>';
+    }).join('');
+  }
+
+  /* ══════════════════════════════════════════
+     Player modal — the proven implementation.
+     Curriculum, online course, and per-lesson re-minting.
+  ══════════════════════════════════════════ */
+
+  window.openPlayerModal = async function(courseId, courseTitle, courseType){
+    byId('modalTitle').textContent = courseTitle || 'Loading…';
+    byId('modalBadge').textContent = courseTypeLabel(courseType);
+    byId('playerModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    var list = byId('modalLessonList');
+    var frame = byId('mpFrame');
+    list.innerHTML = '<div style="padding:16px;color:rgba(255,255,255,0.4);font-size:12px;">Loading…</div>';
+    frame.src = 'about:blank';
+
+    if (courseType === 'Curriculum') await openPlayerModalCurriculum(courseId, courseTitle, list, frame);
+    else await openPlayerModalOnline(courseId, courseTitle, list, frame);
+  };
+
+  async function openPlayerModalCurriculum(curriculumId, curriculumTitle, list, frame){
+    var path = '/api/psbi/curriculum/' + encodeURIComponent(curriculumId);
+    try {
+      var resp = await fetch(path, { credentials:'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+
+      var children = payload.courses || [];
+      list.innerHTML = '';
+      var rows = [];
+      children.forEach(function(child, idx){
+        var row = buildLessonRow(child.id, courseName(child), idx === 0 ? 'playing' : 'next');
+        row.courseId = child.id;
+        row.courseType = child.courseType || child.type;
+        list.appendChild(row.el);
+        rows.push(row);
+      });
+      rows.forEach(function(row){
+        row.el.addEventListener('click', function(){
+          rows.forEach(function(r){ r.el.classList.remove('il-active'); });
+          row.el.classList.add('il-active');
+          ilLoadCourse(row.courseId);
+        });
+      });
+      var firstOnline = rows.filter(function(r){ return r.courseType !== 'InstructorLedCourse'; })[0];
+      if (firstOnline) {
+        rows.forEach(function(r){ r.el.classList.remove('il-active'); });
+        firstOnline.el.classList.add('il-active');
+        ilLoadCourse(firstOnline.courseId);
+      }
+    } catch (err) {
+      list.innerHTML = '<div style="padding:16px;color:#f87171;font-size:12px;">Error: ' + esc(err.message) + '</div>';
+    }
+  }
+
+  async function openPlayerModalOnline(courseId, courseTitle, list, frame){
+    var path = '/api/psbi/player?courseId=' + encodeURIComponent(courseId) + '&mode=course';
+    try {
+      var resp = await fetch(path, { credentials:'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+
+      var chapters = payload.chapters || [];
+      list.innerHTML = '';
+      var lessonEls = [];
+      var firstLessonId = payload.lessonId;
+
+      if (chapters.length === 0) {
+        var only = buildLessonRow(null, courseTitle, 'playing');
+        list.appendChild(only.el);
+        lessonEls.push(only);
+      } else {
+        chapters.forEach(function(chapter){
+          var lessons = (chapter._embedded && chapter._embedded.lessons) || [];
+          if (chapters.length > 1) {
+            var header = document.createElement('div');
+            header.className = 'il-chapter';
+            header.textContent = chapter.name || chapter.title || 'Chapter';
+            list.appendChild(header);
+          }
+          lessons.forEach(function(lesson){
+            var status = lesson.enrollment && lesson.enrollment.status;
+            var isComplete = String(status || '').toLowerCase() === 'complete';
+            var isCurrent = lesson.id === firstLessonId;
+            var state = isComplete ? 'done' : isCurrent ? 'playing' : 'next';
+            var row = buildLessonRow(lesson.id, lesson.name || lesson.title || 'Lesson', state);
+            list.appendChild(row.el);
+            lessonEls.push(row);
+          });
+        });
+      }
+
+      lessonEls.forEach(function(row){
+        row.el.addEventListener('click', function(){
+          lessonEls.forEach(function(r){ r.el.classList.remove('il-active'); });
+          row.el.classList.add('il-active');
+          mpLoadLesson(courseId, row.lessonId);
+        });
+      });
+      if (lessonEls.length) {
+        var activeIdx = 0;
+        for (var i = 0; i < lessonEls.length; i++) if (lessonEls[i].state === 'playing') { activeIdx = i; break; }
+        lessonEls.forEach(function(r){ r.el.classList.remove('il-active'); });
+        lessonEls[activeIdx].el.classList.add('il-active');
+      }
+
+      frame.src = payload.playerUrl;
+      paintDelivery(path, payload);
+    } catch (err) {
+      list.innerHTML = '<div style="padding:16px;color:#f87171;font-size:12px;">Error: ' + esc(err.message) + '</div>';
+    }
+  }
+
+  function buildLessonRow(lessonId, name, state){
+    var el = document.createElement('div');
+    el.className = 'il-lesson' + (state === 'playing' ? ' il-active' : '');
+    var arrowClass = state === 'done' ? 'done' : state === 'playing' ? 'playing' : 'next';
+    var arrowLabel = state === 'done' ? '✓' : '▶';
+    var dur = state === 'done' ? '· Complete' : state === 'playing' ? '· In progress' : '';
+    el.innerHTML =
+      '<div class="il-arrow ' + arrowClass + '">' + arrowLabel + '</div>' +
+      '<div class="il-meta"><div class="il-title">' + esc(name) + '</div>' +
+      '<div class="il-dur">' + dur + '</div></div>';
+    return { el:el, lessonId:lessonId, state:state };
+  }
+
+  async function mpLoadLesson(courseId, lessonId){
+    var frame = byId('mpFrame');
+    frame.src = 'about:blank';
+    var qs = lessonId
+      ? 'courseId=' + encodeURIComponent(courseId) + '&lessonId=' + encodeURIComponent(lessonId)
+      : 'courseId=' + encodeURIComponent(courseId);
+    var path = '/api/psbi/player?' + qs;
+    try {
+      var resp = await fetch(path, { credentials:'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+      frame.src = payload.playerUrl;
+      paintDelivery(path, payload);
+    } catch (err) {
+      console.error('mpLoadLesson error:', err);
+    }
+  }
+
+  async function ilLoadCourse(courseId){
+    var frame = byId('mpFrame');
+    frame.src = 'about:blank';
+    var path = '/api/psbi/player?courseId=' + encodeURIComponent(courseId);
+    try {
+      var resp = await fetch(path, { credentials:'include' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var payload = await resp.json();
+      if (payload.error) throw new Error(payload.error);
+      frame.src = payload.playerUrl;
+      paintDelivery(path, payload);
+    } catch (err) {
+      console.error('ilLoadCourse error:', err);
+    }
+  }
+
+  window.closePlayerModal = function(){
+    byId('playerModal').classList.remove('open');
+    document.body.style.overflow = '';
+    byId('mpFrame').src = 'about:blank';
+    /* Re-ask Absorb: finishing the course in the modal is exactly when the
+       verdict changes, and the whole point is that the hold clears while the
+       analyst is still on the page. */
+    var job = currentJob();
+    if (job.gated) checkClearance(job);
+  };
+
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Escape') return;
+    if (byId('playerModal').classList.contains('open')) closePlayerModal();
+  });
+
+  renderQueue();
+  renderGate();
+  loadCatalog();
+})();
+</script>
+</body>
+</html>
