@@ -37,7 +37,7 @@
   .hdr { background:var(--white); border-bottom:1px solid var(--border); padding:14px 26px;
          display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
   .logo { display:flex; align-items:center; gap:9px; cursor:pointer; }
-  .logo-mark { width:26px; height:26px; flex-shrink:0; }
+  .logo-mark { width:25px; height:28px; flex-shrink:0; display:block; }
   .logo-txt { font-size:19px; color:var(--navy); font-weight:400; letter-spacing:-.01em; }
   .logo-txt b { font-weight:700; }
   .hdr-nav { margin-left:auto; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
@@ -101,12 +101,15 @@
   .view.on { display:block; }
 
   /* ── Home tiles ── */
-  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:30px;
-           padding:54px 0 42px; text-align:center; }
+  .page.home-grid { max-width:1352px; }
+  .tiles { display:grid; grid-template-columns:repeat(3,1fr); gap:30px;
+           padding:54px 0 42px; text-align:center; justify-items:center; }
+  .tile { max-width:360px; }
   .tile svg { width:58px; height:58px; color:var(--navy); }
   .tile h3 { font-size:17px; margin-top:14px; }
   .tile p { font-size:13px; color:var(--muted); margin-top:4px; }
-  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:22px; padding-bottom:62px; }
+  .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; padding-bottom:62px; }
+  @media (max-width:880px){ .tiles, .cards { grid-template-columns:1fr; } }
   .ccard { background:var(--card); border-radius:3px; padding:34px 22px; text-align:center; cursor:pointer;
            transition:box-shadow .15s ease; }
   .ccard:hover { box-shadow:var(--shadow); }
@@ -276,10 +279,11 @@
 
 <header class="hdr">
   <div class="logo" onclick="go('home')">
-    <svg class="logo-mark" viewBox="0 0 40 40" aria-hidden="true">
-      <polygon points="4,34 16,6 22,20 16,20 11,34" fill="#00AEEF"/>
-      <polygon points="18,34 27,12 33,26 27,26 25,34" fill="#E8457C"/>
-      <polygon points="27,26 33,26 36,34 30,34" fill="#F5C542"/>
+    <!-- Absorb mark, paths from the live help-centre logo asset -->
+    <svg class="logo-mark" viewBox="0 0 32 36" aria-hidden="true">
+      <path fill="#00AEEF" d="M0 35.2515H13.0461L20.1053 22.3673V0.625732L0 35.2515Z"/>
+      <path fill="#E92B8C" d="M20.1053 22.3673V35.2515H31.8333V0.625732L20.1053 22.3673Z"/>
+      <path fill="#FFD33D" d="M20.1053 0.625732V22.4064L31.8333 0.625732H20.1053Z"/>
     </svg>
     <span class="logo-txt">absorb <b>help center</b></span>
   </div>
@@ -311,7 +315,7 @@
     </div>
   </div>
 
-  <div class="page">
+  <div class="page home-grid">
     <div class="tiles">
       <div class="tile">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1zM16 8a5 5 0 010 8M19 5a9 9 0 010 14"/></svg>
