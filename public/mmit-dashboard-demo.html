@@ -3,222 +3,237 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Meridian iQ — Landscape Overview</title>
+<title>MMIT iQ — Landscape Overview</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
 
   :root {
-    color-scheme: dark;
-    --rail-bg:#070d1a; --rail-2:#17223c; --rail-fg:#aab6d0;
-    --navy:#0f1930;
-    --surface:#0b1222; --card:#141d33; --border:#26314d;
-    --fg:#e9edf7; --muted:#97a3c0;
-    --accent:#6ea0ff; --accent-soft:#1b2a4b;
-    --gold:#f5c542;
-    --good:#45c08c; --good-soft:#143025;
-    --warn:#f0b429; --warn-soft:#3a2d12;
-    --bad:#f07585; --bad-soft:#341a22;
-    --shadow:0 1px 2px rgba(0,0,0,.42),0 10px 30px rgba(0,0,0,.34);
-    --radius:10px;
+    --rail-bg:#15182b; --rail-2:#232740; --rail-fg:#b9c0d4;
+    --gold:#FFE65F;
+    --ink:#101426;
+    --surface:#f5f6f9; --card:#ffffff; --border:#e3e7ef;
+    --fg:#1b2238; --muted:#636c85;
+    --accent:#2f6fed; --accent-soft:#eaf1ff;
+    --good:#158050; --good-soft:#e5f4ec;
+    --warn:#9a6b05; --warn-soft:#fdf3dd;
+    --bad:#c23b4b; --bad-soft:#fdebee;
+    --shadow:0 1px 2px rgba(16,20,38,.05), 0 6px 18px rgba(16,20,38,.06);
+    --radius:9px;
   }
 
   html, body { height:100%; }
-  body {
-    font-family:'Inter',-apple-system,'Segoe UI',sans-serif;
-    font-size:14px; line-height:1.5; background:var(--surface); color:var(--fg);
-    -webkit-font-smoothing:antialiased;
-  }
+  body { font-family:'Inter',-apple-system,'Segoe UI',sans-serif; font-size:14px; line-height:1.5;
+         background:var(--surface); color:var(--fg); -webkit-font-smoothing:antialiased; }
   button { font:inherit; color:inherit; cursor:pointer; }
   :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:4px; }
 
-  /* ── Demo marker ──────────────────────────────────────────
-     This page carries a real company's name on a public URL.
-     Same marker as the Silfab portal, for the same reason. */
-  .demo-strip {
-    background:var(--rail-2); color:rgba(255,255,255,.80);
-    font-size:11.5px; padding:7px 18px; text-align:center; letter-spacing:.01em;
-  }
+  .demo-strip { background:var(--ink); color:rgba(255,255,255,.8); font-size:11.5px;
+                padding:6px 18px; text-align:center; }
 
   .layout { display:flex; min-height:100%; }
 
-  /* ── Left rail ── */
-  .rail { width:216px; flex:0 0 216px; background:var(--rail-bg); color:var(--rail-fg);
+  /* ── Rail ── */
+  .rail { width:232px; flex:0 0 232px; background:var(--rail-bg); color:var(--rail-fg);
           display:flex; flex-direction:column; position:sticky; top:0; height:100vh; }
-  .brand { display:flex; align-items:center; gap:8px; padding:18px 20px 22px; font-weight:700; font-size:19px; color:#fff; }
-  .brand .tick { color:var(--gold); }
+  .brand { padding:20px 20px 24px; }
+  .brand img { width:150px; height:auto; display:block; }
   .rail-nav { flex:1; overflow-y:auto; padding-bottom:8px; }
   .rail-nav a, .rail-nav .rail-btn {
-    display:flex; align-items:center; gap:11px; padding:9px 20px; color:var(--rail-fg);
-    text-decoration:none; font-size:13.5px; border:0; background:none; width:100%; text-align:left;
-  }
+    display:flex; align-items:center; gap:12px; padding:10px 20px; color:var(--rail-fg);
+    text-decoration:none; font-size:14px; border:0; background:none; width:100%; text-align:left; }
   .rail-nav a:hover, .rail-nav .rail-btn:hover { background:var(--rail-2); color:#fff; }
   .rail-nav a.active { color:#fff; background:var(--rail-2); box-shadow:inset 3px 0 0 var(--gold); }
-  .rail-sub a { padding-left:52px; font-size:13px; }
+  .rail-sub a { padding-left:56px; font-size:13.5px; }
   .rail-sub a.active { background:none; box-shadow:inset 3px 0 0 var(--gold); color:#fff; }
-  .ico { width:16px; height:16px; flex:0 0 16px; opacity:.85; }
-  .tag-new { margin-left:auto; font-size:9.5px; font-weight:700; letter-spacing:.06em;
-             background:var(--gold); color:#2a2103; padding:2px 6px; border-radius:3px; }
-  .rail-badge { margin-left:auto; font-size:10px; font-weight:700; background:var(--bad); color:#2a0c12;
-                min-width:17px; height:17px; border-radius:9px; display:grid; place-items:center; padding:0 5px; }
+  .ico { width:17px; height:17px; flex:0 0 17px; opacity:.9; }
+  .tag-new { margin-left:auto; font-size:10px; font-weight:600; background:#eef1f7; color:#3b4257;
+             padding:2px 7px; border-radius:4px; }
+  .rail-badge { margin-left:auto; font-size:10px; font-weight:700; background:var(--bad); color:#fff;
+                min-width:18px; height:18px; border-radius:9px; display:grid; place-items:center; padding:0 5px; }
   .rail-foot { border-top:1px solid var(--rail-2); }
-  .rail-user { display:flex; align-items:center; gap:10px; padding:14px 20px; color:#fff; font-size:13.5px; }
-  .avatar { width:26px; height:26px; border-radius:50%; background:var(--accent); display:grid;
-            place-items:center; font-size:11px; font-weight:600; color:#0b1222; }
+  .rail-user { display:flex; align-items:center; gap:11px; padding:15px 20px; color:#fff; font-size:13.5px; }
+  .avatar { width:28px; height:28px; border-radius:50%; background:#4a5270; display:grid;
+            place-items:center; font-size:11px; font-weight:600; color:#fff; }
 
   /* ── Main ── */
-  .main { flex:1; min-width:0; display:flex; flex-direction:column; }
-  .topbar { display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; padding:18px 24px 0; }
-  h1 { font-size:25px; font-weight:600; display:flex; align-items:center; gap:10px; }
-  .pill-new { font-size:10px; font-weight:700; letter-spacing:.07em; background:var(--gold);
-              color:#2a2103; padding:3px 8px; border-radius:4px; }
-  .stamp { color:var(--muted); font-size:12.5px; margin-top:6px; }
+  .main { flex:1; min-width:0; display:flex; flex-direction:column; background:var(--surface); }
+  .topbar { display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; padding:22px 26px 0; }
+  h1 { font-size:30px; font-weight:600; display:flex; align-items:center; gap:12px; letter-spacing:-.01em; }
+  .pill-new { font-size:11px; font-weight:600; letter-spacing:.04em; color:var(--accent);
+              border:1.5px solid var(--accent); border-radius:5px; padding:3px 9px; }
+  .stamp { color:var(--muted); font-size:13px; margin-top:6px; }
   .topright { margin-left:auto; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start; }
   .field, .btn { background:var(--card); border:1px solid var(--border); border-radius:7px;
-                 padding:8px 12px; font-size:13px; color:var(--fg); }
-  .field { min-width:200px; color:var(--muted); }
-  .btn { display:inline-flex; align-items:center; gap:7px; }
+                 padding:9px 13px; font-size:13.5px; color:var(--fg); }
+  .field { min-width:230px; color:var(--muted); display:flex; align-items:center; gap:9px; }
+  .btn { display:inline-flex; align-items:center; gap:8px; }
   .btn:hover { border-color:var(--accent); color:var(--accent); }
   .btn.locked { border-color:var(--bad); color:var(--bad); background:var(--bad-soft); }
-  .btn.primary { background:var(--accent); border-color:var(--accent); color:#0b1222; font-weight:600; }
-  .btn.primary:hover { background:#8fb5ff; color:#0b1222; }
+  .btn.primary { background:var(--ink); border-color:var(--ink); color:#fff; font-weight:600; }
+  .btn.primary:hover { background:var(--accent); border-color:var(--accent); color:#fff; }
 
-  .chips { display:flex; gap:8px; flex-wrap:wrap; padding:16px 24px 0; }
-  .chip { background:var(--card); border:1px solid var(--border); border-radius:6px; padding:5px 11px;
-          font-size:12px; display:flex; gap:7px; align-items:center; }
-  .chip span { color:var(--muted); font-size:10px; letter-spacing:.07em; text-transform:uppercase; }
+  .chips { display:flex; gap:9px; flex-wrap:wrap; padding:18px 26px 0; }
+  .chip { background:var(--card); border:1px solid var(--border); border-radius:7px; padding:7px 12px;
+          font-size:12.5px; display:flex; gap:8px; align-items:center; }
+  .chip span { color:var(--muted); font-size:10px; letter-spacing:.06em; text-transform:uppercase; }
   .chip b { font-weight:600; }
-  .chip em { background:var(--accent-soft); color:var(--accent); border-radius:4px; padding:1px 5px;
+  .chip em { background:var(--accent-soft); color:var(--accent); border-radius:4px; padding:1px 6px;
              font-size:11px; font-weight:600; font-style:normal; }
 
-  .grid { padding:18px 24px 40px; display:grid; gap:14px; }
-  .cols { display:grid; grid-template-columns:minmax(0,1fr) 312px; gap:14px; align-items:start; }
-  @media (max-width:1180px){ .cols { grid-template-columns:1fr; } }
-  .stack { display:grid; gap:14px; min-width:0; }
+  .grid { padding:18px 26px 40px; display:grid; gap:15px; }
+  .cols { display:grid; grid-template-columns:minmax(0,1fr) 322px; gap:15px; align-items:start; }
+  @media (max-width:1240px){ .cols { grid-template-columns:1fr; } }
+  .stack { display:grid; gap:15px; min-width:0; }
 
   .card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); }
-  .card-h { padding:14px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
-  .card-h h2 { font-size:14.5px; font-weight:600; }
-  .card-h .sub { font-size:11.5px; color:var(--muted); font-weight:400; }
+  .card-h { padding:14px 17px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+  .card-h h2 { font-size:15px; font-weight:600; }
+  .card-h .sub { font-size:12px; color:var(--muted); font-weight:400; }
   .card-h .right { margin-left:auto; display:flex; gap:8px; align-items:center; }
 
-  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; }
-  .kpi { padding:14px 16px 13px; }
-  .kpi h3 { font-size:12.5px; font-weight:600; color:var(--muted); }
-  .kpi .v { font-size:26px; font-weight:600; margin-top:4px; font-variant-numeric:tabular-nums; }
-  .kpi .v small { font-size:13px; color:var(--muted); font-weight:500; margin-left:6px; }
-  .delta { display:inline-flex; align-items:center; gap:6px; margin-top:9px; font-size:12px;
-           font-variant-numeric:tabular-nums; }
-  .arrow { width:19px; height:19px; border-radius:4px; display:grid; place-items:center;
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:15px; }
+  .kpi { padding:16px 18px 15px; }
+  .kpi h3 { font-size:14px; font-weight:600; }
+  .kpi .v { font-size:30px; font-weight:600; margin-top:6px; font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
+  .kpi .v small { font-size:13px; color:var(--muted); font-weight:500; margin-left:7px; }
+  .delta { display:inline-flex; align-items:center; gap:7px; margin-top:11px; font-size:12.5px;
+           color:var(--muted); font-variant-numeric:tabular-nums; }
+  .arrow { width:21px; height:21px; border-radius:5px; display:grid; place-items:center;
            font-size:11px; font-weight:700; }
   .up { background:var(--good-soft); color:var(--good); }
   .down { background:var(--bad-soft); color:var(--bad); }
 
-  .insight { border-left:3px solid var(--accent); padding:16px 18px; }
-  .insight h2 { font-size:15px; display:flex; align-items:center; gap:8px; margin-bottom:10px; }
-  .insight p { max-width:74ch; font-size:13.5px; }
-  .insight .disc { margin-top:14px; padding-top:11px; border-top:1px solid var(--border);
-                   color:var(--muted); font-size:11.5px; }
+  .insight { border:1px solid var(--accent); border-left-width:4px; padding:18px 20px; background:#fbfcff; }
+  .insight h2 { font-size:16px; display:flex; align-items:center; gap:9px; margin-bottom:12px; }
+  .insight p { max-width:96ch; font-size:14px; }
+  .insight .disc { margin-top:16px; padding-top:12px; border-top:1px solid var(--border);
+                   color:var(--muted); font-size:12px; }
 
-  /* ── Deliverable queue (blocking gate lives here) ── */
+  .two { display:grid; grid-template-columns:1.4fr 1fr; gap:15px; }
+  @media (max-width:980px){ .two { grid-template-columns:1fr; } }
+  .trends { display:grid; grid-template-columns:repeat(auto-fit,minmax(112px,1fr)); gap:14px; padding:17px; }
+  .trend { min-width:0; }
+  .trend .lbl { font-size:12px; color:var(--muted); }
+  .trend .n { font-size:21px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .trend .d { font-size:11.5px; margin-top:6px; display:flex; align-items:center; gap:6px; color:var(--muted); }
+  .bars { padding:17px; display:grid; gap:12px; }
+  .bar { display:grid; grid-template-columns:104px 1fr 54px; align-items:center; gap:11px; font-size:12.5px; }
+  .bar .track { height:10px; border-radius:5px; background:var(--surface); overflow:hidden; }
+  .bar .fill { height:100%; border-radius:5px; background:var(--accent); }
+  .bar .pct { text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; }
+
   .q-row { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center;
-           padding:12px 16px; border-bottom:1px solid var(--border); cursor:pointer; }
+           padding:13px 17px; border-bottom:1px solid var(--border); cursor:pointer; }
   .q-row:last-child { border-bottom:0; }
   .q-row:hover { background:var(--surface); }
   .q-row.sel { background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent); }
   .q-dot { width:9px; height:9px; border-radius:50%; }
-  .q-dot.bad { background:var(--bad); } .q-dot.warn { background:var(--warn); }
-  .q-dot.good { background:var(--good); } .q-dot.done { background:var(--muted); opacity:.5; }
-  .q-t { font-size:13.5px; font-weight:600; }
-  .q-s { font-size:11.5px; color:var(--muted); }
+  .q-dot.bad{background:var(--bad)} .q-dot.warn{background:var(--warn)}
+  .q-dot.good{background:var(--good)} .q-dot.done{background:var(--muted);opacity:.45}
+  .q-t { font-size:14px; font-weight:600; }
+  .q-s { font-size:12px; color:var(--muted); }
   .q-badge { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
-             padding:3px 8px; border-radius:20px; white-space:nowrap; }
-  .q-badge.bad { background:var(--bad-soft); color:var(--bad); }
-  .q-badge.warn { background:var(--warn-soft); color:var(--warn); }
-  .q-badge.good { background:var(--good-soft); color:var(--good); }
-  .q-badge.done { background:var(--surface); color:var(--muted); }
+             padding:4px 9px; border-radius:20px; white-space:nowrap; }
+  .q-badge.bad{background:var(--bad-soft);color:var(--bad)} .q-badge.warn{background:var(--warn-soft);color:var(--warn)}
+  .q-badge.good{background:var(--good-soft);color:var(--good)} .q-badge.done{background:var(--surface);color:var(--muted)}
 
-  /* The gate panel — training sits inside the blocked action, not beside it */
-  .gate { margin:0 16px 16px; border:1px solid var(--bad); border-radius:9px; overflow:hidden; }
-  .gate.cleared { border-color:var(--good); }
-  .gate.unknown { border-color:var(--warn); }
-  .gate-h { background:var(--bad-soft); padding:12px 15px; display:flex; align-items:center; gap:9px; }
-  .gate.cleared .gate-h { background:var(--good-soft); }
-  .gate.unknown .gate-h { background:var(--warn-soft); }
-  .gate-h strong { font-size:13.5px; color:var(--bad); }
-  .gate.cleared .gate-h strong { color:var(--good); }
-  .gate.unknown .gate-h strong { color:var(--warn); }
-  .gate-b { padding:14px 15px; }
-  .gate-b p { font-size:12.5px; color:var(--muted); margin-bottom:12px; max-width:68ch; }
-  .gate-course { display:flex; align-items:center; gap:12px; flex-wrap:wrap;
-                 background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
-  .gate-course .gc-m { flex:1; min-width:180px; }
-  .gate-course .gc-t { font-size:13px; font-weight:600; }
-  .gate-course .gc-s { font-size:11.5px; color:var(--muted); }
-  .money { font-variant-numeric:tabular-nums; font-weight:600; }
+  .gate { margin:0 17px 17px; border:1px solid var(--bad); border-radius:8px; overflow:hidden; }
+  .gate.cleared { border-color:var(--good); } .gate.unknown { border-color:var(--warn); }
+  .gate-h { background:var(--bad-soft); padding:13px 15px; display:flex; align-items:center; gap:10px; }
+  .gate.cleared .gate-h{background:var(--good-soft)} .gate.unknown .gate-h{background:var(--warn-soft)}
+  .gate-h strong { font-size:14px; color:var(--bad); }
+  .gate.cleared .gate-h strong{color:var(--good)} .gate.unknown .gate-h strong{color:var(--warn)}
+  .gate-b { padding:15px; }
+  .gate-b p { font-size:13px; color:var(--muted); margin-bottom:13px; max-width:78ch; }
+  .gate-course { display:flex; align-items:center; gap:13px; flex-wrap:wrap; background:var(--surface);
+                 border:1px solid var(--border); border-radius:8px; padding:13px 15px; }
+  .gc-m { flex:1; min-width:190px; }
+  .gc-t { font-size:13.5px; font-weight:600; }
+  .gc-s { font-size:12px; color:var(--muted); }
 
-  /* ── Organization record drawer ── */
-  .rec { padding:0; }
-  .rec-top { padding:14px 16px; display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; }
+  .rec-top { padding:16px 17px; display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:16px; }
   .rec-k { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
-  .rec-v { font-size:13.5px; font-weight:600; font-variant-numeric:tabular-nums; }
-  .rec-f { flex:1; min-width:120px; }
-  .rec-learn { border-top:1px solid var(--border); background:var(--surface);
-               padding:13px 16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-  .rec-learn .rl-ic { width:30px; height:30px; border-radius:7px; background:var(--accent-soft);
-                      color:var(--accent); display:grid; place-items:center; flex-shrink:0; }
-  .rec-learn .rl-m { flex:1; min-width:170px; }
-  .rec-learn .rl-t { font-size:12.5px; font-weight:600; }
-  .rec-learn .rl-s { font-size:11.5px; color:var(--muted); }
+  .rec-v { font-size:14px; font-weight:600; margin-top:3px; font-variant-numeric:tabular-nums; }
+  .rec-learn { border-top:1px solid var(--border); background:var(--accent-soft);
+               padding:14px 17px; display:flex; gap:13px; align-items:center; flex-wrap:wrap; }
+  .rl-ic { width:32px; height:32px; border-radius:7px; background:var(--accent); color:#fff;
+           display:grid; place-items:center; flex-shrink:0; }
+  .rl-m { flex:1; min-width:190px; }
+  .rl-t { font-size:13.5px; font-weight:600; }
+  .rl-s { font-size:12px; color:var(--muted); }
 
-  /* ── Contextual rail ── */
-  .rail-r { display:grid; gap:14px; align-content:start; }
-  .ctx-item { padding:12px 15px; border-bottom:1px solid var(--border); display:flex; gap:11px; align-items:flex-start; }
+  .ctx-item { padding:13px 16px; border-bottom:1px solid var(--border); display:flex; gap:11px; align-items:flex-start; }
   .ctx-item:last-child { border-bottom:0; }
-  .ctx-ic { width:28px; height:28px; border-radius:7px; background:var(--accent-soft); color:var(--accent);
+  .ctx-ic { width:27px; height:27px; border-radius:7px; background:var(--accent-soft); color:var(--accent);
             display:grid; place-items:center; flex-shrink:0; font-size:11px; font-weight:700; }
   .ctx-m { flex:1; min-width:0; }
-  .ctx-t { font-size:12.5px; font-weight:600; line-height:1.35; }
-  .ctx-s { font-size:11.5px; color:var(--muted); margin-top:2px; }
-  .ctx-why { font-size:10.5px; color:var(--accent); margin-top:5px; font-weight:600; }
-  .ctx-go { background:none; border:0; color:var(--accent); font-size:12px; font-weight:600; padding:4px 0; }
-  .ctx-empty { padding:14px 15px; font-size:12px; color:var(--muted); }
+  .ctx-t { font-size:13px; font-weight:600; line-height:1.35; }
+  .ctx-s { font-size:12px; color:var(--muted); margin-top:3px; }
+  .ctx-why { font-size:11px; color:var(--accent); font-weight:600; margin-top:5px; }
+  .ctx-go { background:none; border:0; color:var(--accent); font-size:12.5px; font-weight:600; padding:5px 0; }
+  .ctx-empty { padding:14px 16px; font-size:12.5px; color:var(--muted); }
 
-  /* ── Compliance ring ── */
-  .ring-wrap { padding:16px; display:flex; gap:16px; align-items:center; }
+  .ring-wrap { padding:17px; display:flex; gap:16px; align-items:center; }
   .ring { width:92px; height:92px; flex-shrink:0; }
-  .ring-m { flex:1; min-width:0; }
   .ring-n { font-size:22px; font-weight:600; font-variant-numeric:tabular-nums; }
-  .ring-s { font-size:11.5px; color:var(--muted); }
-  .ring-list { border-top:1px solid var(--border); }
-  .ring-row { display:flex; gap:10px; align-items:center; padding:9px 16px; border-bottom:1px solid var(--border); font-size:12px; }
-  .ring-row:last-child { border-bottom:0; }
-  .ring-row .rr-t { flex:1; min-width:0; }
-  .ring-row .rr-v { color:var(--muted); font-variant-numeric:tabular-nums; }
+  .ring-s { font-size:12px; color:var(--muted); }
+  .ring-row { display:flex; gap:11px; align-items:center; padding:10px 16px;
+              border-top:1px solid var(--border); font-size:12.5px; }
+  .rr-t { flex:1; min-width:0; } .rr-v { color:var(--muted); }
 
-  /* ── Under-the-hood panels ── */
+  /* ── Learning Materials slide-over ── */
+  .scrim { position:fixed; inset:0; background:rgba(16,20,38,.34); opacity:0; pointer-events:none;
+           transition:opacity .22s; z-index:28; }
+  .scrim.open { opacity:1; pointer-events:auto; }
+  .lm { position:fixed; top:0; right:0; height:100%; width:min(390px,100%); background:var(--card);
+        border-left:1px solid var(--border); box-shadow:-18px 0 44px rgba(16,20,38,.16);
+        transform:translateX(102%); transition:transform .26s cubic-bezier(.2,.8,.25,1);
+        display:flex; flex-direction:column; z-index:30; }
+  .lm.open { transform:none; }
+  .lm-head { display:flex; align-items:center; gap:10px; padding:19px 18px 15px; border-bottom:1px solid var(--border); }
+  .lm-head h2 { font-size:21px; font-weight:600; flex:1; }
+  .icon-btn { background:none; border:0; padding:5px; color:var(--muted); line-height:0; }
+  .icon-btn:hover { color:var(--fg); }
+  .lm-body { overflow-y:auto; padding:15px; display:grid; gap:13px; align-content:start; }
+  .lm-note { font-size:12px; color:var(--muted); padding:0 4px; }
+  .lm-card { background:var(--surface); border:1px solid var(--border); border-radius:9px; padding:15px; }
+  .lm-card h3 { font-size:14px; margin-bottom:6px; }
+  .lm-card p { color:var(--muted); font-size:12.5px; }
+  .lm-foot { display:flex; align-items:center; gap:11px; margin-top:13px; flex-wrap:wrap; }
+  .lm-dl { background:var(--ink); color:#fff; border:0; border-radius:6px; padding:9px 15px;
+           font-size:13px; font-weight:600; display:inline-flex; align-items:center; gap:8px; }
+  .lm-dl:hover { background:var(--accent); }
+  .lm-meta { font-size:11.5px; color:var(--muted); }
+
+  .help-fab { position:fixed; right:22px; bottom:22px; width:46px; height:46px; border-radius:50%;
+              background:var(--accent); color:#fff; border:0; font-size:21px; font-weight:700;
+              box-shadow:0 6px 18px rgba(47,111,237,.4); z-index:26; }
+  .help-fab .badge { position:absolute; top:-5px; right:-5px; background:var(--gold); color:#3a3000;
+                     font-size:10px; font-weight:700; width:19px; height:19px; border-radius:50%;
+                     display:grid; place-items:center; }
+
+  /* ── Under the hood ── */
   .uth-h { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
            color:var(--fg); opacity:.62; margin:4px 0 10px; display:flex; align-items:baseline;
            gap:9px; flex-wrap:wrap; }
-  .uth-sub { font-size:11.5px; font-weight:400; text-transform:none; letter-spacing:0; opacity:.7; }
-  .api { background:var(--navy); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); }
+  .uth-sub { font-size:11.5px; font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted); }
+  .api { background:var(--ink); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); }
   .api-h { padding:13px 16px; display:flex; align-items:center; gap:9px; }
   .api-h h2 { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#fff; }
   .api-h .tag { margin-left:auto; font-size:10px; font-weight:700; text-transform:uppercase;
-                letter-spacing:.05em; background:rgba(47,111,237,.26); color:#A9C6FF;
+                letter-spacing:.05em; background:rgba(255,230,95,.2); color:var(--gold);
                 padding:3px 8px; border-radius:20px; }
   .api-blk { padding:13px 16px; border-bottom:1px solid rgba(255,255,255,.08); }
   .api-blk:last-child { border-bottom:0; }
   .api-k { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
            color:rgba(255,255,255,.45); margin-bottom:6px; }
   .api pre { margin:0; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-             font-size:11.5px; line-height:1.65; color:#C8D6E8; white-space:pre-wrap; word-break:break-word; }
+             font-size:11.5px; line-height:1.65; color:#C8D2E8; white-space:pre-wrap; word-break:break-word; }
   .api pre.plain { color:rgba(255,255,255,.62); font-family:inherit; font-size:12.5px; line-height:1.6; }
-  .api .m { color:#A9C6FF; font-weight:700; }
-  .api .f { color:#8FD0A4; }
-  .api .x { color:#F2918F; }
-  .api .w { color:#F5C542; }
+  .api .m { color:var(--gold); font-weight:700; }
+  .api .f { color:#8FD0A4; } .api .x { color:#F2918F; } .api .w { color:#F5C542; }
   .api .d { color:rgba(255,255,255,.35); }
 
   details.apiD { margin-bottom:10px; }
@@ -227,7 +242,7 @@
                            list-style:none; user-select:none; border-bottom:1px solid transparent; }
   details.apiD > summary::-webkit-details-marker { display:none; }
   details.apiD[open] > summary { border-bottom-color:rgba(255,255,255,.12); }
-  details.apiD > summary:hover { background:rgba(255,255,255,.04); }
+  details.apiD > summary:hover { background:rgba(255,255,255,.05); }
   details.apiD > summary .chev { margin-left:4px; color:rgba(255,255,255,.4); font-size:11px;
                                  flex-shrink:0; transition:transform .15s ease; }
   details.apiD[open] > summary .chev { transform:rotate(90deg); }
@@ -235,22 +250,22 @@
   details.apiD.api-upd > summary { box-shadow:inset 3px 0 0 var(--gold); }
 
   /* ── Player modal ── */
-  .mp { position:fixed; inset:0; background:rgba(5,15,35,.78); z-index:120; display:none;
+  .mp { position:fixed; inset:0; background:rgba(16,20,38,.76); z-index:120; display:none;
         align-items:center; justify-content:center; padding:26px; }
   .mp.open { display:flex; }
-  .mp-box { background:#10151C; border-radius:12px; width:100%; max-width:1180px; height:min(780px,92vh);
-            display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 70px rgba(0,0,0,.5); }
+  .mp-box { background:#0f1322; border-radius:11px; width:100%; max-width:1180px; height:min(780px,92vh);
+            display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 70px rgba(0,0,0,.45); }
   .mp-h { display:flex; align-items:center; gap:11px; padding:13px 17px;
           border-bottom:1px solid rgba(255,255,255,.1); flex-shrink:0; }
-  .mp-h h3 { font-size:14.5px; font-weight:700; color:#fff; flex:1; min-width:0;
+  .mp-h h3 { font-size:14.5px; font-weight:600; color:#fff; flex:1; min-width:0;
              overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #modalBadge { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
-                background:rgba(47,111,237,.3); color:#A9C6FF; padding:3px 9px; border-radius:20px; white-space:nowrap; }
-  .mp-x { background:none; border:0; color:rgba(255,255,255,.55); font-size:24px; line-height:1; padding:0 4px; }
+                background:rgba(255,230,95,.22); color:var(--gold); padding:3px 9px; border-radius:20px; white-space:nowrap; }
+  .mp-x { background:none; border:0; color:rgba(255,255,255,.55); font-size:23px; line-height:1; padding:0 4px; }
   .mp-x:hover { color:#fff; }
   .mp-body { flex:1; display:flex; min-height:0; }
   .mp-side { width:272px; border-right:1px solid rgba(255,255,255,.1); overflow-y:auto;
-             flex-shrink:0; background:#0B0F14; }
+             flex-shrink:0; background:#0a0e1a; }
   @media (max-width:820px){ .mp-side { display:none; } }
   .mp-main { flex:1; min-width:0; background:#000; }
   .mp-frame-el { width:100%; height:100%; border:0; display:block; }
@@ -259,41 +274,35 @@
   .il-lesson { display:flex; align-items:flex-start; gap:10px; padding:10px 15px; cursor:pointer;
                border-left:3px solid transparent; }
   .il-lesson:hover { background:rgba(255,255,255,.05); }
-  .il-lesson.il-active { background:rgba(47,111,237,.18); border-left-color:var(--accent); }
+  .il-lesson.il-active { background:rgba(255,230,95,.12); border-left-color:var(--gold); }
   .il-arrow { width:20px; height:20px; border-radius:50%; display:grid; place-items:center;
-              font-size:10px; flex-shrink:0; background:rgba(255,255,255,.12); color:#fff; }
-  .il-arrow.done { background:var(--good); }
-  .il-arrow.playing { background:var(--accent); }
+              font-size:10px; flex-shrink:0; background:rgba(255,255,255,.14); color:#fff; }
+  .il-arrow.done { background:#45c08c; color:#06281a; }
+  .il-arrow.playing { background:var(--gold); color:#3a3000; }
   .il-title { color:#e7ecf8; font-size:12.5px; line-height:1.35; }
   .il-dur { color:rgba(255,255,255,.4); font-size:11px; }
-
-  .mp-uth { flex-shrink:0; border-top:1px solid rgba(255,255,255,.14); background:var(--navy); }
+  .mp-uth { flex-shrink:0; border-top:1px solid rgba(255,255,255,.14); background:var(--ink); }
   .mp-uth > summary { padding:11px 17px; display:flex; align-items:center; gap:9px; cursor:pointer;
                       list-style:none; user-select:none; }
   .mp-uth > summary::-webkit-details-marker { display:none; }
-  .mp-uth > summary:hover { background:rgba(255,255,255,.05); }
   .mp-uth-t { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
               color:rgba(255,255,255,.72); }
   .mp-uth > summary .tag { margin-left:auto; font-size:10px; font-weight:700; text-transform:uppercase;
-                           letter-spacing:.05em; background:rgba(47,111,237,.26); color:#A9C6FF;
-                           padding:3px 8px; border-radius:20px; }
+                           background:rgba(255,230,95,.2); color:var(--gold); padding:3px 8px; border-radius:20px; }
   .mp-uth > summary .chev { color:rgba(255,255,255,.4); font-size:11px; transition:transform .15s ease; }
   .mp-uth[open] > summary .chev { transform:rotate(90deg); }
   .mp-uth-b { padding:0 17px 15px; max-height:34vh; overflow-y:auto; border-top:1px solid rgba(255,255,255,.08); }
   .mp-uth-b pre { margin:12px 0 0; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-                  font-size:11.5px; line-height:1.65; color:#C8D6E8; white-space:pre-wrap; word-break:break-word; }
-  .mp-uth-b .m { color:#A9C6FF; font-weight:700; }
-  .mp-uth-b .f { color:#8FD0A4; }
+                  font-size:11.5px; line-height:1.65; color:#C8D2E8; white-space:pre-wrap; word-break:break-word; }
+  .mp-uth-b .m { color:var(--gold); font-weight:700; } .mp-uth-b .f { color:#8FD0A4; }
 
-  /* ── Toast ── */
-  .toast { position:fixed; right:20px; bottom:20px; background:var(--navy); color:#fff;
-           border-radius:9px; padding:13px 16px; box-shadow:0 12px 34px rgba(0,0,0,.3);
-           max-width:330px; z-index:140; display:none; }
+  .toast { position:fixed; right:22px; bottom:80px; background:var(--ink); color:#fff; border-radius:9px;
+           padding:13px 16px; box-shadow:0 12px 34px rgba(16,20,38,.28); max-width:340px; z-index:140; display:none; }
   .toast.show { display:block; }
   .toast b { display:block; font-size:13px; margin-bottom:3px; }
   .toast span { font-size:11.5px; color:rgba(255,255,255,.62); }
 
-  .foot { padding:0 24px 30px; color:var(--muted); font-size:11.5px; max-width:90ch; }
+  .foot { padding:0 26px 30px; color:var(--muted); font-size:12px; max-width:100ch; }
 
   @media (max-width:900px){
     .rail { position:fixed; left:0; top:0; z-index:25; transform:translateX(-100%); transition:transform .25s; }
@@ -307,14 +316,14 @@
 <body>
 
 <div class="demo-strip">
-  Absorb LMS demonstration environment &mdash; fictional analytics product, sample data throughout.
+  Absorb LMS demonstration environment &mdash; not an MMIT system and not affiliated with MMIT or Norstella. All payer data below is fictitious.
 </div>
 
 <div class="layout">
   <aside class="rail" id="rail">
-    <div class="brand">MERIDIAN <span class="tick">&#10148;</span></div>
+    <div class="brand"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAWgAAABeCAYAAAAOsY7RAABHxUlEQVR42u19aZhcVbX2u/aZajpVnQCBBMI8kzCYAGEQ00wCMoq0gFdEVLwIXMHxetEvyVUBRRkcUHAMIkMHFMHoFQyJDIahAwgJCDEJU0LmrjrzuNf3o06RSttJupN0pxNqPU8/lVSd2rXHd6+99lrvomXLlpVyudzXFEUxpJQMgLB+YUVRACB85plnJre3tyfMTETE2IqEmVUiSmq12ifL5fJBtm1LAGJD35NSsmmaFATB28Vi8WZmFkQksZUJMytElFqW9Q3DMCphGPZl7EFEaalUUjzP+1uxWHyoUU5TuYKIpO/7e+Ryucv72q8AZLFYFLZtv9HW1vbDnnOq8X9mznme9w1m7ut83aYl6xNSFCUtFArfIiJ7sNZj8++w7++OsPMypKs/CHXEIUi734FZ/C3UU6YRjXymeW6gJX0X27ZHuK7LGyOe5z3IzFpXV5fGzLQVgZMAgOXLl+8ThuEq3khxXfe6BthvbeAMANVq9RQpZb/anKYpMzPbtn1rVpbWW9lxHE9kZu5r+Y3narXaS81j1AwG2WtbEATckl5lVHNfDTQ4Z68G+w/dwCv+u5u9K5lX/Afz2+cxv3MBs3c586ovhxz/7k5m3qu3cW3J+kXNFke367pmmqZ91aIAIDVN8wzHcaaNHz/+7Aykkq0EnCkIggOI6BEAwy3LigAoALgvbWdmEBGbpvnflmU5RPRtZtaJKNpaNGfHcU7TNO0Pvu8nSZI01NO+aGyxaZoaM7sb+J0YQGLbdpr17YYkLZVKCoDqhprQ3/m6rWvQAEgIEReLRTlIc4gwbZpg5gLc+x5A8ZnjUV0MdCsJoCoQWn2RdFspeLWO8oyPIfCPY+aTiOhV5kmCaEpLk+4LQDc0QCGECoApQ98+iOK6bqzr+pnd3d1nE9EDPY+7QxCcCIBCRLHjOD8sFos712q1WAih93NRAID0fT8xDOMLtm0/QETzhvoRLqtfOnPmTFUI8SsiUuM4lkII0dSuDRaTzZsNaUKUPUdEpPTxuKz08VmViPo7X7dVafTBYJoYBXV0pFy97wuoPHs8Fr/lQ+RzIKnWq8H18SehggxgWXeIHZ4YDdv4ATOfCUxOAbQAui8dvSmbd5qmapIkslAo3G9Z1jlElDaOuEO1vUQUW5b1PcMwTrAsKxFCaBtbVhRFAsBwXddnhGF4EAB0dnYqQ3VzIiLZ1dWlHXnkkQ+qqrq97/tpA5xb0pJ+zKOUmbdHOvdyLF+cQskbgKR17ufCMLC8mxF3nQz/5Z2IpiTMk1rzboABGkREcRyLOI5RKBTucxzn0Gzw1CE4sTQA0nXd75mm+UXP82SmhW20KIoiMpDbMUmSmQDyQ9HOlp0cVGYujB079g/5fP5U3/e5L9pqS1qytsyqz5ngsXNRCXdAwhIbnO8SELqE3g0kL36sXgxaAD3QAA0AQghKkoSZmYQQN7355pt5IkqG0qVhZnqJa7Xa+EKh8EXbthMiEpuhXAghFNd103w+v4NlWd/t6OhIAdAQuzQVRBTbtn2xruun1mq1qAXOLdlIgK6/2DMSpA5ASl+tKwxNAZLFY5mZYL5Drb4cBIDOQFpxXVfm8/mJI0aMmM7MRQDKUACphjZr2/ZYwzAe8n0/2dwarhBCcRwnKZfLn7Ms60eZHV4dSpeCruueWygUbnRdN94Es05LWpJJyOD+mpEZiN7sJiLGiP3UVh8OEkA3QKpWq8WGYbQ7jvNJIkq2NEhlG0TjAuUvmqbtGEWR2Bzac29AaNt2Yprm5bVabQIRxVva1JNdpqW1Wm0/wzCmBUGgp2mqvtc9H1qyKTKx/qLulYdiAMx9NogijIDcYfsxs0q7ftGvz9GZLaAeDIDOQFpzXTfO5XI312q1/9iSINUAZyJKbdv+gWEYI13XTQbqUixzUxOe5yW6rk/v7u5+X2bqUbbgZU7ywgsvFDVN+4mUktI0lS2vh5ZsmqyoI7L5/pcRailIUp/2eyIFdsTAy8fDvnMeh69/qq5AtCctoB4kgAaANE3VIAioXC7/xvO88zKQGvTOnzNnjgoAjuP8yDTNy33fTzf1UrAPIC2SJBFENDyfz/81CIID61g5uCDNzDRnzhyVmYftt99+0/P5fLvneWnL7tySTZ/jHSnzJEHaATPhlR5FOa+CuQ/xDymggOC8HSN+ZF/QL38O57dzOVzwqboZbg1Qb01Bb1sdQBMRSSk5iiIGcB0zlwf70pCZtfHjx8eWZV1cLBYvt207HCxwIiIRBEFsGMawJEmuzfyieZAnnTZ+/PjYcZzv5XK5D9RqtUgI0QLnlmwmOYiYJwkUT/1/oFEJ1IjASP79trBhYUwBNhk0PMKwkgYvkVg+P0T08H6gqT+H89t5nCy6pAHU9cNoC6gHBKAzkFJ835e6ru/l+/7DlmXtgEG6NMyCMeLu7u735XK5a33fj3uGIw94pwqhWZaVFIvFs1zX/Xk2S5VBtDtHq1evvkjTtI/btp30NxAHW4U7LscAYmYe8L9NqGQyCHVrvPJgatGYdhBRcfxTsEafg/weBFOoIEmQSQJOYnAag6MYnCQASRSUFObZv0H6vntRHi1QKRprAbX85S/g/XYuJ/M/zcxaC6ixJpJwIERRFMVxnLhSqRxp2/Z3ieiTr732mgEgHGCOCen7/l6KovyVmYdFUSS3RDAGEam2bUemaX7Ktu3Z5XL5FwMdDl6f2BS7rntWPp+fmnGsYFsxO2cLlQFoxWJx0DZdx3HAzP0df5imOWimPc/zAEAOFphRR0fKPFMlav8jVx8/Bfl/fBm84Ajk1AoEA5wAVACiEOheliJcpUJ9+kKYX90VeP4HiOd8Feb8M6CsNlD1JLx/JSi8sT+0136GaJ8vMi+8CdjjDiIKmtf21kbKNmQBOvMR1mzbTjRN+7hlWX8vl8s/G6hw8MbEJCJ2XffbuVxuWK1WS7IQ9i0WHON5XpLL5a5ftWrVy0Q0ewDbL4goXrBgQYWZr4vjmNM0lduKaSNjbRMAbF3XTwcwLgxDOVCnwCbvH52ZrxFC5NM03WBoOTOzoigkpYyDILiWiNymsgZkmhmGQUKIlwCsaFgZB2dM2hPmToXo/Y8AyiPMr+0Id8nHgRWExBJQd5bg6n4YPutTWGUlSF7Jo/vWR2n4fx0M8FnML3wA0eyrUV5wBsRqHTU/hTc/RX7R/lDn34b0gKuZ37gF2PUOIvLei0BNmflhgaIoZoM0Z3OfRRVF4UKhIBzH+axpmj/L+DCSgdAePc/7RT6fv8SyrGSgLwX7IlJKzufzRER2kiSn5fP5J7PAkXQz+3oLAEXXdR/O5/NH2LadDhA4x6ZparZt31gul7/Y6PeeftdRFB2radrjlmWlfeTXSE3TVBzHmV0ul48eSrwmtm2vUhRleBzHfQJoVVUpTVOvXC4X8Z4I/+5UgA5J9O+bEDMX4f3kSfh/Pxg+pRgxXIUz/iu03cdvaFhZOZ4zEfKZq+AvPBPKKkLNT8Fpirymw9wdoINegXbsD4Gdf0NEzprfPG+bB2p1EDQfStOUPc+Tmqbd5rruQ6VS6Z3NuQAbIOE4zg8ycI6JaEgEYwghKAiCxDRNM0mSXxLRvswsNxdnb+axoYwfPz52XfdPxWLxiC19chgkulQxZ86cAfuNXC5HQRDwuHHjCo7jbIzSQrZt7/jqq6+ubpQ1UHUdN24cMq0y3VKeHe+eYufcXp934/ZlwFeIyGVv/mUwrb8jekFi9YoIOy79LofvvEXGyHt47jd00g6bBdAsjp7+ANLnrkZp4VlQuhXUvBT+/BT51w+AOe9W4KArmZf8EBh5JxHZ7wWgVgfLs0FKmaqqmgohpluWdTKA6qRJkzBlyqbRDjbCuC3LOtYwjE95npcMlSi+HvbopFAo7O267l0ALso+2uRTxKxZs5T29vbYsqxLDcM42rbtbT5SMAOidDDI6LlPLmTrPD0l48ePj7fGhBabQH3afKmacNdtGhX2nc3WXyZjZPdkvP12iO4XJbRp32Tmx4GOpXUf6HZJdMTfAPyNo6fej+S5L8J84ywoqxVUm4C6NPdW0Jj3DFAP5uWZEoYh8vn8YUKI6USUTJ48WWzKpUbDHmVZ1nGFQuHPSZIU4jhWhmIwBhGpnuelhULhAsdxbslcDzcJSGfOnKm2t7cnruteWiqVbguCINnakge0ZBuXcZfWqRXMk34Af+xzKCg6PBmjuHBvdN/9TaL7UsxbIYggubNTYYYgfcLjVPjc2dDOOhZ86B9Q2kXBMFNHKFOs+FcEe/oBCG69FdG9TzEvuYyZTaKOtL6hdirbktfHpgA095fTlYgU27ZjwzCOsG37SiJKZs2apWyshjNt2jQQEWua9gNFUUphGKZCCOpnOXJjbevc36t9QPF9P87lchdXq9UTs0jLjW2/aG9vT95+++3thBA3B0Eg0zQVG7E5tXh5WzLAWjUzEXVjxftPhLqPhZyiY+nSEIWXP8n2cx00piNinqlSR0e6FlAXjn6SzMvPhnbOUUgPeQDFXRQMz4B65YII9vQDEf74VgT3Ps289D+ZubStAbXYBA8N0jRN9BfgmFn1fT8tlUo/qNVq/5XlNFSwEWHcHR0d0nXdezRNOyTjdu5vOTKXy4mNab+u66SqKmV58fpsj4+iSI3juFAoFB6ybfvEzDVK2Rhu5zfffHP4dttt91chhJ5dYPW7Lbqui/7vMy1pSb89cBTabbdu4OgvwBgOkCrgvikh/3QtM++KWbPeJTZ7F6i5U2GeJKg44SmqXHEOtPOPRHzIAyjsrGB4SUfIKVYsjOBOPwDhj34C/66uTKMuvgvUMydt1X7UYiN9nAHATpJkcbFYFP0FKWYWjuPE5XL5Ftu2T8w4pLV+2s7Jdd17CoXCRx3H6XcYNzNzoVAQURQt6A9AMTNrmoY4jpemaVrL5XL9AmkhBEVRJJMkyem6/kfXdXfM2i/6qjnPmjVLqVarw3faaacZuVzu0CAI0N9ISSKSzMxxHL+haRq4hdItGeB7A+ZJgion/BI84VEUdBUeJ1Df3Av2H6ZT+zcTYNpaNL11kJ2SAfV5ChUPe4barjgHxYsyoB6VmT44xYoFEbz/2w/RrbfCu/N55jc/x8wFap+yVQe8bIz2yKqqgojcNE0nhmG4MJfLSSml7KdnhxJFUaqq6s3Lli3bKTvui75eCnZ3d59eKBQ6Mo8Fpb+XN+VymXzfv0NK+bFisdgfU4fM5/MA8JyU8mRFUXxN09L+AJwQQkRRlAohDAA/bWjQfZxA1N7enmia9gVN0w6t1Wpxf8A5y6mYlEolIYR40jCMH2ftSVsw0hIMhkte+aPngg7zkIeOqhtB/G0MO7O/kXmDUG9eIkTT0rrp4zyF9DEZUF84AfHYP9Q1alNHICVWLAjhP7wPott/DOeOlziafwUzF7bWyESxkbfTYGazra3tX1LK/2cYhqIoCvfT/Uz4vk+5XO6gtra2GZ7njQZAkyatOxVOBmTsOM7JuVzuXtd1k/5qjlJKaRiGmiSJpyjK/zBzmp0I+qtBbtfW1vZMGIZ3FAoFtdkXuK/0rJ7npcVi8Szbtn8PgDOCI1qfeUgIkdq2fVUul7tmYzw20jSVhUJB9X3/9SRJzgAQNd0ptKQlA6hFT5GYBhBRDdqJn4W+YwQBwF0uIR+9hpn3rk/z3jGgbvpoBupDn6ZhV54N/cKjEB78AIo7C7SZxrtAHf51T+DXP4Q1dV4G1LmtDajFJvj3hsxcMU3zt7ZtfzWzRyf9BelarRbrun6glPJOIkonT54s1pfwFECJmR8kIqO/l2JSStZ1HYqiuL7vn1YsFhcrilLZSDt8zMyiWCxe5nneHaZp6v1tPxEplmUlpmmeUa1Wzxk/fny8LhfBjGMjqVarR5dKpZtc1+2vWQjMLA3DQBzHi4MgmDhs2LBqkiTFFnS0ZNBAuqMjZb5No8IBv0Vy8I3YcYSOGBHkqwZqv/xd/VLxINpQGUTTUmYWddPHIU/R8CvOQdsnJoAPuR+FURlQpxLLF4aIZ+wOTP0h7KmvsP/qVgXUYhNDqxNmFuVy+btxHP+uXC6rUsqoP44EjXDwXC53jGVZX+uNnrRxKdbZ2am4rnuHrutGFEVpfy7FMttxoiiKdBznlHK5/Ddmpk0hwyEiOWfOHLVYLH7C9/37yuWyuhHlKZ7nxblc7t5arXZ6b54d2eaUrFy5cud8Pn9bFEWplP2jdm5wcuRyOSGlnDx8+PA3mJlUVY1bsNGSwZVLE+bbNAz7+PWo7tSFci4HLwmhzBnDtT/+b53SdMP80EQk1wJqOuhpMq/4CIZdPAHisGko7ExoK2VAvSBENGN3KL/5IZypL3My/3JmNoY6UIvNYPyXzKyWSqWrgiCYV6lU9DRNN8azA6ZpXmvb9uebfYSbE56efvrpvysWi2cFQbAx3MZJoVDQoij69fDhw59YtGhRLnNqp02M4qIsH+P/xHFcMwxD649nS5Z4V5VSilwu94Dnecc1J95thHF7nrebaZp/1TRtjO/71F8CKCKK8/k8W5b15VKp9PMsdyRLKVvcuy3ZAq53l0oiqiF/4X9DGR2AJMF3JWj2F3jlYwfWeT76lvl7DVBPEtz5kTpQFz7XgWGfPgrq+E6URnMdqGUdqMMZe4Cn/gjO1Fc4+eflQ1mj3lyBKkxEb9dqtRPCMHzBMAz0E6QgpaQwDFNd1//nnXfe2Z2I4s7OTmXevHlalvD0C/l8/kzLssKNsDsn5XJZcxxnqmman+nq6tJef/31zcUFkgKgXC433/O8k4hoRXZpKPuZeFcKIRQp5Xfmzp2rN3FoK9m/b9V1fX/LsiJFUUQ/+zY2TVOL4/hPlUrle8ysjR49OmlBRUu2rFdHl0b5XWYgPfqHGLGLjjBJEL5eQGnBX5l5FGgK9yd/KNEUSR0NoGaFaL+nKfefH0XlE8dCP/xemLvId4F62YIQwYw9IO/8Ebw75nHy6n/V3fOGFlBvrqgzmdlIl3V3d1/S1tb2XBzHsj9UlxnRvczn8yO22267Gb7vn5DL5d4moqhWq52u6/p/u64bA9D7Cc5xpVLRHMf5o2maF8+cOVMdN25csjmjKIlIzp07V29ra3vWsqyvm6Z5W5IkIQCjP5GGruumlUplwp577vkgM38EQExEoWVZ12iadmpGAKX3xyMuTVNZqVS0MAxfyufzl2WaeTpY/NQtacl6zp8Jd92mwTzpm+h+4wS0rXofqkEIc85IOMMmgflyzJqM/gfE1ekj6hr4FBAd+BRA5zPPm4D4iatQXvhhiFV1mtPlC2IYr+8Jbf4tiPb9PPNrPwT2+SURWUOBPW9zglTCzGpbW9sLjuNcUSwWhRAi7qd/tfB9P1UUZU9FUWYSURKG4WH5fP73aZoW0jRV+2N4zQJRtDAMa7quf42ZxcSJE3kgOnvMmDFRV1eXZprmL1zXvc00TYOZ0/56dliWFebz+Q86jvMVIgp937/CNM1vBUEgN8LXO83n84jj+Pnu7u4TiWhxNtla0YMtGRqmjnGXSiKyMezir4D2T6BJBStXxSjNvRTuUydT+5RkY/MVEk2R9YAXFvV7nAOfIv3S85G78ANQD78X5dEp2koGQpZYtiCC+/CeiKfehPDO55kXXc3MbUS0RSMTxWbu8ASAME3zx67rfr1UKmnMHPXnIktRFCXjkN7dsqxvhGE4RVVVNUmStJ9hzFJVVcnMq2zbPskwjLkNF+wBZBVLAHCpVPpPx3F+ms/nlY3w7NBd100URfmKZVmfi6Lo6jAM+03EzswshICu68L3/c+NHDlyeXbKaYFzS4aYqWOmSqTNQLz/Bdh+dxWsCKyYl4Bm/4KZdwTa0/6YOnq3UTeAGoL0g2dT7tLzkfvIcVDedy9KO8t6CHkG1PZf9kT88xsR3d3F/NbVzDxsS4WQDwRZkmRm1TTNHwVB0FUul/X+aJJZGLlqWZYsFov/axjGGbZt80ZwO8eFQkGNoujaHXbY4dksm0k6CGxezMyiVCpdEcfxsmKxqPYniAcApWmqSimNUqn0Y03T9gzDUPQ3jFsIkeRyObJt+3OVSuWphpteCxJaMuRAWhxf15LbTn8Azj4PoGIoiFQGvbYTaj+/FmACblc2hylybaAe/xTlLzsfhXOOBQ7pRGlnxvDyGqCuTd8L4U9vRHTPM8xLrmbm4YMN1GKAQCololoQBCcFQfBsLpej/h73iUi4rptmR/v+dkRimqbhOM5t5XL5lowvOhpEysXGZnNKHMcrdF2X/b00TdMUjuOkGcdGfwOJolKppAVB8K1yufyTFji3BEM7vBDALElECSqf/BzoEBdKLNDtRKi8fQm856cQfTbeWFPHhoH6qKepePlHUTjrKPDB96I4Chhe0RFBYsWCCLXpeyP88Y0I73k6A+pB06jFAJKjqMOGDavGcXy1rutCURTuD2dFJkp/NUcpZVosFlXHcW4zTfM/swi5ZJCPbRIASqXSC1EUnZnP5/ttWshAud/UqcycVioVPQzDZ0ul0k0zZ85UW2HcLdkaogzrpg56B+IDF2OnMQo4FVg+P4H885UcuROI2hPu7FQ25zpdA9STBOnHPEulK86HdvrhSMfeg/wownYVHTHXgdr6494IfnQj/LufHSygFgMIUgkzK+Vy+UnXdS/O5/OqoihyIEl5pJRcLBaVIAhWlUqlL7/LjrUFbmAbBFDlcvlp13VvMU1T3Vhq0/6Acy6Xg+/7zzqOcyIRVSdOnJi+1xJttmRrlYkpc6eCwsEPwjv4bphFFZGQUN6owPntjcys48B5ykAoVPUNIgt4KX3gOSpfcQGMCw5DMuZu5EYJDK/oiCGxclEE9097IfzRjfDuatio2waKPU8MAkgppVJpquM4FxuGoQghkgECJ9Z1PZVSLlVV9XgAbrM2u4UuQOJp06aJUql0lW3bNxcKBbEpGTr6EMZOaZpGYRievP3221sZsVQLnFuyFQWwnCcBiql41oXgg+ahTdexyglhvnoUrP+7hsZMifjNzvxAnXzXikwsve8fVL7yQpQuOBTRgffAGCmwXVlHxBIrF4Vw/7wnwp/eCO+3zzO/8QVmrqxhz1t/kE09inmmuuavd1AfjIwqsqurS6tUKlOjKHo08+wYiCN3ks/nVc/zLjQM48VZs2YNiaSj5513nsw06avDMJyVhcPHm3tzUlU11TRNSCk/N2zYsOrMmTPVLZWjriUt2TSQ7hQgBvSTLwNGhdCEhlXLEtDjV3P09lG0a4fPADFDbIp3R5+AeuYHVDLe9w8a9vkLkPvYYQgzoB5WNhCzxMqFIbw/74749u/DueMlTuZ/iZnLdY18kuhpkqkDc511uR4U0/gjZgbVU3cNIkATET/00EMpM6vFYvEsz/Me13WdNidIM7Msl8ua53k3trW1PcbMWnt7ezKE8rSlzKxomnZFHMdL8vm81k/Pjg2ak/L5vGrb9iWlUunXjVRYreXekq0TpDtSfnSSSoWDHoc85jsobS+RQkKsNGH96vvsz70YzEWiuk//5rRL/xtQt/8tWaNRH/YCDfv8BTA/dhjCA++FMVJguGkgBGP5whDBI6OR/vIGRHe/zPFzZ9UjGzvS+kYyqW7nJmIihZl5B07+8Rm27v80c9dnmO0diRQm6ki58zxlUJPGTpkyRU6ePBlE5FSr1bM0TVuW+TbLjckC0gOck2KxKFzXvbFUKn0xIxaKh5hWIJlZGIYxb8WKFSdUKpUnDcOoRFG0Odofl8tlzXXdx4YNG/YrZtb6GyDUkpYMOZl4UN00V9z/FdizVkMVO6Dblyi8fhRw51Gwc9/k9KHHkJx8AxnGC/ULxoFRShonceZJArNmCTIOewHA+Ry+8B2ET3wJxusXoGAZ6HYZKxaFyC3eGeoz97P/vT9CPehmog/NAqbU16vFO4AevBPOlHHIhdshlwJJF+Am13L4qxcQv+/7VBrzf432qIMMUiqAqu/7F6mqejczI01T3tgkr1LKpFKpqL7vP1Mqlb44lD0WsvZrRPRPx3G+XywWvx3H8SaFnEspU9M0Ndd1nygWix/K+jdpJUdpCbZqr7s6OLHzx2ug3PMt+IsBVgBFEIJYInhTQhW7QFt6IeTLp/GKx08kev+cuoY6RQ4onzUg6/bll4no0OcBfIz51RvgPfoFFBZeAMPKYbUD0AqGcM5CsPhMDm98CMnu10I/ZifEN/0K4YvDECVALU3e5WpTle1BK0+EtuhEXvXrC4na72Y+T1EHGaQSZlYKhcI9q1atQqFQmJpRfmobAU7SMAwljuO3kyT55JaOme/rpWHmk3ytbdsF0zSvsW07BqBtjMdGPp8XQRDMff31108dM2aMO2nSJJoyZUoLnVuy9YLzzEl1cHYfuxq5h7+FJa/GQEEFgQAGiASgCyRgrHITGP9oQz5+hKOlpwE7PsOMAQXpf+f6eJmI9nsBwEXM825C+MRVMBecD7Wqo9uWgCeh2WfCWXA6xLMC4i0gRAqoAkJdg78pMxyZQvknoWjfxdWHmOjMe9Qt5H5mENE9juMcXSqVrqzVav3KDMLMbBiGJKKwWq2eMGLEiNcy04bcCi5Bkoyz4+uO45imaf7XxrRfURShKAox83+PGTPG6erq0jLC/5a0ZOsE50mTBGZBMvN2sG74GlYvTIGSAupJicsAgSAUDaFIkF84DO4jP6dhHx/DPCiOD+sA6oOeB/AJ5tduRjzz8ygvPB9qt4FuFxChgFwFSI0hoPxbAiMCAVCRGhLeYob26lRmOVtsobGIurq6tGKx+A3XdWeUSiVNSpn2B+RzuZyaJMl3M3Deqjgmxo0blzKzUiwWr42iaJFpmv25NGQhRKKqauw4zvm5XG76zJkz1RY4t2Srl4kQNGWKRPD3K2Es3gGRYNB6vDSYASIFTphCnTuS+e1DG4Engx1k8y4fNZ+nEO37POmfvRjli46CdthUlHdcDaGkYJ0hNsA/TywQixTGWxrcx69UseXSsCdEVFu0aNHpI0aMmFMsFg90XTftQwLYuFgsap7n/W+pVPrfrTGMuXFpSETLVq9e3V4oFP5qGMYefbk0zOhTdcdxftbW1nZvxjEStVZ3S7YBgM7Ut38dCcVnkNhwqkwCIQEjz8NRm3kAgBeAWaK/FKWbX6MGMo36Ynb/PBnD/zoJK5bGgLrhkzIpgIgJq+/1VWxB97MskCJwHOfLRPSgqqrK+i4NpZRRpVLRLcv6eaVSmZRdusVbqb9n49LwDcdxri4Wiw8lSRJJKbX1tD+tVCq67/uPlEqlL2W2+5bm3JJtS5IlDtS+Og5wHdAim+E9HQIAZs3a8slxAfBrfzKwz1sS1SWAlvYjeZNQYFWB3FH/IbY81SCrpVLpT67rftgwjEBRlKS3bVNKKUulkh5F0cJyuTw5uxRMt3Kn/Dhr/x9t276mVCrpQoh0XeBcKpWUMAz/8vbbb5+REYonrUjBlmxzIoYV+5eJTgJQCUobho4nSqcC7V4i+mwMZaQPUjZ8Gmi23egaIFe9IjAELs2YWatUKg96nndZsVjUpJRJz0AUXdc5iqKFruu2Z8TzvC1wGzdxllxbq9WuyeVyas9w8CyMW8lIn67cd999w1YYd0u2OWkovsqI+ZCp7BtIE8ApoFcA88y6+WDixC0KzHU7dEdKe0wNmFcfC171cVg2AKVvATUkU+RNgMyXxBAZmiQLh74nCIIHK5XKu5eGGfE8Z0T+Jw8fPvzNLIx5WyKel1k2mmvDMJybhYPL5mzkuq57rut+OJfLzc/AuRXG3RJsk8EpYsyvUdxLQIa0wTABBsMQBLuwGPnDZzCDgInplgFmiDpp0rSUo2XHsv2b6XBueRzJowfBD1JQX+zixCAp4Ggh8idNE0MoHDohovCpp5461/f96aZpKlLKhIgaR/trdtxxxwXMvM2FMWftb+R1PMXzvH8ahsHMLJk5LhQKmuM4X6hUKg91dXVpLXBuybYp50nmTgXFfebD2ekutBUVcBKvW5MWgPQibL+7Au3IW4hoJTBpUE+WzJ0KT2oAMyRHbx7H7l3TEd76OOjx02DNT+CFCYpCQVtRBa/vZEAAxyFGtCkQ+99PxYO71KEEUg0OCcuyvqRp2gm6riu6rmu1Wu3rbW1t12aa8zbJMZFdGqJYLC7u7u4+rVgsLiSipFwu60EQ/KFSqUxtRAq2FnJLttE1wMzMROQw81cQqR9E6a/bwY4YQq8HqoAAZglICcQKdtnFgD/uERSPvzVzr0sbYdUDbmNGhyTqSAEC85vt8B/7MqJfnAp+B6jZCRiMgqahtBPgjH4BgT4fpefPg1sDWI1BggChADIFSwCpwA5mDt7+CzHs0muYlwgxlAaovb29YY/9p+u6Z2iapgVBML9SqXyHmdWJEyem2/gElV1dXdrw4cMXxXF8lWmaqu/7D1x//fUfJqIgy1TTsju3ZJteA8xMIFqC+GNjoX7gDlRGAxyngAA4BvIssH1FhbGzj/C4HyF/zulE5Gb3UjwIpgyqa8yCmd8+gcPf/gnOzx5FOutUdL+WomrHyGsqtt9Fg3nMP6Cf/2kMv+JoGv7ZDvBRX0fbGGB4WUNZUwGbUNZUbF9RoW8vEB36OyhXtBPR68DkwSFL2hgOaSL6a7VaPSWXyy3MvDXovQBO48ePjzMf6VvCMFySz+f/OGXKFFlXLFrg3JL3iCY9t1OnEr3DUfQLKLdchNobDEQJCjsK8Kjn4G//GIrtP6bcbgsbNJ4DuT7q2jlxXWNWwfzGSYgfvxrO7acCS4CqmwKUoqDpKO6kAHu+COOIHwCH3U1EXr2M2zSiT3ybI/f/kMy6BP7T2yN/9DnwXvsDCmOWo7Lvr0k/4lngMjQio9Whmum3s7NTaWtr+8vaDo/vKS1CENG0wZh8LWkJhhRZEhOmUcrMO8D70W2ovsCAJjFiOx3ylNugn3R54x6GeZIKTB6wk+UaYCYJaGB+5yTEM66Gc9up4MVAzcuAWa8DM+/1EozxtwCH3UVE/hpzyHmy7lYLQVScA2BO3TQidyISSxvwxnyeAnTKhhOEOlQHqaOjI818nXkb89joD0gPeQKolrRk88vtKnUgZmvql5Gfvz+6RYSSosPZ959oO+nrmEzM3Klj8ryEaEoyEDZnZhaYTBnVqA7mJSchffQqOLecBl5SB2aiFEVdR2GUgnSPl2AcfhNw6F1EFPYA5nTNum6Eot+uAJ9NiWhpnT/kNgVYkhJNSZsvEdUhDlLvaW+FlrdGS957bHYzVaL2mL1Xvwz9ni9j+coIChOMMYD6H/9NRCszb6doADXmtYE5nnEV7FtOA3oD5t1fgjru+zDG3dWIau4NmHvhl5ZNp2MJfLZXJVRtTYmWtKQlQ8O0MUkA7ZKZD4B781fQPT+FFAI7jVRh7/VpGlb+Q5b5OxkgrwxuAuYTET/8Bdi3nLo2MBs6iiMVhLu/BDrsBhQO/+27hP4zZ6qoJ2lO++liu05pAXRLWtKSoSHzoNIYEXHtrh9Bf3V7hCJCUehw9n8Ubef+pm5v3ryeXGuAuSOt25jfOhHRjC/CuekU8FKg5qcgZBrzSAXBbnORTvgOVY65E+y9m2AAmJgOxMbRAuiWtKQlQyWLSsTOE1+G+P3xWG3HUBIB7agYxUs+TURRdnHOAwPMi06EP+PLcH9wMuSyOjALJChqBgqj6sBMR36HhvUE5vZ0oFJttQC6JS1pyZYH585OBZglmVeNQe3mryBazpASGLW/CnfCp4jEos1l2lgbmFVw/OpJ8P/2Vbi3ngC5DLD8BIBESdeRH6nA320e5ITvoHLInY3NoZGSayCBuQXQLWlJS4aA5gzCrB8T0d9SXj38JhRWbA+LI1QKOvzxf0bxyLuYP6JsqmljbWBWwP4rJyF8/GsIf9EOWg5UvTowF3Qd+ZFAtMdLoKNuQNuYJhvzJJXapwwKMLcAuiUtackQkE5Bx1+YsDXjh6D7T8RKJ0JZ04EDF2Lh6WdjDMWoh+7xpgOzAMevnAj3sf9BOrUdylKg5sdZSLaO/ChA7vUCcsd8D7n971nja91ZZ6drnzLoNAstgG5JS1qy5TiTcZ7k8LijgF9dgRXVFIqiQNkpBJ10JY2haGOZG/+NK8P/54mIH/saojuOh7IUqPoJmBlFQ0N+JED7zYFx9E3APvc2TCnvAjN1bDF31xZAt6QlLdky0YIgBliF88ADkPNSQElhmjpk+51kHvwn5kn9tjuvDcwA+y+ehPTpr0JOPQFYBlT9GJKBoq4hNwoQB3TBmHgTMHpasx/zlgbmngBNRASqCzbsukdZB2MbiwuhPk6sBjfgttHuAW5/n8vNnqOhOjf6sz62ofkxQDJLIVISrk77CdTnRsCiGKamQ45/E+ZJn+GZ9RDuvkYJrg3MAhw/ewqi574Mec/xkMsBy62zyxV1DbmdAWX/Z6Efdwuw27RG0EsdmD86JID5XYA2TXN1EARjAYi+J5YGhBASgNcXZ+uhHKVnmubTAPZiZqRp38dFVdVgK4/2SwDA9/3bDMOYpus6h2G4QVAxDIMBEDPXmsvp2a+apnVtTL8qihI0RVttaY5uAPCSJDlMVdU+rw8iQpqm/Mgjj1S31vUx0KYNovaEl/3lGGh/uxSWn0BNAHXvKvRzLqlzVkzqk0vd2sCsguPnTkP87JcQ3d+ONPPKYJmZMnYGRO/AvL7Iv6GgPbWkJS1pySCBc0fKzGMQ/ORJ2I8XEIkUO+9moDbhMmo786cNN7a+ATMY0MHxnNORdl2NdP7xSBrucpJRzGko7Awo+z0LdZ3APGQ3UHVN/PnGEfpsI/awjWk/bwuaUWayoIFo/7bSr+/19bFZXermdAtmFrDvug7qi2WESojtSwbsPR9C5Yxf1Ck5j4/7pjHnwPzc6YhmX43orgyYgyZgHg3QgV3Qj7oZ2K2zr1wZLQ26JS1pyXs1WjBha9bnYM74MRYvCKFJgfIRFnJXf4CI5jU07PVqzJQDy+dOR/T3qxH/63iky9cAcymnobArwAd0wTjmJmB0Z7NXxlDXmFsA3ZKWtGTLmTbC8CDImx6H9Y8SEsEYNUZH7ZQrqO2wH3NXl0bjx8cbBOb4yasQ/esEJCsAO0hALFHM6ciPBuQ+c5A/9nvA7p3vBphsxbS9LTe7lrSkJYNgRptFzCxQ+8F3oC0YhliLYOo6arv+EpVDb6vzWoxL1m/KePJquFOPXwuYzZyO3K6A3KcL6pE3kDqmEwjRA5jTrd3FqiUDZ98VPXfvhk2zZaNsyXtKe7afnIr87y/C0qURDFahHrkCbVfunKW5o3rS2ObLvxyY//EhhH/7IpIF7UhX1E0ZBImSUQfmZO8uFCdeT7TX/UD0LjBvK1zqLQ164F210nVdHrVSWbXkvcDxTNSRcvDWqUh+dT5WLIkhSEFpPwHl1HMAZJmDpoEnIQvJNsDcdTq8J78E95cfWAPMDY15NBDtPQfKcddTbr/7gLB+AYmZSp3EaNtJdNEC6H/Xdjc5xdYabYB3AbAzgAVZJggiIrZte2wQBBERvdoC6ZZs22tqsmBmHfZtt0Iu1JGKCG1lBdHht1Jl/9nMd+uY3JHQFNSJ8uNnTof396/Cu/NYJBkwiyZgDvd+Dkr7dVTe5z4gWAuYgcEjMWqZOLbuiakRUWzb9g2lUulLrut+ulQq/YKZDSIKbdt+KpfLHZokyUFZ1nJqmTtasvXzanQwMGnNm3PeUWj87TFXH7gD2sMfx2o7gqno4BNWoO0/dscsiqgdCaCB3afOQPjk12AsPgrJCsAJYrAESnkNxq5AvPccGO3fIWOfaYCfATOLbT0tnNqaWHV7led5x+Tz+et93/9aoVB4opH2fBOLDwHINE3XupmWUlZVVTWYuS3TtEVribdk640hIF7jGrdWaLbkYN7ZiH91HiwrgUEq5C5VFCeeREQeoIODx0+HP/trQOfRUFcA1R7AzPs9g9zEG6iw931gLwPmTpGRIKXbev+qvQFWptElm8nBn/qzy2WmBgVAv1Kpr+97WT0aF3Nrtev2228XANIkSbYHcKwQ4rMAnpg3b56Kxq3Dpp1QRC8nFaVeLU420Ba5Ocwtjd/r6zhs7BzYUL2bxiHtr1mHmdV+tqFfz2+OOr4Xwbk+zgROXvkovOevgv+MAlkDkBcw3sdw/nIYeJmCRCYYPlLAP/GrZIz+B7tPnIXoua9A3n80xEqgO4gBCRQzYBYHzYZx/PdJ2e1+SLcHMA8droyBFtFYkA0SHCJK1zh2r3l/I7RSEJFcw6nKlC38Xhd24zMiYiJK1mQvWL92mX2Xen6vp7dE9lnStHgBAMOGDWtc2MXZhZ4LACtWrJDralvPPllf2zYA3tRbxFpTW+TGRrL1UlbzONAGxmCt/GobalujT5rr3UyoNWnSpJ7j0NexFU0Xq++2YebMmWof5tFabe7s7FT6sCmtVcesPLEB0qj3NDhzwPty9PPbIe65B+lfJiBnHY4CHY5CMA7KE+MRdSkIkWB4m4rwqD9CURayfeNs0EMPQLxwNFa/HcP2YhQNDcP201A47Unkr/oIjPOOIdr+fpYu1b1AwEOJxGjQADrr6He1hTiOJwZBcI4QorFQubHA+qJBTZo0SWRuM2DmPX3fPz4Da2640/R2odb4jJlHMvNFzFxu2GbXtRiavsvMPCL7XqVpk2gA3MHMfFEcxx9uLN5GmR0dHbIJMJUGaE6cOHFdKdP/TbNq1H9DINCHi8VGfbWsLfs0Nrr+lNNUFjFzGzNf5Pv+ST36i3ostne1zWwOfLi5zb0BVQP4Gn3CzAVm/jgzj+aMZJ2ZlSlTpjTatU/WLq0Bhusqt7k/ACAMwwujKDocANrb25P1zSMACILg3CiK3t+Yex0dHWlvG03TbzXAfJesDaWsvLXq2Lzx9YHxbxs2a0wjZt4b4v7HkT7zGSz5ZwwfKdyk6Y9TwGBQqiAwAekcg3jaI8DLE7D6rRiWl9SB+QANpTOfQOGLH4H+keOIht0Porp7Ht6bwLyWeJ53dBRFDwZBsJIz8X3/LWa+3rKs7den7TTe931/L2Z+w/f9TsdxPhQEwfONsoIgWBxF0e89z3s/M4vGdxoTubu7uy1N02/5vv9GrVZzmZlrtZoXhuEbQRCc09CamJka2lO1Wr2emd8IguAj1Wr1T0EQJMzMjuP8rlG35cuXvy+Kon+GYdioCnueN9fzvPOb2v5HZnZrtdoKy7K4VqvFlmU5nue5tVptKTObDa2bmVXbtk8Kw/Cvvu9312o1KwiC1WEYPlytVk9u9EcDgGzb/nbWlk9knxkAUKvVHmFmDsPw0GaNPoqiI8IwfMVxnNVZv3GSJG+5rjs5+33RRypQeJ53XhRFb9RqNb9pHN4Iw/DhFStWmA1ganxnxYoVpuM4X7Ys662m55eGYfhYEARnNjThxvOvvfaaUavVXrZt+znP8z4QhuF03/ej7Ht+HMd/d11352ys9orj+IU0TTkbo9VRFL2ycuXKCU19JrK5cGg2rrevXr161yiKXvA8r9aok+M4C13XvawHwAoAsCxrhzRNbwiCYGlTG96Oouh3q1atOrrnb1Wr1b2zOXuv4zinB0Hwbh2DIFgeRdH9lmUd2/gt27Z3dF33Nd/3n/d9f8/eNGxmJsuynrIsawkzD9sWAbt+IQhw9713cnQ58+ILfX7nk8xLPrHuv8UfZ152IfPijyX81kcj7v4kszuJOX7gcebg3MbmyQA1ym8JoFqWda6mafepqgrbth8Ow/AFIhqhqurHAHxV07QPMvPpAJauzyUsSZIcgF3TNN25WCye53neG7Va7fuKoiRSyk+Vy+Wzoyj6IIDRAFZnE5uZeUQYhg8KIY5UFAVCiIWWZd0rhDhY1/UPpWn6O9u2/2Ca5tnMLHbYYYfGghgFYNckSe6pVCqKbdv3GIaxUFGUhQDgOM6hiqI8omnacMdx/uZ53t+FEGVFUS4rFot3u657SLFY/BozPwxggaIoH1VVFUmSvJokyYzM/OO9/vrrcaaNJ5Zl/cA0zSuz8h8goreiKNrdNM0zdF0/ybbtC4no7kWLFukA4g11vq7r785513Wnapp2UQbUT1iW9TiAEUmSXFIsFic5jnNUqVQ6ZV2Xlw3SI2Yu+75/l2EYpwkhEIbhg5ZlzSOi3XK53IWapu2q6/qflyxZcvKoUaNCIkqjKJoA4D5N03YOgiB1HOdBKeXLRNRhmub7Abzf9/0rcrncrdkpI8nlcgLAbpqmFTRNmxUEgRvH8a1BEHhCiLPK5fJRvu//ubu7+/OqqnYqirK9ZVk/Z+blqqoep2nascVi8S+e550KYHZ2HyKFEIVsXP9D07SLiUhLkmSq4zhL0jTNCyE+Y5rmrbZtjy+VSp+tr2lIz/NGK4ryqBBi7ziOXwvD8FdEpBLRJaVS6ZxSqXS6bdunAZjR+C1FUfIAdpVS7lQsFjtc130jCIIbiSgQQnymVCp9WEp5hud5EwuFwt+7urpWjR8/fm6hUDjHcZyjiGhhI1ote2XHcS4wTfNI13XnAogan29jpo2UmQ+B881zsWp1AsoZ4A00kRQgFoy8piC/qwLtkCegtt8MmA80p5baWkiMBk1s274wjuNFURR9oMdA7NDd3T2Fmdm27ak9bbc9NWjLsg50XTdNkiQOgmBS87PMXHQc515mZsuy/l+meeSYWbUs69eZxvKvzBSRa3wviqKjgiBYlX3vI5kGZ2T1vp2Z0yiK/sXMh/Ssl2VZn2Fmdl33+ub3XdfdJUmSB33fP7H5fd/3Z2X1+GFvtslarXZGEAQyiqLpzHxE8zNRFE0Iw9APgoB939+joTFtSINm5oYGLTzPezAMw9lxHH+o+Sheq9X2dRxnQaY9fnBdNuFMw1Zc1/1upp0vZ+YjezxzaBAEb2UniY9m71Usy3o06+NfMHNb0/N6GIYXNzTSMAzf12jbm2++ma/VakuyPp7OzMWm72mO4/wh+w57nvdid3f3Hs2bie/7v8va9EZmw27081FRFKVSSvZ9/2Xf9/dsbkOtVtuuqb6fafSH53m7RlG0MDtt5Jp+q61arZ4UhmHgOE43M+ebxmeM4zhpdmK8rtm2zcwl27bvy+o4ozF2nud9LFsTf2fmXE/zX61Wey4r75S+2O+3RsIjAGB7+hWcfIX57Quj9WrO72rQF6W86hMpu99+jtk6t7lfmDsVUMvjd53y5ptv5texWx7IzFytVh9oHPHXA9D7Z5N5dvNCXbRoUS77/IAgCJzs+N4wG+wQBEEUBMGyWq22T0+wyQB1XBiGkWVZfmbjpGwh3JaB35kNMMlst0am4TYA+ob1ZcHIvqN5njc7A65fMrO2ePHiQvaZwswlz/NejqJo2brMDNnGk9q2fV3T5tdXE8d6TReWZZ2bteXh3hZ9o0+YOVer1Zyg3tGHNF3gvTt2juMc4nleR61W2y7r38szsLu7eUy7urq0RrmO43wjA6WfND5ftGhRzrKslUEQ+GEYHgwAixYtyjXAMbN5cxiGbNv22KYx0gFg2bJlJdu242q1+mZzH9RqtSPTNGXP816xbXtEY4y6urrenUu+70+UUrJt2/9qBty5c+fq61FEVlmWZTXPdcuyDoyiiMMwXNToj6yORmb3Psj3fcdxHI+ZG2Yhw7KsuVJKzkx2lLWJqtXqXmEYdjuOM7t509m2AHpSHaCX/88lHFwhecnH+wrQMYeXMS+9+lYA4C5odY25BcwbdLPbdddd/VWrVo3J5/Ofi+NYE0JwLpcLPM8LiOj1QqFwOoC9ssi39foHN10oUT0zAieZaeSVarXqKopSaXiPBEFwRi6X0xzHeb5SqczPQKTZi0Qjojm1Wm2aqqrnAyjV/ScB5rqlpVAoNC5xZHb5J5iZHMeZHQTB8kKh8CXXdY9N0/SvpVLpF0T0esOeml1epUQkXddtmG4kEcVdXV0YNWpUQkTsum5ZUZQDwjBcHUXRj23b1puOrQ1w3SnLSlPeyMtaBiDSND2XmY8LgkCVUiq5XC4MguDZJEkgpSysxxsnDcPw5Hw+X/R9/+eVSuUfjYCZHsfTfwD4R5O9dKfsuP94w7ZMRGF2bBfZmPwkCIJPG4bRzszbA1ilKAoxsx5FUWia5twMJMMmsH0pCIL5qqruXSqVGrbaJDNrEQDN87xQ07ThURQdBeCp7LsshECapq+Yprl87ty5eoNgHUCc1ecx27b/YprmB6MoOtswjLuztkbVanV4oVD4tKIoeziOQ4VCQYZh2CWEiOI47gngrGkaXNddVKlUVs2cOVMloqjp4nCebdte1u9JNr9Dy7ImEdF9URSdXSgUHp87dy4AsKIoX9d1vS2O4z9l60DrLdR/25A0sy715ysMCDVX37hux3v+8q8vAO267igi+rau6xfHcQwi6mZmqKo6TFVVVKvVQNd1pQmI0IecbLKHixQzs+44jshGtuHSNzF7vb/Zza7xvXnz5hEzK7VabXqhULggDMPL0MMTPk1T0jRNNrvUMbMwTXPu6tWrTyKi3zDzhFKpNAHA18MwfJKZv2cYxvTJkyc3b9/ru5WXYRiGQohhUsoLmp9t8ogIACwkonc2Mnw77/v+Q/l8/vgkScDM3UQEXdeH6boOKeX60ms1/HaP1TQNYRjOaNhEe3KAZO83fLxVVVXPBCAURWnL2iF7PA8iWtnd3f1WW1vbMQC2J6KVixcvJgAshCAAOSLymkLcBREt7e7uXtTW1rZPI3y+2QMi22AjwzCGBUHwPl3XZ2Pt1Fd5ZhazZs2SvbVVSvl3ACc3pdOiIAiuIaLLNU0badt2REQuMw8rFotI0xRJkqxSFIV6SbOlMzNNmzat57ganucJKSVl87ox1rPDMAwKhcJngiD46XXXXbeAmXXXddvjOO4mol9lz22DADSxvgT1sXmoLxBkFRB9hAYhGNq+eSJKuevSVnBWX7pMSnltPp+/WEq5UEo5ulwuDy+Xy8N93z8OwPXFYjEXx/Hm+C2Z5XSjBnBIKRdkmtqlGfisBSgvv/xySkSpEOJTQRCQEGJ6XzNZMLMyfPjwF3O53CGqqo4FcIFt278SQhxjGMbvHce5nYjSOXPmNEDDWF/4e6FQMIjo1XK53FYul4c1/kzTHJ79eyQR7VUul7/V3whNIkps256Wz+ePj6LotjRN922MQxzHR8RxfNUGkpVyVs7CtO6GsHdvYN5wJyOicNasWQoRxVEU3QmA0zStARDz588XPflJmDmnaVpFSrmy4Sfe9Ax6uwRjZhJC6BtqOjNDCOH9m7KVpgERyaZL4cam3ciJuVsGmsXMNnyqYRjfAjAyjuMvmKa5XblcHp6m6Z4APhEEwXwAxqhRo2Q/srjIxkmtx6lzaZIkP9c0zQyC4IgpU6ZIz/MuLhaLu4Rh+FCxWHx7zpw56rYZvp+5n9KEh2GnNahC6ZMqLVOBUBD0XaYBAMad2KI26AtAa5r2Cc/zlsdx/P5isfg2M2uvvfaaUSgUHrdt+zeapnEvk3STwToDlKkARC6X2ysIggOJKJ07d67esJt2dHSky5YtK6mqekQYhu9omvZ8X4M2iCjt7u5uQz3R6VwiuqdcLl/CzMd5npfmcrkLXNedMH78+EZAxuvZRIuYmbbbbjsFgMLMSrFYjNI07Sai3GuvvWY028mbXodn5EhoBjms34uDGheXiqIc6zhOqOv6Vblcbn5WrqHr+rOe50UZQKfrOW/Cdd170jRVVFW9ipkLmclH7ezsVJhZJSLO+vewiRMnqlnfLANAaZp+hIjSfffdN2x8B4BGRInjOOcUi8UxnufNIqK3mFlEUST7wOTHfUmw2nw6IyKRpik0TZuwdOnSHceMGRMxs5a1QRszZkxUq9X2VBTlE57ndedyuRnZZv8pAGkURRfqun4TAJ+Z1Xw+v4iI7pBSriQitf/n8l7nLiuKcmOapqs1TftStqF8EoAihLgPAMaNGye3VYZGZiaq7DcffMgiGEQ9Ewf30mMSORbgMSEKpzxR3/jPawF0XwBaVVVIKWWhULCzAYj33XffcObMmaqqqtdlWhT3F3w3dNcAALlcbrlt279WVXWYlPI7QRDsP2bMmKgRybZs2bJSpVKZns/nS5qmTc7KNvoSfeY4zlfa2tqe9X1/9x6f28wsiUhommY0Np84jn+dAdVIIuI99tgjaESjEdHqJEmuKxQKu++6664PMHOu6bOEiNJarXZlkiSv1Gq17fbZZ5++HDk4jmORAfXhuq6bmZmEmyLhwmq1Ok7X9ZuyetJ6Fo3S1tbmxnF8Yz6f3873/envvPNOkYiSjo6OlIiSrq4ubc899/wdgOeiKOoAgHw+f69t2/NN05wYBMHnmbnS9J3I9/3jC4XC7UEQ+ABuz7wW+jMf1gfU3It5iZgZmqbtVC6Xr2Pm3YkozuoTM/NoXdcfKhQKSuYKuKj5LkBKWesZDVmtVq8sFotHSSmdJUuWKJsBoJV8Pr/I87ynCoXCob7vfyufz+8VBMHsQqEwfVviI+5dJhNzQhh25tmg/SWMVIOUCZh4TYBs3esTzDH0REAfFUDZ5zRg8sqGuagFv32wQfu+//tSqXROHMcveJ734zRNX4zjeGS5XJ4Ux/HulmUtrVQqO/XRBi2JKN+HxdoAIa9arX7R9/0D8/n86Y7jnOq67qMAniWiCUmS7G4Yxp61Wu27lUrlZwDEnDlzGheIvL7NICMo2ltK+YJt248BuBPAp6IoGlcqlTTLsn5fqVT+ll3kxJqmVZMkYcMwznIc53EiukFV1c9LKTvz+fxtxWLxRsuy9iiXy5c5jvN8GIZL4ji+K47jRaqqfq5UKp3r+/4qIYTSo72yF4CSAEjTNACApmm/tyxrtmmaRzuO82CtVvsBM4eqqp5qGMYXkiR5K0mSnTcwBjIz7XzNcZyPlkqliUmSvOg4zuuKoihpmqZSyj3z+fzulmX9zPO8+zO3slhKeYrv+zPy+fzNcRxf4bru34nIURRlvzRNT5BSRmma/q9pmo9kmniyaNEi9AGoZbZS1XWEuuuZecFY21Qp4Loum6b5ScdxPuI4zjNCiNullOe7rnt4sVjcxff9F0ul0ocb9VEU5Q4AH9J1/X7btqemaXpfkiTQdf1q0zRPa5ozvWrE/dxgGHUD/m8BnEZE16iqCs/zPpHP5+W26L2xtkIwRTJPFkTbvcHeK18B0qtRXLwLag4QJxKkEjhlCAgMNzXInXyk7deR2f5oPWy75efcZ3EcZ6Tv+9/kHpKm6ctRFE2wLGt2kiTdzDyqNx6HJje7AzJXsN80v9/kAqbWajXbtm3Z8JltjupyXfeGMAxrzXWIoqhqWdb/ayZe6urq0jKt6JfZ753d00e7yWXrkiRJFjWX6fs+e573K2YuNUXTNSLLOpIkiZqfdxznkubyXde9NgxDr0c9gzAMr3Ndd5dMAzSyZ7/Towwj66vZcRw7zdFotVptuzAMO3uOg+d5v6xWq4c3uzCuh9NEZBGXu4RhOKWX/nze9/3re4vC6+7u3sP3/T/xv8uz3d3dEwGg2fVu0aJFuVqtFtq2HTZc65rGWgEA27afiePYZubdmyMXs3EvOY7zT2bmOI5PanKfPDIbp1mWZd0cBEHaY16y7/vTmiNcG65uYRjeEoah2/y8ZVmW7/sne573km3bsuGq13Czy3zfnwaARqh+Uzs027adWq2WMnOhOTQ8+13d87xnoiiKPc9bla0R8V7h6eDO8+r95Xm7sn/X/bzif95gdzLz6s8zu19nXn6NzckdD7H9r+MBgLtu01qIu5EShuFY27bHrlq1agwzj216f8zq1at33VDIKjMbzHxowxe1N64E27bH2LZ9cG/hsdnraGYea9v2QdnriOaF0/zsqlWrRjPzoRlnR2+/pwJ1f9tGmWEYjq3VavuuL0y6Vqvtmz0/1rKsA3rbjDK+kLGrVq06iJnHMvOOvZXlOM5IZj60Wq0Ob34/CIL9GoEbPettWdYBtm2PDcNwbBAE+zT5ah/q+/7e/QkdZuYdm/tzXVwRzeNh2/bBvc2D3nyvbdsea9v22N7GOmvn/t3d3bv3/M3Gvy3L2qHJR1rJNskjso3pDwCwYsWK/bM2jMn65aBGOb1xxDDzbk1jMyZzC0S1Wh0WhuFhzfXI/LYPbfRzL+RVZNv2mNWrVx/ci8LRCOf/feYjPmVdwVzY5nmg3+2v7ZlfPZRX/+xg5icOZeY90ZRZpYWyGyFZdJ7YEJvYQGsF62Eo2xQConVpmuo6GN2UDRHfrKfMfjP/9QStdUUIbgzx0vrqua6x7ss82ATK0z7Vtwmgp69vTqxj/Db7HNpAvc0gCF6MomhlthmK9yK3d338Jq2j7yepLXDeTDH2Pf5oQwt3HWXQhn6jH3UQG1jUoo+Lv09l9laHTannuurYn7L72nf9GdPN9Z2+jueGxqaHBn04M8cNDTrzOtno8Wto2euiDu1vG7LNQWPmEUEQzMoiRb+5PiXjvQXULJgniffqZtWSlmyzmW0aXBzZ3cKsoQJ6zaYty7Le9jxvsW3bK7NQ9teZeaf3ku25JS1pyXsydRKwevXqXZn5e47jfGpzmFc2Z908zxsdhiGHYchRFDEz32dZ1oFDpZ4t2fbk/wPdGhmNZS2UAQAAAABJRU5ErkJggg==" alt="MMIT, a Norstella company" /></div>
     <nav class="rail-nav">
-      <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/></svg>Meridian Home</a>
+      <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/></svg>MMIT Home</a>
       <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Mosaic</a>
       <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>Searchlight</a>
       <a href="#" class="active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18l6-9 4 5 3-4 5 8z"/></svg>Landscape</a>
@@ -323,7 +332,7 @@
         <a href="#">Payer Directory <span class="tag-new">New</span></a>
         <a href="#">Geography <span class="tag-new">New</span></a>
         <a href="#">Payer Offering <span class="tag-new">New</span></a>
-        <a href="#">Payer Profile PDFs</a>
+        <a href="#">Payer Profile PDF&rsquo;s</a>
         <a href="#">Reach Contacts</a>
       </div>
       <a href="#"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Analytics</a>
@@ -344,13 +353,16 @@
       <div>
         <h1>
           <button class="btn menu-btn" onclick="document.getElementById('rail').classList.add('open')" aria-label="Open navigation">&#9776;</button>
-          Overview &mdash; iQ <span class="pill-new">NEW</span>
+          Overview - iQ <span class="pill-new">NEW</span>
         </h1>
-        <p class="stamp">Data Quarter: Q3 2026 &nbsp;&middot;&nbsp; Last Refresh: Nov 08, 2026</p>
+        <p class="stamp">Data Quarter: Q3 2026 &nbsp;&middot;&nbsp; Last Refresh: Nov 09, 2026</p>
       </div>
       <div class="topright">
-        <div class="field">Search Organizations or States</div>
-        <div class="field" style="min-width:150px">Default Dashboard &#9662;</div>
+        <div class="field">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          Search Organizations or States
+        </div>
+        <div class="field" style="min-width:175px">Default Dashboard &#9662;</div>
         <button class="btn locked" id="exportBtn" onclick="focusDeliverables()">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
           Export
@@ -363,37 +375,34 @@
       <div class="chip"><span>Compare to</span><b>Last Quarter</b></div>
       <div class="chip"><span>Benefit</span><b>Pharmacy</b></div>
       <div class="chip"><span>Lives type</span><b>Total Insured</b></div>
-      <div class="chip"><span>Organizations</span><b>Pacific Crest (MCO)</b><em>+436</em></div>
+      <div class="chip"><span>Organizations</span><b>Pacific Crest (MCO)</b><em>+448</em></div>
       <div class="chip"><span>Channel</span><b>All</b></div>
       <div class="chip"><span>States</span><b>All</b></div>
     </div>
 
     <div class="grid">
       <section class="kpis">
-        <div class="card kpi"><h3>Total Insured</h3><div class="v">308.6M</div>
-          <div class="delta"><span class="arrow down">&#8595;</span>-1.2M since Q2 2026</div></div>
-        <div class="card kpi"><h3>Largest State</h3><div class="v">California <small>39.8M</small></div>
-          <div class="delta"><span class="arrow up">&#8593;</span>+764.2K since Q2 2026</div></div>
-        <div class="card kpi"><h3>Plans</h3><div class="v">7,902</div>
-          <div class="delta"><span class="arrow up">&#8593;</span>+48 since Q2 2026</div></div>
-        <div class="card kpi"><h3>Organizations</h3><div class="v">437</div>
-          <div class="delta"><span class="arrow up">&#8593;</span>+7 since Q2 2026</div></div>
-        <div class="card kpi"><h3>Formularies</h3><div class="v">1,958</div>
-          <div class="delta"><span class="arrow up">&#8593;</span>+21 since Q2 2026</div></div>
+        <div class="card kpi"><h3>Total Insured</h3><div class="v">311.4M</div>
+          <div class="delta"><span class="arrow down">&#8595;</span>-1.3M since Q2 2026</div></div>
+        <div class="card kpi"><h3>Largest State</h3><div class="v">California <small>40.7M | 13.1%</small></div>
+          <div class="delta"><span class="arrow up">&#8593;</span>+812.5K since Q2 2026</div></div>
+        <div class="card kpi"><h3>Plans</h3><div class="v">8046</div>
+          <div class="delta"><span class="arrow up">&#8593;</span>+52 since Q2 2026</div></div>
+        <div class="card kpi"><h3>Organizations</h3><div class="v">449</div>
+          <div class="delta"><span class="arrow up">&#8593;</span>+6 since Q2 2026</div></div>
+        <div class="card kpi"><h3>Formularies</h3><div class="v">2011</div>
+          <div class="delta"><span class="arrow up">&#8593;</span>+19 since Q2 2026</div></div>
+      </section>
+
+      <section class="card insight">
+        <h2><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent)"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></svg>Insured Lives Impact Analysis</h2>
+        <p>Total US payer lives declined by -1.31M (-0.42% QoQ), driven by losses in the Commercial channel, notably Summit Blue Shield in Pennsylvania (-204.9K) and Keystone BlueCare (-36.8K). Offsetting this, Managed Medicaid expanded by +99.2K lives. Alongside this, Clearpath Rx and Summit Blue Cross Blue Shield launched new Commercial plans adding +68.4K and +51.2K lives, while Crosswind PBM and Vantage Script terminated Commercial plans, removing -38.9K and -29.7K lives respectively. Clearpath Rx and Verity Rx saw notable market share gains, with Clearpath Rx rising 138 ranks (+111.7K lives, +196.34%) and Verity Rx up 114 ranks (+82.4K lives, +117.58%).</p>
+        <div class="disc">May display inaccurate or incomplete information</div>
       </section>
 
       <div class="cols">
         <div class="stack">
 
-          <!-- ════════════════════════════════════════════════════
-               EMBED 1 + 2 — data record and blocking gate.
-
-               The deliverable queue is the analyst's actual work. One
-               row is blocked, and the training that unblocks it sits
-               INSIDE the blocked row rather than in a learning tab.
-               Clearance is read from Absorb on selection, never
-               hard-coded.
-          ═════════════════════════════════════════════════════ -->
           <section class="card" id="deliverables">
             <div class="card-h">
               <h2>Client deliverables</h2>
@@ -404,196 +413,190 @@
             <div id="gateSlot"></div>
           </section>
 
-          <section class="card insight">
-            <h2><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent)"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></svg>Insured Lives Impact Analysis</h2>
-            <p>Total US payer lives declined by -1.21M (-0.39% QoQ), driven by losses in the Commercial channel, notably Summit Blue Shield in Pennsylvania (-196.4K) and Keystone BlueCare (-42.7K). Offsetting this, Managed Medicaid expanded by +94.8K lives. Clearpath Rx rose 132 ranks (+104.6K lives, +188.42%) and Verity Rx 109 ranks (+79.2K lives, +113.55%).</p>
-            <div class="disc">May display inaccurate or incomplete information</div>
+          <section class="two">
+            <div class="card">
+              <div class="card-h"><h2>Lives Trend Range: Q2 2026 - Q3 2026</h2></div>
+              <div class="trends">
+                <div class="trend"><div class="lbl">Total Lives</div><div class="n">311.4M</div>
+                  <div class="d"><span class="arrow down">&#8595;</span>-0.42% vs Q2 '26</div></div>
+                <div class="trend"><div class="lbl">Medicare</div><div class="n">57.2M</div>
+                  <div class="d"><span class="arrow up">&#8593;</span>+0.41% vs Q2 '26</div></div>
+                <div class="trend"><div class="lbl">Commercial</div><div class="n">174.1M</div>
+                  <div class="d"><span class="arrow up">&#8593;</span>+1.27% vs Q2 '26</div></div>
+                <div class="trend"><div class="lbl">Health Exchange</div><div class="n">18.7M</div>
+                  <div class="d"><span class="arrow down">&#8595;</span>-11.84% vs Q2 '26</div></div>
+                <div class="trend"><div class="lbl">State Medicaid</div><div class="n">64.9M</div>
+                  <div class="d"><span class="arrow up">&#8593;</span>+0.22% vs Q2 '26</div></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h2>Channel and Plan Types</h2></div>
+              <div class="bars">
+                <div class="bar"><span>Commercial</span><span class="track"><span class="fill" style="width:55.4%"></span></span><span class="pct">55.4%</span></div>
+                <div class="bar"><span>State Medicaid</span><span class="track"><span class="fill" style="width:20.6%"></span></span><span class="pct">20.6%</span></div>
+                <div class="bar"><span>Medicare</span><span class="track"><span class="fill" style="width:18%"></span></span><span class="pct">18.0%</span></div>
+                <div class="bar"><span>Health Exchange</span><span class="track"><span class="fill" style="width:6%"></span></span><span class="pct">6.0%</span></div>
+              </div>
+            </div>
           </section>
 
-          <!-- EMBED 1 — learning attached to the data record itself -->
-          <section class="card rec">
+          <section class="card">
             <div class="card-h">
               <h2>Pacific Crest Health</h2>
               <span class="sub">MCO &middot; California &middot; Controls Benefits</span>
               <span class="right"><span class="q-badge good">Active</span></span>
             </div>
             <div class="rec-top">
-              <div class="rec-f"><div class="rec-k">Total insured</div><div class="rec-v">1.48M</div></div>
-              <div class="rec-f"><div class="rec-k">Channel</div><div class="rec-v">State Medicaid</div></div>
-              <div class="rec-f"><div class="rec-k">Formularies</div><div class="rec-v">6</div></div>
-              <div class="rec-f"><div class="rec-k">PBM</div><div class="rec-v">Crosswind PBM</div></div>
-              <div class="rec-f"><div class="rec-k">QoQ lives</div><div class="rec-v" style="color:var(--good)">+9.7K</div></div>
+              <div><div class="rec-k">Total insured</div><div class="rec-v">1.51M</div></div>
+              <div><div class="rec-k">Channel</div><div class="rec-v">State Medicaid</div></div>
+              <div><div class="rec-k">Formularies</div><div class="rec-v">6</div></div>
+              <div><div class="rec-k">PBM</div><div class="rec-v">Crosswind PBM</div></div>
+              <div><div class="rec-k">QoQ lives</div><div class="rec-v" style="color:var(--good)">+10.3K</div></div>
             </div>
             <div class="rec-learn" id="recLearn">
-              <div class="rl-ic">
-                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3L2 8l10 5 10-5zM6 11v5c0 1 3 2 6 2s6-1 6-2v-5"/></svg>
-              </div>
-              <div class="rl-m">
-                <div class="rl-t">Loading attached learning&hellip;</div>
-                <div class="rl-s">Matched from the learner's Absorb catalog</div>
-              </div>
+              <div class="rl-ic"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3L2 8l10 5 10-5zM6 11v5c0 1 3 2 6 2s6-1 6-2v-5"/></svg></div>
+              <div class="rl-m"><div class="rl-t">Loading attached learning&hellip;</div>
+                <div class="rl-s">Served from Absorb</div></div>
             </div>
           </section>
 
-          <!-- ════════════════════════════════════════════════════
-               Under the hood. Collapsed on load — the page has to read
-               as an analytics tool first. Each panel leads with what it
-               proves before any payload.
-          ═════════════════════════════════════════════════════ -->
           <div>
-            <div class="uth-h">
-              Under the hood
-              <span class="uth-sub">Open these to show how Absorb and this portal actually talk</span>
-            </div>
+            <div class="uth-h">Under the hood
+              <span class="uth-sub">Open these to show how Absorb and this portal actually talk</span></div>
 
             <details class="api apiD" id="panelCatalog">
-              <summary class="api-h">
-                <h2>1 &mdash; Catalog, in the host application's own brand</h2>
-                <span class="tag">Request / response</span>
-                <span class="chev">&#9656;</span>
-              </summary>
-              <div class="api-b">
-                <div class="api-blk">
-                  <div class="api-k">What this proves</div>
-                  <pre class="plain">Every course on this page came from Absorb a moment ago, through this
-portal's own origin. Nothing is hard-coded. An admin adding a course in
-Absorb changes this page with no deployment, and the analyst never sees
-an LMS screen to get it.</pre>
-                </div>
-                <div class="api-blk">
-                  <div class="api-k">1 &bull; The portal asks, on the analyst's behalf</div>
-                  <pre id="apiCatReq">&mdash;</pre>
-                </div>
-                <div class="api-blk">
-                  <div class="api-k">2 &bull; Absorb answers <span id="apiCatTag"></span></div>
-                  <pre id="apiCatRes">&mdash;</pre>
-                </div>
+              <summary class="api-h"><h2>1 &mdash; Catalog, in the host application&rsquo;s own brand</h2>
+                <span class="tag">Request / response</span><span class="chev">&#9656;</span></summary>
+              <div>
+                <div class="api-blk"><div class="api-k">What this proves</div>
+                  <pre class="plain">Every course this page launches came from Absorb a moment ago, through
+this portal&rsquo;s own origin. Nothing is hard-coded. An admin publishing a
+course in Absorb changes this page with no deployment, and the analyst
+never sees an LMS screen to reach it.</pre></div>
+                <div class="api-blk"><div class="api-k">1 &bull; The portal asks, on the analyst&rsquo;s behalf</div>
+                  <pre id="apiCatReq">&mdash;</pre></div>
+                <div class="api-blk"><div class="api-k">2 &bull; Absorb answers <span id="apiCatTag"></span></div>
+                  <pre id="apiCatRes">&mdash;</pre></div>
+              </div>
+            </details>
+
+            <details class="api apiD" id="panelTitles">
+              <summary class="api-h"><h2>2 &mdash; What the learner sees vs what plays</h2>
+                <span class="tag">Demo mapping</span><span class="chev">&#9656;</span></summary>
+              <div>
+                <div class="api-blk"><div class="api-k">Worth being straight about</div>
+                  <pre class="plain">The cards on this page carry titles written for <em>this screen</em> &mdash;
+&ldquo;MMIT Lives Methodology&rdquo; beside the lives analysis, and so on. Those
+courses do not exist in this demo portal, so each one launches a real
+Absorb course as a stand-in.
+
+In a real deployment the titles are the courses: you map a screen, a
+record type or a tag to the course that belongs to it. The mechanism is
+identical &mdash; only the mapping table changes.</pre></div>
+                <div class="api-blk"><div class="api-k">Mapping in force right now</div>
+                  <pre id="apiTitles">&mdash;</pre></div>
               </div>
             </details>
 
             <details class="api apiD" id="panelGate">
-              <summary class="api-h">
-                <h2>2 &mdash; Clearance check behind the export lock</h2>
-                <span class="tag">Fails closed</span>
-                <span class="chev">&#9656;</span>
-              </summary>
-              <div class="api-b">
-                <div class="api-blk">
-                  <div class="api-k">What this proves</div>
+              <summary class="api-h"><h2>3 &mdash; Clearance check behind the export lock</h2>
+                <span class="tag">Fails closed</span><span class="chev">&#9656;</span></summary>
+              <div>
+                <div class="api-blk"><div class="api-k">What this proves</div>
                   <pre class="plain">Selecting a deliverable makes this portal ask Absorb one question: has
-this analyst completed the methodology course that governs client-ready
-output? The answer is what locks or clears Export above — the same call
-your own system would make before letting a file leave the building.
+this analyst completed the training that governs client-ready output?
+The answer is what locks or clears Export above &mdash; the same call your
+own system would make before a file leaves the building.
 
 Three outcomes, not two. If Absorb cannot be reached the verdict is
 <span class="w">unknown</span>, which still holds the export but is shown differently:
 telling an analyst they are uncertified when the truth is that a call
-failed is its own bug.</pre>
-                </div>
-                <div class="api-blk">
-                  <div class="api-k">1 &bull; The portal asks</div>
-                  <pre id="apiGateReq">Select a deliverable and this fills in.</pre>
-                </div>
-                <div class="api-blk">
-                  <div class="api-k">2 &bull; Verdict <span id="apiGateTag"></span></div>
-                  <pre id="apiGateRes">&mdash;</pre>
-                </div>
-                <div class="api-blk">
-                  <div class="api-k">In production</div>
-                  <pre class="plain">This demo reads completion from the lesson tree. A production gate reads
-the <span class="f">certificates</span> collection instead — a certificate is the credential,
-it has its own expiry, and an admin can revoke one without touching the
-enrollment. That is what <span class="f">/api/silfab/cert-check</span> does in the installer
-portal on this same server.</pre>
-                </div>
-              </div>
-            </details>
-
-            <details class="api apiD" id="panelLog">
-              <summary class="api-h">
-                <h2>3 &mdash; Live API call log</h2>
-                <span class="tag">Every request</span>
-                <span class="chev">&#9656;</span>
-              </summary>
-              <div class="api-b">
-                <div class="api-blk">
-                  <div class="api-k">What this proves</div>
-                  <pre class="plain">Every call this page makes, as it happens. Note what is <em>not</em> here: the
-browser only ever talks to this portal's own origin. The Absorb API key
-and the learner's OAuth token live on the server and never reach the device —
-which is the answer to "what are we exposing to our customers?".</pre>
-                </div>
-                <div class="api-blk">
-                  <div class="api-k">Browser &rarr; portal server</div>
-                  <pre id="apiCallLog">No calls recorded yet.</pre>
-                </div>
+failed is its own bug.</pre></div>
+                <div class="api-blk"><div class="api-k">1 &bull; The portal asks</div>
+                  <pre id="apiGateReq">Select a deliverable and this fills in.</pre></div>
+                <div class="api-blk"><div class="api-k">2 &bull; Verdict <span id="apiGateTag"></span></div>
+                  <pre id="apiGateRes">&mdash;</pre></div>
               </div>
             </details>
 
             <details class="api apiD" id="panelDeliver">
-              <summary class="api-h">
-                <h2>4 &mdash; Content delivery handshake</h2>
-                <span class="tag">Embedded player</span>
-                <span class="chev">&#9656;</span>
-              </summary>
-              <div class="api-b">
-                <div class="api-blk">
-                  <div class="api-k">What this proves</div>
+              <summary class="api-h"><h2>4 &mdash; Content delivery handshake</h2>
+                <span class="tag">Embedded player</span><span class="chev">&#9656;</span></summary>
+              <div>
+                <div class="api-blk"><div class="api-k">What this proves</div>
                   <pre class="plain">Launching a course does not hand the analyst an Absorb login. The server
-mints a single-use player URL and this page renders it in place. The
-learner stays inside iQ for the whole thing.</pre>
-                </div>
-                <div class="api-blk">
-                  <div class="api-k">The exchange</div>
-                  <pre id="apiDeliver">Open a course and this fills in.</pre>
-                </div>
+mints a single-use player URL and this page renders it in place.</pre></div>
+                <div class="api-blk"><div class="api-k">The exchange</div>
+                  <pre id="apiDeliver">Open a course and this fills in.</pre></div>
+              </div>
+            </details>
+
+            <details class="api apiD" id="panelLog">
+              <summary class="api-h"><h2>5 &mdash; Live API call log</h2>
+                <span class="tag">Every request</span><span class="chev">&#9656;</span></summary>
+              <div>
+                <div class="api-blk"><div class="api-k">What this proves</div>
+                  <pre class="plain">Every call this page makes, as it happens. Note what is <em>not</em> here: the
+browser only ever talks to this portal&rsquo;s own origin. The Absorb API key
+and the learner&rsquo;s OAuth token live on the server and never reach the
+device.</pre></div>
+                <div class="api-blk"><div class="api-k">Browser &rarr; portal server</div>
+                  <pre id="apiCallLog">No calls recorded yet.</pre></div>
               </div>
             </details>
           </div>
         </div>
 
-        <!-- ════════════════════════════════════════════════════
-             EMBED 3 + 4 — contextual rail and progress widget.
-        ═════════════════════════════════════════════════════ -->
-        <aside class="rail-r">
+        <aside class="stack">
           <section class="card">
-            <div class="card-h">
-              <h2>Learning for this view</h2>
-              <span class="sub" id="ctxWhy">Pharmacy &middot; Controls Benefits</span>
-            </div>
+            <div class="card-h"><h2>Learning for this view</h2><span class="sub">Pharmacy &middot; Controls Benefits</span></div>
             <div id="ctxList"><div class="ctx-empty">Loading&hellip;</div></div>
           </section>
 
           <section class="card">
             <div class="card-h"><h2>Analyst certification</h2><span class="sub">FY26</span></div>
             <div class="ring-wrap">
-              <svg class="ring" viewBox="0 0 100 100" role="img" aria-label="16 of 22 continuing-education hours complete">
-                <circle cx="50" cy="50" r="42" fill="none" stroke="#26314d" stroke-width="11"/>
-                <circle id="ringArc" cx="50" cy="50" r="42" fill="none" stroke="#6ea0ff" stroke-width="11"
-                        stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="72"
+              <svg class="ring" viewBox="0 0 100 100" role="img" aria-label="15 of 22 continuing-education hours complete">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="#e4e9f2" stroke-width="11"/>
+                <circle cx="50" cy="50" r="42" fill="none" stroke="#2f6fed" stroke-width="11"
+                        stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="84"
                         transform="rotate(-90 50 50)"/>
-                <text x="50" y="55" text-anchor="middle" font-size="21" font-weight="600" fill="#e9edf7">73%</text>
+                <text x="50" y="55" text-anchor="middle" font-size="21" font-weight="600" fill="#1b2238">68%</text>
               </svg>
-              <div class="ring-m">
-                <div class="ring-n">16 / 22 hrs</div>
-                <div class="ring-s">Continuing education, plan year to date. 6 hours remain before 31 Dec.</div>
+              <div>
+                <div class="ring-n">15 / 22 hrs</div>
+                <div class="ring-s">Continuing education, plan year to date. 7 hours remain before 31 Dec.</div>
               </div>
             </div>
-            <div class="ring-list" id="ringList"></div>
+            <div id="ringList"></div>
           </section>
         </aside>
       </div>
     </div>
 
-    <p class="foot">
-      Sample lives figures, organizations and deliverables on this page are fictitious and are
-      for demonstration only. Course content, enrolment state and completion are real and are
-      read live from Absorb for the signed-in learner.
-    </p>
+    <p class="foot">Sample lives figures, organizations, payers and deliverables on this page are
+      fictitious and for demonstration only. Course content, enrolment state and completion are real
+      and are read live from Absorb for the signed-in learner.</p>
   </div>
 </div>
 
-<!-- ── Player modal ── -->
+<div class="scrim" id="scrim" onclick="closeMaterials()"></div>
+
+<aside class="lm" id="lmPanel" aria-label="Learning Materials">
+  <div class="lm-head">
+    <button class="icon-btn" onclick="closeMaterials()" aria-label="Back">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <h2>Learning Materials</h2>
+    <button class="icon-btn" onclick="closeMaterials()" aria-label="Close">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="lm-body" id="lmBody"><div class="lm-note">Loading&hellip;</div></div>
+</aside>
+
+<button class="help-fab" id="helpFab" onclick="openMaterials()" aria-label="Learning materials">?<span class="badge">7</span></button>
+
 <div class="mp" id="playerModal" onclick="if(event.target===this)closePlayerModal()">
   <div class="mp-box">
     <div class="mp-h">
@@ -605,12 +608,9 @@ learner stays inside iQ for the whole thing.</pre>
       <div class="mp-side" id="modalLessonList"></div>
       <div class="mp-main"><iframe id="mpFrame" class="mp-frame-el" src="about:blank" allowfullscreen allow="autoplay; fullscreen"></iframe></div>
     </div>
-    <details class="mp-uth" id="mpDeliverPanel">
-      <summary>
-        <span class="mp-uth-t">Under the hood &mdash; content delivery handshake</span>
-        <span class="tag">Embedded player</span>
-        <span class="chev">&#9656;</span>
-      </summary>
+    <details class="mp-uth">
+      <summary><span class="mp-uth-t">Under the hood &mdash; content delivery handshake</span>
+        <span class="tag">Embedded player</span><span class="chev">&#9656;</span></summary>
       <div class="mp-uth-b"><pre id="mpDeliver">Open a lesson and this fills in.</pre></div>
     </details>
   </div>
@@ -623,39 +623,69 @@ learner stays inside iQ for the whole thing.</pre>
   'use strict';
 
   /* ══════════════════════════════════════════
-     Sample deliverables.
+     Contextual learning for this screen.
 
-     `gated: true` is the beat that matters: client-ready output is held
-     until the analyst holds current methodology training. No row carries
-     a hard-coded course — the governing course is resolved from the live
-     Absorb catalog at run time, so renaming it in the LMS flows straight
-     through with no code change.
+     Each entry carries a title written for the SCREEN, not a course that
+     exists in this portal. DEFAULT_COURSE_NAME is resolved against the
+     live catalog by name and stands in for all of them, so the demo shows
+     real playback, real lesson state and real completion without needing
+     a course per card. Panel 2 says so on the page.
+
+     In a deployment you replace the stand-in per entry with the course
+     that genuinely belongs to that screen, record type or tag. Nothing
+     else changes.
   ══════════════════════════════════════════ */
+  var DEFAULT_COURSE_NAME = 'Organize Insights for Mobile';
+
+  var MATERIALS = [
+    { title:'MMIT Lives Methodology',
+      blurb:'This guide covers how lives data is sourced, calculated, and represented within MMIT.',
+      meta:'8 min · 4 lessons' },
+    { title:'MMIT Data Methodology',
+      blurb:'This guide covers the underlying data within MMIT, including how it is calculated and what it means for your market analysis.',
+      meta:'11 min · 5 lessons' },
+    { title:'Reading the iQ Overview',
+      blurb:'Walk the Overview dashboard filter by filter, from business function down to state.',
+      meta:'6 min · 3 lessons' },
+    { title:'Payer Directory Essentials',
+      blurb:'Find an organization, trace its plans, and export a contact list.',
+      meta:'9 min · 4 lessons' }
+  ];
+
+  var CTX = [
+    { title:'Reading a Pharmacy benefit filter', why:'Benefit filter: Pharmacy',
+      blurb:'What the Controls Benefits function includes, and what it leaves out.' },
+    { title:'Channel mix and plan types', why:'Channel breakdown on screen',
+      blurb:'How Commercial, Medicare and Medicaid lives are classified.' },
+    { title:'Preparing a client-ready export', why:'You are building a client export',
+      blurb:'What has to be true before analysis leaves the building.' }
+  ];
+
+  var GATE_TITLE = 'Lives Methodology Certification';
+  var RECORD_TITLE = 'Payer Directory Essentials';
+
   var JOBS = [
-    { id:'R-2208', title:'Q3 payer landscape — Alderwood Therapeutics',
-      sub:'Client-ready export · 38 slides · due 21 Nov', value:'Client deliverable',
+    { id:'R-2231', title:'Q3 payer landscape — Alderwood Therapeutics',
+      sub:'Client-ready export · 38 slides · due 24 Nov', value:'Client deliverable',
       gated:true, state:'bad', badge:'Export blocked' },
-    { id:'R-2195', title:'Access barrier refresh — oncology portfolio',
-      sub:'Internal · recertification due in 23 days', value:'Internal',
+    { id:'R-2218', title:'Access barrier refresh — oncology portfolio',
+      sub:'Internal · recertification due in 26 days', value:'Internal',
       gated:false, state:'warn', badge:'Renewal due' },
-    { id:'R-2174', title:'Formulary movement brief — Q3 Medicare',
-      sub:'Client-ready export · cleared 06 Nov', value:'Client deliverable',
+    { id:'R-2197', title:'Formulary movement brief — Q3 Medicare',
+      sub:'Client-ready export · cleared 09 Nov', value:'Client deliverable',
       gated:false, state:'good', badge:'Cleared' },
-    { id:'R-2151', title:'Lives trend pack — commercial channel',
-      sub:'Delivered 29 Oct · Alderwood Therapeutics', value:'Client deliverable',
+    { id:'R-2174', title:'Lives trend pack — commercial channel',
+      sub:'Delivered 31 Oct · Alderwood Therapeutics', value:'Client deliverable',
       gated:false, state:'done', badge:'Delivered' }
   ];
 
-  var CATALOG = [];        // courses from Absorb, newest fetch
-  var GATE_COURSE = null;  // the course governing client-ready export
-  var REC_COURSE = null;   // course attached to the organization record
-  var apiLog = [];         // recent browser -> portal calls, newest first
+  var CATALOG = [], PLAYABLE = null, apiLog = [];
   var selectedJob = JOBS[0].id;
   var clearance = { verdict:'pending', detail:'' };
 
   function esc(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
-      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+      return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
     });
   }
   function byId(id){ return document.getElementById(id); }
@@ -663,51 +693,37 @@ learner stays inside iQ for the whole thing.</pre>
   function showToast(title, sub){
     byId('toastT').textContent = title;
     byId('toastS').textContent = sub || '';
-    var t = byId('toast');
-    t.classList.add('show');
+    var t = byId('toast'); t.classList.add('show');
     clearTimeout(showToast._t);
     showToast._t = setTimeout(function(){ t.classList.remove('show'); }, 5200);
   }
 
   /* ── Instrumentation ─────────────────────────────────────── */
-
   function pulsePanel(id){
-    var el = byId(id);
-    if (!el) return;
+    var el = byId(id); if (!el) return;
     el.classList.add('api-upd');
     setTimeout(function(){ el.classList.remove('api-upd'); }, 2200);
   }
-
   function recordCall(method, url, status, t0){
     var now = (window.performance && performance.now) ? performance.now() : Date.now();
     var path = String(url);
-    try {
-      var u = new URL(url, window.location.origin);
-      path = u.pathname + (u.search || '');
-    } catch (e) { /* keep the raw string */ }
-    apiLog.unshift({
-      method: String(method || 'GET').toUpperCase(),
-      path: path,
-      status: status,
-      ms: Math.max(0, Math.round(now - t0))
-    });
+    try { var u = new URL(url, window.location.origin); path = u.pathname + (u.search || ''); } catch (e) {}
+    apiLog.unshift({ method:String(method || 'GET').toUpperCase(), path:path, status:status,
+                     ms:Math.max(0, Math.round(now - t0)) });
     if (apiLog.length > 14) apiLog.length = 14;
     paintApiLog();
   }
-
   function paintApiLog(){
-    var el = byId('apiCallLog');
-    if (!el) return;
+    var el = byId('apiCallLog'); if (!el) return;
     if (!apiLog.length) { el.textContent = 'No calls recorded yet.'; return; }
     el.innerHTML = apiLog.map(function(c){
       var cls = (c.status >= 200 && c.status < 300) ? 'f' : 'x';
       return '<span class="m">' + esc(c.method) + '</span> ' + esc(c.path) +
-        '  <span class="' + cls + '">' + (c.status || 'ERR') + '</span>' +
-        ' <span class="d">' + c.ms + 'ms</span>';
+             '  <span class="' + cls + '">' + (c.status || 'ERR') + '</span>' +
+             ' <span class="d">' + c.ms + 'ms</span>';
     }).join('\n');
     pulsePanel('panelLog');
   }
-
   (function instrumentFetch(){
     if (!window.fetch) return;
     var orig = window.fetch.bind(window);
@@ -715,25 +731,15 @@ learner stays inside iQ for the whole thing.</pre>
       var url = (typeof input === 'string') ? input : (input && input.url) || String(input);
       var method = (init && init.method) || (input && input.method) || 'GET';
       var t0 = (window.performance && performance.now) ? performance.now() : Date.now();
-      return orig(input, init).then(function(resp){
-        recordCall(method, url, resp.status, t0);
-        return resp;
-      }, function(err){
-        recordCall(method, url, 0, t0);
-        throw err;
-      });
+      return orig(input, init).then(function(r){ recordCall(method, url, r.status, t0); return r; },
+        function(e){ recordCall(method, url, 0, t0); throw e; });
     };
   })();
 
-  /* Mask the token-shaped parameters before showing a minted URL on screen.
-     The player URL genuinely does carry a single-use token — the iframe
-     needs it — so this is screen-sharing hygiene, not a security control.
-     The reusable credentials (API key, learner OAuth token) never leave the
-     server and never appear here at all. */
   /* Which query parameters are worth masking on screen.
      The name is split on camelCase and punctuation and each part matched
      whole, because a substring test redacts "lessonId" (le-SSO-nId) while
-     letting "verifier" through \u2014 exactly backwards. */
+     letting "verifier" through - exactly backwards. */
   var SENSITIVE_PARTS = ['token','jwt','secret','password','passwd','pwd',
     'signature','sig','verifier','ticket','bearer','session','sso','auth',
     'authorization','key','apikey','credential','code','nonce','state'];
@@ -742,16 +748,18 @@ learner stays inside iQ for the whole thing.</pre>
     return String(name)
       .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
       .split(/[^A-Za-z0-9]+/)
-      .some(function(part){
-        return SENSITIVE_PARTS.indexOf(part.toLowerCase()) !== -1;
-      });
+      .some(function(part){ return SENSITIVE_PARTS.indexOf(part.toLowerCase()) !== -1; });
   }
 
+  /* Mask the token-shaped parameters before showing a minted URL on screen.
+     The player URL genuinely does carry a single-use token - the iframe
+     needs it - so this is screen-sharing hygiene, not a security control.
+     The reusable credentials (API key, learner OAuth token) never leave the
+     server and never appear here at all. */
   function redactUrl(u){
     if (!u) return '(none)';
     try {
-      var x = new URL(u, window.location.origin);
-      var keys = [];
+      var x = new URL(u, window.location.origin), keys = [];
       x.searchParams.forEach(function(v, k){ keys.push(k); });
       keys.forEach(function(k){
         if (isSensitiveParam(k)) x.searchParams.set(k, 'REDACTED');
@@ -770,81 +778,58 @@ learner stays inside iQ for the whole thing.</pre>
       '   → portal server authenticates to Absorb (API key + learner token,\n' +
       '     both server-side only)\n' +
       '   ← Absorb mints a single-use player URL\n\n' +
-      '<span class="m">iframe src</span>\n' +
-      '  ' + esc(redactUrl(payload && payload.playerUrl)) + '\n' +
+      '<span class="m">iframe src</span>\n  ' + esc(redactUrl(payload && payload.playerUrl)) + '\n' +
       (payload && payload.lessonId ? '\n<span class="m">lessonId</span> ' + esc(payload.lessonId) + '\n' : '') +
-      '\nRendered into the modal on this page. The analyst never leaves the Meridian-branded portal\n' +
-      'and never signs in to Absorb.\n\n' +
+      '\nRendered into the modal on this page. The analyst never leaves the\n' +
+      'MMIT-branded portal and never signs in to Absorb.\n\n' +
       'The URL above carries a <span class="m">single-use</span> token, scoped to this lesson and\n' +
-      'short-lived \u2014 it is in the page because the iframe must authenticate\n' +
+      'short-lived — it is in the page because the iframe must authenticate\n' +
       'with it. What stays on the server is the reusable material: the Absorb\n' +
-      'API key and the analyst\u2019s own OAuth token.';
-
-    var page = byId('apiDeliver');
-    if (page) page.innerHTML = html;
-    var modal = byId('mpDeliver');
-    if (modal) modal.innerHTML = html;
+      'API key and the analyst’s own OAuth token.';
+    var page = byId('apiDeliver'); if (page) page.innerHTML = html;
+    var modal = byId('mpDeliver'); if (modal) modal.innerHTML = html;
     pulsePanel('panelDeliver');
   }
 
   /* ── Catalog ─────────────────────────────────────────────── */
-
-  function courseTypeLabel(type){
-    if (type === 'Curriculum') return 'Curriculum';
-    if (type === 'InstructorLedCourse') return 'Instructor-Led';
+  function courseTypeLabel(t){
+    if (t === 'Curriculum') return 'Curriculum';
+    if (t === 'InstructorLedCourse') return 'Instructor-Led';
     return 'Online Course';
   }
   function courseName(c){ return c.name || c.title || 'Course'; }
-  function courseBlurb(c){
-    return String(c.description || '').replace(/<[^>]*>/g, '').trim();
-  }
+  function norm(s){ return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
 
-  /* Pick the best catalog course for a set of keywords. Name hits beat
-     description hits — the same ordering the holographic route uses — so a
-     course actually about the topic wins over one that mentions it. */
-  function pickCourse(keywords, exclude){
-    var best = null, bestScore = 0;
-    CATALOG.forEach(function(c){
-      if (exclude && exclude.indexOf(c.id) !== -1) return;
-      var n = courseName(c).toLowerCase();
-      var d = courseBlurb(c).toLowerCase();
-      var score = 0;
-      keywords.forEach(function(k, i){
-        var weight = keywords.length - i;      // earlier keyword, stronger signal
-        if (n.indexOf(k) !== -1) score += 10 * weight;
-        else if (d.indexOf(k) !== -1) score += 3 * weight;
-      });
-      if ((c.courseType || c.type) === 'Curriculum') score += 2;
-      if (score > bestScore) { bestScore = score; best = c; }
-    });
-    return best;
+  /* Resolve the stand-in course by NAME, never by a pinned id: an id pins
+     the page to one portal, and these demos run against more than one. A
+     rename in Absorb is the only thing that breaks it, and it fails
+     visibly in panel 2 rather than with a 403 at launch. */
+  function findCourseByName(name){
+    var t = norm(name);
+    for (var i = 0; i < CATALOG.length; i++) {
+      if (norm(courseName(CATALOG[i])) === t) return CATALOG[i];
+    }
+    return null;
   }
 
   async function loadCatalog(){
     byId('apiCatReq').innerHTML =
       '<span class="m">GET</span> <span class="f">/api/psbi/catalog</span>\n' +
       '   credentials: include   (portal session cookie, HttpOnly)';
-
     try {
       var resp = await fetch('/api/psbi/catalog', { credentials:'include' });
-
       if (resp.status === 401) {
         byId('apiCatTag').innerHTML = '<span class="x">401</span>';
-        byId('apiCatRes').innerHTML =
-          '<span class="x">401 Not authenticated</span>\n\n' +
-          'No portal session. Sign in and this page fills with the\n' +
-          'learner\'s own catalog.';
-        signedOut();
-        return;
+        byId('apiCatRes').innerHTML = '<span class="x">401 Not authenticated</span>\n\n' +
+          'No portal session. Sign in and these cards play live Absorb content.';
+        signedOut(); return;
       }
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
-
       var data = await resp.json();
       CATALOG = (data._embedded && data._embedded.courses) || [];
 
       byId('apiCatTag').innerHTML = '<span class="f">200</span>';
-      byId('apiCatRes').innerHTML =
-        '<span class="f">200 OK</span>  ' + CATALOG.length + ' courses\n\n' +
+      byId('apiCatRes').innerHTML = '<span class="f">200 OK</span>  ' + CATALOG.length + ' courses\n\n' +
         CATALOG.slice(0, 6).map(function(c){
           return '  <span class="d">·</span> ' + esc(courseName(c)) +
                  '  <span class="d">' + esc(courseTypeLabel(c.courseType || c.type)) + '</span>';
@@ -852,13 +837,9 @@ learner stays inside iQ for the whole thing.</pre>
         (CATALOG.length > 6 ? '\n  <span class="d">… and ' + (CATALOG.length - 6) + ' more</span>' : '');
       pulsePanel('panelCatalog');
 
-      GATE_COURSE = pickCourse(['methodolog','lives','data','compliance','certif']) || CATALOG[0] || null;
-      REC_COURSE  = pickCourse(['payer','directory','organization','plan','formular'],
-                               GATE_COURSE ? [GATE_COURSE.id] : []) || CATALOG[1] || CATALOG[0] || null;
-
-      renderRecord();
-      renderContext();
-      renderRing();
+      PLAYABLE = findCourseByName(DEFAULT_COURSE_NAME) || CATALOG[0] || null;
+      paintTitleMap();
+      renderMaterials(); renderRecord(); renderContext(); renderRing();
       selectJob(selectedJob);
     } catch (err) {
       byId('apiCatTag').innerHTML = '<span class="x">error</span>';
@@ -867,43 +848,101 @@ learner stays inside iQ for the whole thing.</pre>
     }
   }
 
-  function signedOut(msg){
-    var note = msg
-      ? 'Could not reach the catalog: ' + msg
-      : 'Sign in to load this analyst\'s learning.';
-    byId('recLearn').innerHTML =
-      '<div class="rl-m"><div class="rl-t">' + esc(note) + '</div>' +
-      '<div class="rl-s"><a href="/signin">Sign in</a> to show live Absorb content.</div></div>';
-    byId('ctxList').innerHTML = '<div class="ctx-empty">' + esc(note) + ' <a href="/signin">Sign in</a>.</div>';
-    clearance = { verdict:'unknown', detail:note };
-    renderQueue();
-    renderGate();
+  function paintTitleMap(){
+    var el = byId('apiTitles'); if (!el) return;
+    if (!PLAYABLE) {
+      el.innerHTML = '<span class="x">No course resolved — catalog empty or signed out.</span>';
+      return;
+    }
+    var exact = findCourseByName(DEFAULT_COURSE_NAME);
+    var titles = [GATE_TITLE, RECORD_TITLE]
+      .concat(MATERIALS.map(function(m){ return m.title; }))
+      .concat(CTX.map(function(c){ return c.title; }));
+    var seen = {}, lines = [];
+    titles.forEach(function(t){
+      if (seen[t]) return;
+      seen[t] = 1;
+      lines.push('  <span class="d">shown</span>  ' + esc(t));
+    });
+    el.innerHTML =
+      'Stand-in course, resolved by name from the live catalog:\n' +
+      '  <span class="m">' + esc(DEFAULT_COURSE_NAME) + '</span>  ' +
+      (exact ? '<span class="f">matched</span>'
+             : '<span class="w">not found — fell back to the first catalog course</span>') + '\n' +
+      '  <span class="d">plays</span>  <span class="f">' + esc(courseName(PLAYABLE)) + '</span>\n\n' +
+      'Titles shown on this screen, all mapped to it:\n' + lines.join('\n');
+    pulsePanel('panelTitles');
   }
 
-  /* ── Deliverable queue + gate ────────────────────────────── */
+  function signedOut(msg){
+    var note = msg ? 'Could not reach the catalog: ' + msg
+                   : 'Sign in to load this analyst’s learning.';
+    byId('recLearn').innerHTML = '<div class="rl-m"><div class="rl-t">' + esc(note) + '</div>' +
+      '<div class="rl-s"><a href="/signin">Sign in</a> to show live Absorb content.</div></div>';
+    byId('ctxList').innerHTML = '<div class="ctx-empty">' + esc(note) + ' <a href="/signin">Sign in</a>.</div>';
+    byId('lmBody').innerHTML = '<div class="lm-note">' + esc(note) + ' <a href="/signin">Sign in</a>.</div>';
+    byId('apiTitles').innerHTML = '<span class="x">Not resolved — no session.</span>';
+    clearance = { verdict:'unknown', detail:note };
+    renderQueue(); renderGate();
+  }
 
-  /* A gated row's dot and badge are DERIVED from the live verdict, never
-     stored. They were previously read straight off the JOBS literal, so a
-     cleared gate still showed "Export blocked" in the row above it. */
+  /* Every launch on this page goes through here: a title for the screen,
+     the stand-in course underneath. */
+  function launch(displayTitle){
+    if (!PLAYABLE) { showToast('No course available', 'Sign in to load the catalog.'); return; }
+    openPlayerModal(PLAYABLE.id, displayTitle, PLAYABLE.courseType || PLAYABLE.type);
+  }
+
+  /* ── Learning Materials, opened by the help widget ───────── */
+  var lmPanel = byId('lmPanel'), scrim = byId('scrim');
+
+  window.openMaterials = function(){
+    lmPanel.classList.add('open'); scrim.classList.add('open');
+  };
+  window.closeMaterials = function(){
+    lmPanel.classList.remove('open'); scrim.classList.remove('open');
+  };
+
+  function renderMaterials(){
+    var el = byId('lmBody');
+    el.innerHTML = '';
+    var note = document.createElement('div');
+    note.className = 'lm-note';
+    note.textContent = 'Matched to the Landscape Overview and your current filters.';
+    el.appendChild(note);
+
+    MATERIALS.forEach(function(m){
+      var card = document.createElement('div');
+      card.className = 'lm-card';
+      card.innerHTML =
+        '<h3>' + esc(m.title) + '</h3><p>' + esc(m.blurb) + '</p>' +
+        '<div class="lm-foot"><button class="lm-dl">' +
+          '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+          '<path d="M12 3v12M7 11l5 5 5-5M4 21h16"/></svg>Download</button>' +
+          '<span class="lm-meta">' + esc(m.meta) + '</span></div>';
+      card.querySelector('.lm-dl').addEventListener('click', function(){ launch(m.title); });
+      el.appendChild(card);
+    });
+  }
+
+  /* ── Queue + gate ────────────────────────────────────────── */
   function jobView(j){
-    if (!j.gated) return { state: j.state, badge: j.badge };
+    if (!j.gated) return { state:j.state, badge:j.badge };
     switch (clearance.verdict) {
-      case 'cleared': return { state: 'good', badge: 'Export cleared' };
-      case 'unknown': return { state: 'warn', badge: 'Hold \u2014 unverified' };
-      case 'pending': return { state: 'warn', badge: 'Checking\u2026' };
-      default:        return { state: 'bad',  badge: 'Export blocked' };
+      case 'cleared': return { state:'good', badge:'Export cleared' };
+      case 'unknown': return { state:'warn', badge:'Hold — unverified' };
+      case 'pending': return { state:'warn', badge:'Checking…' };
+      default:        return { state:'bad',  badge:'Export blocked' };
     }
   }
 
   function renderQueue(){
-    var list = byId('qList');
-    list.innerHTML = '';
+    var list = byId('qList'); list.innerHTML = '';
     JOBS.forEach(function(j){
       var v = jobView(j);
       var row = document.createElement('div');
       row.className = 'q-row' + (j.id === selectedJob ? ' sel' : '');
-      row.innerHTML =
-        '<span class="q-dot ' + v.state + '"></span>' +
+      row.innerHTML = '<span class="q-dot ' + v.state + '"></span>' +
         '<span><span class="q-t">' + esc(j.title) + '</span>' +
         '<div class="q-s">' + esc(j.id) + ' &middot; ' + esc(j.sub) + '</div></span>' +
         '<span class="q-badge ' + v.state + '">' + esc(v.badge) + '</span>';
@@ -918,36 +957,25 @@ learner stays inside iQ for the whole thing.</pre>
   }
 
   function selectJob(id){
-    selectedJob = id;
-    renderQueue();
+    selectedJob = id; renderQueue();
     var job = currentJob();
     if (job.gated) checkClearance(job);
-    else {
-      clearance = { verdict:'n/a', detail:'' };
-      renderGate();
-    }
+    else { clearance = { verdict:'n/a', detail:'' }; renderGate(); }
   }
 
-  /* Read clearance from Absorb rather than deciding it here.
-     /api/psbi/player?mode=course returns the chapter/lesson tree with the
-     learner's own enrollment status on each lesson, so "complete" is the
-     LMS's answer, not this page's. Three outcomes — see panel 2. */
   async function checkClearance(job){
-    if (!GATE_COURSE) {
-      clearance = { verdict:'unknown', detail:'No governing course found in the catalog.' };
-      renderGate();
-      return;
+    if (!PLAYABLE) {
+      clearance = { verdict:'unknown', detail:'No course resolved from the catalog.' };
+      renderGate(); return;
     }
-    var path = '/api/psbi/player?courseId=' + encodeURIComponent(GATE_COURSE.id) + '&mode=course';
-
+    var path = '/api/psbi/player?courseId=' + encodeURIComponent(PLAYABLE.id) + '&mode=course';
     byId('apiGateReq').innerHTML =
       '<span class="m">GET</span> <span class="f">' + esc(path) + '</span>\n' +
       '   deliverable  ' + esc(job.id) + '  (' + esc(job.value) + ')\n' +
-      '   governing course resolved from the catalog, not hard-coded:\n' +
-      '   <span class="f">' + esc(courseName(GATE_COURSE)) + '</span>';
+      '   shown as     ' + esc(GATE_TITLE) + '\n' +
+      '   plays        <span class="f">' + esc(courseName(PLAYABLE)) + '</span>';
     byId('apiGateRes').innerHTML = 'Checking&hellip;';
-    clearance = { verdict:'pending', detail:'' };
-    renderGate();
+    clearance = { verdict:'pending', detail:'' }; renderGate();
 
     try {
       var resp = await fetch(path, { credentials:'include' });
@@ -959,54 +987,38 @@ learner stays inside iQ for the whole thing.</pre>
       (payload.chapters || []).forEach(function(ch){
         ((ch._embedded && ch._embedded.lessons) || []).forEach(function(l){
           total++;
-          var st = (l.enrollment && l.enrollment.status) || '';
-          if (String(st).toLowerCase() === 'complete') done++;
+          if (String((l.enrollment && l.enrollment.status) || '').toLowerCase() === 'complete') done++;
         });
       });
 
-      if (total === 0) {
-        clearance = { verdict:'unknown', detail:'Course returned no lessons to assess.', done:0, total:0 };
-      } else if (done === total) {
-        clearance = { verdict:'cleared', detail:'', done:done, total:total };
-      } else {
-        clearance = { verdict:'held', detail:'', done:done, total:total };
-      }
+      if (total === 0) clearance = { verdict:'unknown', detail:'Course returned no lessons to assess.', done:0, total:0 };
+      else if (done === total) clearance = { verdict:'cleared', done:done, total:total };
+      else clearance = { verdict:'held', done:done, total:total };
 
       var tagCls = clearance.verdict === 'cleared' ? 'f' : clearance.verdict === 'held' ? 'x' : 'w';
       byId('apiGateTag').innerHTML = '<span class="f">200</span>';
-      byId('apiGateRes').innerHTML =
-        '{\n' +
-        '  "course":      <span class="f">"' + esc(courseName(GATE_COURSE)) + '"</span>,\n' +
+      byId('apiGateRes').innerHTML = '{\n' +
+        '  "course":      <span class="f">"' + esc(courseName(PLAYABLE)) + '"</span>,\n' +
         '  "lessons":     ' + done + ' / ' + total + ' complete,\n' +
         '  "verdict":     <span class="' + tagCls + '">"' + clearance.verdict + '"</span>,\n' +
         '  "exportHold":  <span class="' + (clearance.verdict === 'cleared' ? 'f' : 'x') + '">' +
-            (clearance.verdict !== 'cleared') + '</span>\n' +
-        '}';
+          (clearance.verdict !== 'cleared') + '</span>\n}';
       pulsePanel('panelGate');
     } catch (err) {
       clearance = { verdict:'unknown', detail:err.message };
       byId('apiGateTag').innerHTML = '<span class="x">error</span>';
-      byId('apiGateRes').innerHTML =
-        '{\n' +
+      byId('apiGateRes').innerHTML = '{\n' +
         '  "verdict":     <span class="w">"unknown"</span>,\n' +
         '  "reason":      <span class="x">"' + esc(err.message) + '"</span>,\n' +
-        '  "exportHold":  <span class="x">true</span>   <span class="d">// fails closed</span>\n' +
-        '}';
+        '  "exportHold":  <span class="x">true</span>   <span class="d">// fails closed</span>\n}';
       pulsePanel('panelGate');
     }
     renderGate();
   }
 
   function renderGate(){
-    var slot = byId('gateSlot');
-    var job = currentJob();
-    var btn = byId('exportBtn');
-
-    if (!job.gated) {
-      slot.innerHTML = '';
-      setExport(true);
-      return;
-    }
+    var slot = byId('gateSlot'), job = currentJob();
+    if (!job.gated) { slot.innerHTML = ''; setExport(true); return; }
 
     var v = clearance.verdict;
     var cls = v === 'cleared' ? 'cleared' : v === 'unknown' ? 'unknown' : '';
@@ -1017,7 +1029,7 @@ learner stays inside iQ for the whole thing.</pre>
       body = '<p>Asking Absorb whether this analyst holds current methodology training.</p>';
     } else if (v === 'cleared') {
       head = 'Export cleared — methodology certification current';
-      body = '<p>' + esc(courseName(GATE_COURSE)) + ' is complete, so ' + esc(job.id) +
+      body = '<p>' + esc(GATE_TITLE) + ' is complete, so ' + esc(job.id) +
              ' can be exported to the client.</p>';
     } else if (v === 'unknown') {
       head = 'Export held — certification could not be confirmed';
@@ -1026,47 +1038,32 @@ learner stays inside iQ for the whole thing.</pre>
     } else {
       head = 'Export locked — certification required';
       body = '<p>' + esc(job.id) + ' is client-ready output, so it is held until ' +
-             esc(courseName(GATE_COURSE)) + ' is complete' +
+             esc(GATE_TITLE) + ' is complete' +
              (clearance.total ? ' (' + clearance.done + ' of ' + clearance.total + ' lessons done)' : '') +
              '. The training is in the way of the work, not in a separate tab.</p>';
     }
 
     var courseRow = '';
-    if (GATE_COURSE && v !== 'pending') {
-      courseRow =
-        '<div class="gate-course">' +
-          '<div class="gc-m">' +
-            '<div class="gc-t">' + esc(courseName(GATE_COURSE)) + '</div>' +
-            '<div class="gc-s">' + esc(courseTypeLabel(GATE_COURSE.courseType || GATE_COURSE.type)) +
-              ' &middot; from Absorb' +
-              (clearance.total ? ' &middot; ' + clearance.done + '/' + clearance.total + ' lessons' : '') +
-            '</div>' +
-          '</div>' +
-          '<button class="btn primary" id="gateStart">' +
-            (v === 'cleared' ? 'Review training' : 'Start training') +
-          '</button>' +
-        '</div>';
+    if (PLAYABLE && v !== 'pending') {
+      courseRow = '<div class="gate-course"><div class="gc-m">' +
+        '<div class="gc-t">' + esc(GATE_TITLE) + '</div>' +
+        '<div class="gc-s">' + esc(courseTypeLabel(PLAYABLE.courseType || PLAYABLE.type)) +
+        ' &middot; from Absorb' + (clearance.total ? ' &middot; ' + clearance.done + '/' + clearance.total + ' lessons' : '') +
+        '</div></div><button class="btn primary" id="gateStart">' +
+        (v === 'cleared' ? 'Review training' : 'Start training') + '</button></div>';
     }
 
-    slot.innerHTML =
-      '<div class="gate ' + cls + '">' +
-        '<div class="gate-h"><strong>' + head + '</strong>' +
-          '<span class="q-badge ' + (v === 'cleared' ? 'good' : v === 'unknown' ? 'warn' : 'bad') +
-          '" style="margin-left:auto">' + esc(job.value) + '</span></div>' +
-        '<div class="gate-b">' + body + courseRow + '</div>' +
-      '</div>';
+    slot.innerHTML = '<div class="gate ' + cls + '"><div class="gate-h"><strong>' + head + '</strong>' +
+      '<span class="q-badge ' + (v === 'cleared' ? 'good' : v === 'unknown' ? 'warn' : 'bad') +
+      '" style="margin-left:auto">' + esc(job.value) + '</span></div>' +
+      '<div class="gate-b">' + body + courseRow + '</div></div>';
 
     var start = byId('gateStart');
-    if (start && GATE_COURSE) {
-      start.addEventListener('click', function(){
-        openPlayerModal(GATE_COURSE.id, courseName(GATE_COURSE), GATE_COURSE.courseType || GATE_COURSE.type);
-      });
-    }
+    if (start) start.addEventListener('click', function(){ launch(GATE_TITLE); });
+
+    renderQueue();
     setExport(v === 'cleared');
-
-    renderQueue();   // keep the row badges in step with the verdict
-
-    var blocked = JOBS.filter(function(j){ return j.gated && v !== 'cleared'; }).length;
+    var blocked = (v === 'cleared') ? 0 : 1;
     byId('qSummary').textContent = blocked ? blocked + ' blocked' : 'All clear';
     byId('qSummary').className = 'q-badge ' + (blocked ? 'bad' : 'good');
     byId('railBadge').textContent = String(blocked);
@@ -1088,156 +1085,93 @@ learner stays inside iQ for the whole thing.</pre>
     }
   };
 
-  /* ── Embed 1: learning on the organization record ────────── */
-
+  /* ── Record-attached learning ────────────────────────────── */
   function renderRecord(){
     var el = byId('recLearn');
-    if (!REC_COURSE) {
-      el.innerHTML = '<div class="rl-m"><div class="rl-t">No matching course in this catalog</div>' +
-                     '<div class="rl-s">Add one in Absorb and it appears here with no deployment.</div></div>';
-      return;
-    }
     el.innerHTML =
       '<div class="rl-ic"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
-        '<path d="M12 3L2 8l10 5 10-5zM6 11v5c0 1 3 2 6 2s6-1 6-2v-5"/></svg></div>' +
-      '<div class="rl-m">' +
-        '<div class="rl-t">' + esc(courseName(REC_COURSE)) + '</div>' +
-        '<div class="rl-s">Attached to this organization record &middot; ' +
-          esc(courseTypeLabel(REC_COURSE.courseType || REC_COURSE.type)) + '</div>' +
-      '</div>' +
+      '<path d="M12 3L2 8l10 5 10-5zM6 11v5c0 1 3 2 6 2s6-1 6-2v-5"/></svg></div>' +
+      '<div class="rl-m"><div class="rl-t">' + esc(RECORD_TITLE) + '</div>' +
+      '<div class="rl-s">Attached to this organization record &middot; ' +
+      (PLAYABLE ? esc(courseTypeLabel(PLAYABLE.courseType || PLAYABLE.type)) : 'from Absorb') + '</div></div>' +
       '<button class="btn" id="recStart">Open</button>';
-    byId('recStart').addEventListener('click', function(){
-      openPlayerModal(REC_COURSE.id, courseName(REC_COURSE), REC_COURSE.courseType || REC_COURSE.type);
-    });
+    byId('recStart').addEventListener('click', function(){ launch(RECORD_TITLE); });
   }
 
-  /* ── Embed 3: contextual rail ────────────────────────────── */
-
+  /* ── Contextual rail ─────────────────────────────────────── */
   function renderContext(){
     var el = byId('ctxList');
-    var used = [];
-    if (GATE_COURSE) used.push(GATE_COURSE.id);
-    if (REC_COURSE) used.push(REC_COURSE.id);
-
-    var picks = [];
-    var filters = [
-      { keys:['pharmac','formular','benefit'], why:'Benefit filter: Pharmacy' },
-      { keys:['medicaid','medicare','channel','commercial'], why:'Channel breakdown on screen' },
-      { keys:['export','report','analys','dashboard'], why:'You are building a client export' }
-    ];
-    filters.forEach(function(f){
-      var c = pickCourse(f.keys, used.concat(picks.map(function(p){ return p.c.id; })));
-      if (c) picks.push({ c:c, why:f.why });
-    });
-    CATALOG.forEach(function(c){
-      if (picks.length >= 3) return;
-      if (used.indexOf(c.id) !== -1) return;
-      if (picks.some(function(p){ return p.c.id === c.id; })) return;
-      picks.push({ c:c, why:'Available in your catalog' });
-    });
-
-    if (!picks.length) {
-      el.innerHTML = '<div class="ctx-empty">No further courses in this catalog.</div>';
-      return;
-    }
-
     el.innerHTML = '';
-    picks.slice(0, 3).forEach(function(p, i){
+    CTX.forEach(function(c, i){
       var row = document.createElement('div');
       row.className = 'ctx-item';
-      var blurb = courseBlurb(p.c).slice(0, 96);
-      row.innerHTML =
-        '<div class="ctx-ic">' + (i + 1) + '</div>' +
-        '<div class="ctx-m">' +
-          '<div class="ctx-t">' + esc(courseName(p.c)) + '</div>' +
-          (blurb ? '<div class="ctx-s">' + esc(blurb) + '</div>' : '') +
-          '<div class="ctx-why">' + esc(p.why) + '</div>' +
-          '<button class="ctx-go">Open &rarr;</button>' +
-        '</div>';
-      row.querySelector('.ctx-go').addEventListener('click', function(){
-        openPlayerModal(p.c.id, courseName(p.c), p.c.courseType || p.c.type);
-      });
+      row.innerHTML = '<div class="ctx-ic">' + (i + 1) + '</div><div class="ctx-m">' +
+        '<div class="ctx-t">' + esc(c.title) + '</div>' +
+        '<div class="ctx-s">' + esc(c.blurb) + '</div>' +
+        '<div class="ctx-why">' + esc(c.why) + '</div>' +
+        '<button class="ctx-go">Open &rarr;</button></div>';
+      row.querySelector('.ctx-go').addEventListener('click', function(){ launch(c.title); });
       el.appendChild(row);
     });
   }
 
-  /* ── Embed 4: certification progress ─────────────────────── */
-
   function renderRing(){
     var el = byId('ringList');
-    var rows = [];
-    if (GATE_COURSE) rows.push({ t: courseName(GATE_COURSE), v: 'Governs export' });
-    if (REC_COURSE) rows.push({ t: courseName(REC_COURSE), v: 'Record-attached' });
-    CATALOG.forEach(function(c){
-      if (rows.length >= 4) return;
-      if (GATE_COURSE && c.id === GATE_COURSE.id) return;
-      if (REC_COURSE && c.id === REC_COURSE.id) return;
-      rows.push({ t: courseName(c), v: courseTypeLabel(c.courseType || c.type) });
-    });
-    if (!rows.length) { el.innerHTML = ''; return; }
+    var rows = [[GATE_TITLE, 'Governs export'], [RECORD_TITLE, 'Record-attached'],
+                [MATERIALS[0].title, 'Learning Materials'], [CTX[0].title, 'This view']];
     el.innerHTML = rows.map(function(r){
-      return '<div class="ring-row"><span class="rr-t">' + esc(r.t) +
-             '</span><span class="rr-v">' + esc(r.v) + '</span></div>';
+      return '<div class="ring-row"><span class="rr-t">' + esc(r[0]) +
+             '</span><span class="rr-v">' + esc(r[1]) + '</span></div>';
     }).join('');
   }
 
   /* ══════════════════════════════════════════
      Player modal — the proven implementation.
-     Curriculum, online course, and per-lesson re-minting.
   ══════════════════════════════════════════ */
-
   window.openPlayerModal = async function(courseId, courseTitle, courseType){
     byId('modalTitle').textContent = courseTitle || 'Loading…';
     byId('modalBadge').textContent = courseTypeLabel(courseType);
     byId('playerModal').classList.add('open');
     document.body.style.overflow = 'hidden';
-
-    var list = byId('modalLessonList');
-    var frame = byId('mpFrame');
+    var list = byId('modalLessonList'), frame = byId('mpFrame');
     list.innerHTML = '<div style="padding:16px;color:rgba(255,255,255,0.4);font-size:12px;">Loading…</div>';
     frame.src = 'about:blank';
-
-    if (courseType === 'Curriculum') await openPlayerModalCurriculum(courseId, courseTitle, list, frame);
-    else await openPlayerModalOnline(courseId, courseTitle, list, frame);
+    if (courseType === 'Curriculum') await openCurriculum(courseId, courseTitle, list, frame);
+    else await openOnline(courseId, courseTitle, list, frame);
   };
 
-  async function openPlayerModalCurriculum(curriculumId, curriculumTitle, list, frame){
+  async function openCurriculum(curriculumId, title, list, frame){
     var path = '/api/psbi/curriculum/' + encodeURIComponent(curriculumId);
     try {
       var resp = await fetch(path, { credentials:'include' });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       var payload = await resp.json();
       if (payload.error) throw new Error(payload.error);
-
       var children = payload.courses || [];
       list.innerHTML = '';
       var rows = [];
       children.forEach(function(child, idx){
         var row = buildLessonRow(child.id, courseName(child), idx === 0 ? 'playing' : 'next');
-        row.courseId = child.id;
-        row.courseType = child.courseType || child.type;
-        list.appendChild(row.el);
-        rows.push(row);
+        row.courseId = child.id; row.courseType = child.courseType || child.type;
+        list.appendChild(row.el); rows.push(row);
       });
       rows.forEach(function(row){
         row.el.addEventListener('click', function(){
           rows.forEach(function(r){ r.el.classList.remove('il-active'); });
-          row.el.classList.add('il-active');
-          ilLoadCourse(row.courseId);
+          row.el.classList.add('il-active'); loadChild(row.courseId);
         });
       });
-      var firstOnline = rows.filter(function(r){ return r.courseType !== 'InstructorLedCourse'; })[0];
-      if (firstOnline) {
+      var first = rows.filter(function(r){ return r.courseType !== 'InstructorLedCourse'; })[0];
+      if (first) {
         rows.forEach(function(r){ r.el.classList.remove('il-active'); });
-        firstOnline.el.classList.add('il-active');
-        ilLoadCourse(firstOnline.courseId);
+        first.el.classList.add('il-active'); loadChild(first.courseId);
       }
     } catch (err) {
       list.innerHTML = '<div style="padding:16px;color:#f87171;font-size:12px;">Error: ' + esc(err.message) + '</div>';
     }
   }
 
-  async function openPlayerModalOnline(courseId, courseTitle, list, frame){
+  async function openOnline(courseId, courseTitle, list, frame){
     var path = '/api/psbi/player?courseId=' + encodeURIComponent(courseId) + '&mode=course';
     try {
       var resp = await fetch(path, { credentials:'include' });
@@ -1247,46 +1181,40 @@ learner stays inside iQ for the whole thing.</pre>
 
       var chapters = payload.chapters || [];
       list.innerHTML = '';
-      var lessonEls = [];
-      var firstLessonId = payload.lessonId;
+      var rows = [], firstLessonId = payload.lessonId;
 
-      if (chapters.length === 0) {
+      if (!chapters.length) {
         var only = buildLessonRow(null, courseTitle, 'playing');
-        list.appendChild(only.el);
-        lessonEls.push(only);
+        list.appendChild(only.el); rows.push(only);
       } else {
-        chapters.forEach(function(chapter){
-          var lessons = (chapter._embedded && chapter._embedded.lessons) || [];
+        chapters.forEach(function(ch){
+          var lessons = (ch._embedded && ch._embedded.lessons) || [];
           if (chapters.length > 1) {
-            var header = document.createElement('div');
-            header.className = 'il-chapter';
-            header.textContent = chapter.name || chapter.title || 'Chapter';
-            list.appendChild(header);
+            var h = document.createElement('div');
+            h.className = 'il-chapter';
+            h.textContent = ch.name || ch.title || 'Chapter';
+            list.appendChild(h);
           }
-          lessons.forEach(function(lesson){
-            var status = lesson.enrollment && lesson.enrollment.status;
-            var isComplete = String(status || '').toLowerCase() === 'complete';
-            var isCurrent = lesson.id === firstLessonId;
-            var state = isComplete ? 'done' : isCurrent ? 'playing' : 'next';
-            var row = buildLessonRow(lesson.id, lesson.name || lesson.title || 'Lesson', state);
-            list.appendChild(row.el);
-            lessonEls.push(row);
+          lessons.forEach(function(l){
+            var st = String((l.enrollment && l.enrollment.status) || '').toLowerCase();
+            var state = st === 'complete' ? 'done' : (l.id === firstLessonId ? 'playing' : 'next');
+            var row = buildLessonRow(l.id, l.name || l.title || 'Lesson', state);
+            list.appendChild(row.el); rows.push(row);
           });
         });
       }
 
-      lessonEls.forEach(function(row){
+      rows.forEach(function(row){
         row.el.addEventListener('click', function(){
-          lessonEls.forEach(function(r){ r.el.classList.remove('il-active'); });
-          row.el.classList.add('il-active');
-          mpLoadLesson(courseId, row.lessonId);
+          rows.forEach(function(r){ r.el.classList.remove('il-active'); });
+          row.el.classList.add('il-active'); loadLesson(courseId, row.lessonId);
         });
       });
-      if (lessonEls.length) {
-        var activeIdx = 0;
-        for (var i = 0; i < lessonEls.length; i++) if (lessonEls[i].state === 'playing') { activeIdx = i; break; }
-        lessonEls.forEach(function(r){ r.el.classList.remove('il-active'); });
-        lessonEls[activeIdx].el.classList.add('il-active');
+      if (rows.length) {
+        var idx = 0;
+        for (var i = 0; i < rows.length; i++) if (rows[i].state === 'playing') { idx = i; break; }
+        rows.forEach(function(r){ r.el.classList.remove('il-active'); });
+        rows[idx].el.classList.add('il-active');
       }
 
       frame.src = payload.playerUrl;
@@ -1299,19 +1227,16 @@ learner stays inside iQ for the whole thing.</pre>
   function buildLessonRow(lessonId, name, state){
     var el = document.createElement('div');
     el.className = 'il-lesson' + (state === 'playing' ? ' il-active' : '');
-    var arrowClass = state === 'done' ? 'done' : state === 'playing' ? 'playing' : 'next';
-    var arrowLabel = state === 'done' ? '✓' : '▶';
+    var cls = state === 'done' ? 'done' : state === 'playing' ? 'playing' : 'next';
+    var label = state === 'done' ? '✓' : '▶';
     var dur = state === 'done' ? '· Complete' : state === 'playing' ? '· In progress' : '';
-    el.innerHTML =
-      '<div class="il-arrow ' + arrowClass + '">' + arrowLabel + '</div>' +
-      '<div class="il-meta"><div class="il-title">' + esc(name) + '</div>' +
-      '<div class="il-dur">' + dur + '</div></div>';
+    el.innerHTML = '<div class="il-arrow ' + cls + '">' + label + '</div>' +
+      '<div><div class="il-title">' + esc(name) + '</div><div class="il-dur">' + dur + '</div></div>';
     return { el:el, lessonId:lessonId, state:state };
   }
 
-  async function mpLoadLesson(courseId, lessonId){
-    var frame = byId('mpFrame');
-    frame.src = 'about:blank';
+  async function loadLesson(courseId, lessonId){
+    var frame = byId('mpFrame'); frame.src = 'about:blank';
     var qs = lessonId
       ? 'courseId=' + encodeURIComponent(courseId) + '&lessonId=' + encodeURIComponent(lessonId)
       : 'courseId=' + encodeURIComponent(courseId);
@@ -1321,36 +1246,26 @@ learner stays inside iQ for the whole thing.</pre>
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       var payload = await resp.json();
       if (payload.error) throw new Error(payload.error);
-      frame.src = payload.playerUrl;
-      paintDelivery(path, payload);
-    } catch (err) {
-      console.error('mpLoadLesson error:', err);
-    }
+      frame.src = payload.playerUrl; paintDelivery(path, payload);
+    } catch (err) { console.error('loadLesson error:', err); }
   }
 
-  async function ilLoadCourse(courseId){
-    var frame = byId('mpFrame');
-    frame.src = 'about:blank';
+  async function loadChild(courseId){
+    var frame = byId('mpFrame'); frame.src = 'about:blank';
     var path = '/api/psbi/player?courseId=' + encodeURIComponent(courseId);
     try {
       var resp = await fetch(path, { credentials:'include' });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       var payload = await resp.json();
       if (payload.error) throw new Error(payload.error);
-      frame.src = payload.playerUrl;
-      paintDelivery(path, payload);
-    } catch (err) {
-      console.error('ilLoadCourse error:', err);
-    }
+      frame.src = payload.playerUrl; paintDelivery(path, payload);
+    } catch (err) { console.error('loadChild error:', err); }
   }
 
   window.closePlayerModal = function(){
     byId('playerModal').classList.remove('open');
     document.body.style.overflow = '';
     byId('mpFrame').src = 'about:blank';
-    /* Re-ask Absorb: finishing the course in the modal is exactly when the
-       verdict changes, and the whole point is that the hold clears while the
-       analyst is still on the page. */
     var job = currentJob();
     if (job.gated) checkClearance(job);
   };
@@ -1358,11 +1273,10 @@ learner stays inside iQ for the whole thing.</pre>
   document.addEventListener('keydown', function(e){
     if (e.key !== 'Escape') return;
     if (byId('playerModal').classList.contains('open')) closePlayerModal();
+    else closeMaterials();
   });
 
-  renderQueue();
-  renderGate();
-  loadCatalog();
+  renderQueue(); renderGate(); loadCatalog();
 })();
 </script>
 </body>
