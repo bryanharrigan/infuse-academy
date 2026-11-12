@@ -795,15 +795,29 @@ learner stays inside the platform for the whole thing.</pre></div>
 
   /* ── Queue + gate ────────────────────────────────────────── */
 
+  /* A gated row's dot and badge are DERIVED from the live verdict, never
+     stored. Read straight off the JOBS literal they go stale, and a cleared
+     gate ends up sitting under a row that still says "Export blocked". */
+  function jobView(j){
+    if (!j.gated) return { state: j.state, badge: j.badge };
+    switch (clearance.verdict) {
+      case 'cleared': return { state: 'good', badge: 'Export cleared' };
+      case 'unknown': return { state: 'warn', badge: 'Hold \u2014 unverified' };
+      case 'pending': return { state: 'warn', badge: 'Checking\u2026' };
+      default:        return { state: 'bad',  badge: 'Export blocked' };
+    }
+  }
+
   function renderQueue(){
     var list = byId('qList'); list.innerHTML = '';
     JOBS.forEach(function(j){
+      var v = jobView(j);
       var row = document.createElement('div');
       row.className = 'q-row' + (j.id === selectedJob ? ' sel' : '');
-      row.innerHTML = '<span class="q-dot ' + j.state + '"></span>' +
+      row.innerHTML = '<span class="q-dot ' + v.state + '"></span>' +
         '<span><span class="q-t">' + esc(j.title) + '</span>' +
         '<div class="q-s">' + esc(j.id) + ' &middot; ' + esc(j.sub) + '</div></span>' +
-        '<span class="badge ' + j.state + '">' + esc(j.badge) + '</span>';
+        '<span class="badge ' + v.state + '">' + esc(v.badge) + '</span>';
       row.addEventListener('click', function(){ selectJob(j.id); });
       list.appendChild(row);
     });
@@ -925,6 +939,8 @@ learner stays inside the platform for the whole thing.</pre></div>
     });
 
     setExport(v === 'cleared');
+    renderQueue();   // keep the row badges in step with the verdict
+
     var blocked = (v === 'cleared') ? 0 : 1;
     byId('qSummary').textContent = blocked ? blocked + ' blocked' : 'All clear';
     byId('qSummary').className = 'badge ' + (blocked ? 'bad' : 'good');
