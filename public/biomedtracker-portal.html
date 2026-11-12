@@ -517,7 +517,7 @@ portal on this same server.</pre></div>
             <div class="api-blk"><div class="api-k">What this proves</div>
               <pre class="plain">Every call this page makes, as it happens. Note what is <em>not</em> here: the
 browser only ever talks to this platform's own origin. The Absorb API key
-and the analyst's token live on the server and never reach the device.</pre></div>
+and the learner's OAuth token live on the server and never reach the device.</pre></div>
             <div class="api-blk"><div class="api-k">Browser &rarr; platform server</div>
               <pre id="apiCallLog">No calls recorded yet.</pre></div>
           </div>
@@ -686,18 +686,41 @@ learner stays inside the platform for the whole thing.</pre></div>
     };
   })();
 
-  /* Mask anything token-shaped before showing a minted URL on screen. */
+  /* Mask the token-shaped parameters before showing a minted URL on screen.
+     The player URL genuinely does carry a single-use token - the iframe
+     needs it - so this is screen-sharing hygiene, not a security control.
+     The reusable credentials (API key, learner OAuth token) never leave the
+     server and never appear here at all. */
+  /* Which query parameters are worth masking on screen.
+     The name is split on camelCase and punctuation and each part matched
+     whole, because a substring test redacts "lessonId" (le-SSO-nId) while
+     letting "verifier" through \u2014 exactly backwards. */
+  var SENSITIVE_PARTS = ['token','jwt','secret','password','passwd','pwd',
+    'signature','sig','verifier','ticket','bearer','session','sso','auth',
+    'authorization','key','apikey','credential','code','nonce','state'];
+
+  function isSensitiveParam(name){
+    return String(name)
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .split(/[^A-Za-z0-9]+/)
+      .some(function(part){
+        return SENSITIVE_PARTS.indexOf(part.toLowerCase()) !== -1;
+      });
+  }
+
   function redactUrl(u){
     if (!u) return '(none)';
     try {
       var x = new URL(u, window.location.origin), keys = [];
       x.searchParams.forEach(function(v, k){ keys.push(k); });
       keys.forEach(function(k){
-        if (/token|jwt|sig|auth|key|ticket|sso/i.test(k)) x.searchParams.set(k, 'REDACTED');
+        if (isSensitiveParam(k)) x.searchParams.set(k, 'REDACTED');
       });
       return x.origin + x.pathname + (x.search || '');
     } catch (e) {
-      return String(u).replace(/([?&][^=&]*(?:token|jwt|sig|auth|key|ticket|sso)[^=&]*=)[^&]*/gi, '$1REDACTED');
+      return String(u).replace(/([?&])([^=&]+)=([^&]*)/g, function(m, sep, k){
+        return isSensitiveParam(k) ? sep + k + '=REDACTED' : m;
+      });
     }
   }
 
@@ -709,8 +732,12 @@ learner stays inside the platform for the whole thing.</pre></div>
       '   ← Absorb mints a single-use player URL\n\n' +
       '<span class="m">iframe src</span>\n  ' + esc(redactUrl(payload && payload.playerUrl)) + '\n' +
       (payload && payload.lessonId ? '\n<span class="m">lessonId</span> ' + esc(payload.lessonId) + '\n' : '') +
-      '\nRendered into the modal on this page. The analyst never leaves\n' +
-      'Biomedtracker and never holds an Absorb credential.';
+      '\nRendered into the modal on this page. The analyst never leaves Biomedtracker\n' +
+      'and never signs in to Absorb.\n\n' +
+      'The URL above carries a <span class="m">single-use</span> token, scoped to this lesson and\n' +
+      'short-lived \u2014 it is in the page because the iframe must authenticate\n' +
+      'with it. What stays on the server is the reusable material: the Absorb\n' +
+      'API key and the analyst\u2019s own OAuth token.';
     var page = byId('apiDeliver'); if (page) page.innerHTML = html;
     var modal = byId('mpDeliver'); if (modal) modal.innerHTML = html;
     pulsePanel('panelDeliver');

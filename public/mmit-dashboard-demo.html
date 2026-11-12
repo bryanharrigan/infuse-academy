@@ -520,7 +520,7 @@ portal on this same server.</pre>
                   <div class="api-k">What this proves</div>
                   <pre class="plain">Every call this page makes, as it happens. Note what is <em>not</em> here: the
 browser only ever talks to this portal's own origin. The Absorb API key
-and the analyst's token live on the server and never reach the device —
+and the learner's OAuth token live on the server and never reach the device —
 which is the answer to "what are we exposing to our customers?".</pre>
                 </div>
                 <div class="api-blk">
@@ -725,9 +725,28 @@ learner stays inside iQ for the whole thing.</pre>
     };
   })();
 
-  /* Mask anything token-shaped before showing a minted URL on screen.
-     The real token never reaches this page — the server holds it — but the
-     panel should not imply otherwise by printing a plausible-looking one. */
+  /* Mask the token-shaped parameters before showing a minted URL on screen.
+     The player URL genuinely does carry a single-use token — the iframe
+     needs it — so this is screen-sharing hygiene, not a security control.
+     The reusable credentials (API key, learner OAuth token) never leave the
+     server and never appear here at all. */
+  /* Which query parameters are worth masking on screen.
+     The name is split on camelCase and punctuation and each part matched
+     whole, because a substring test redacts "lessonId" (le-SSO-nId) while
+     letting "verifier" through \u2014 exactly backwards. */
+  var SENSITIVE_PARTS = ['token','jwt','secret','password','passwd','pwd',
+    'signature','sig','verifier','ticket','bearer','session','sso','auth',
+    'authorization','key','apikey','credential','code','nonce','state'];
+
+  function isSensitiveParam(name){
+    return String(name)
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .split(/[^A-Za-z0-9]+/)
+      .some(function(part){
+        return SENSITIVE_PARTS.indexOf(part.toLowerCase()) !== -1;
+      });
+  }
+
   function redactUrl(u){
     if (!u) return '(none)';
     try {
@@ -735,11 +754,13 @@ learner stays inside iQ for the whole thing.</pre>
       var keys = [];
       x.searchParams.forEach(function(v, k){ keys.push(k); });
       keys.forEach(function(k){
-        if (/token|jwt|sig|auth|key|ticket|sso/i.test(k)) x.searchParams.set(k, 'REDACTED');
+        if (isSensitiveParam(k)) x.searchParams.set(k, 'REDACTED');
       });
       return x.origin + x.pathname + (x.search || '');
     } catch (e) {
-      return String(u).replace(/([?&][^=&]*(?:token|jwt|sig|auth|key|ticket|sso)[^=&]*=)[^&]*/gi, '$1REDACTED');
+      return String(u).replace(/([?&])([^=&]+)=([^&]*)/g, function(m, sep, k){
+        return isSensitiveParam(k) ? sep + k + '=REDACTED' : m;
+      });
     }
   }
 
@@ -752,8 +773,12 @@ learner stays inside iQ for the whole thing.</pre>
       '<span class="m">iframe src</span>\n' +
       '  ' + esc(redactUrl(payload && payload.playerUrl)) + '\n' +
       (payload && payload.lessonId ? '\n<span class="m">lessonId</span> ' + esc(payload.lessonId) + '\n' : '') +
-      '\nRendered into the modal on this page. The analyst never leaves the\n' +
-      'Meridian-branded portal and never holds an Absorb credential.';
+      '\nRendered into the modal on this page. The analyst never leaves the Meridian-branded portal\n' +
+      'and never signs in to Absorb.\n\n' +
+      'The URL above carries a <span class="m">single-use</span> token, scoped to this lesson and\n' +
+      'short-lived \u2014 it is in the page because the iframe must authenticate\n' +
+      'with it. What stays on the server is the reusable material: the Absorb\n' +
+      'API key and the analyst\u2019s own OAuth token.';
 
     var page = byId('apiDeliver');
     if (page) page.innerHTML = html;
@@ -857,17 +882,31 @@ learner stays inside iQ for the whole thing.</pre>
 
   /* ── Deliverable queue + gate ────────────────────────────── */
 
+  /* A gated row's dot and badge are DERIVED from the live verdict, never
+     stored. They were previously read straight off the JOBS literal, so a
+     cleared gate still showed "Export blocked" in the row above it. */
+  function jobView(j){
+    if (!j.gated) return { state: j.state, badge: j.badge };
+    switch (clearance.verdict) {
+      case 'cleared': return { state: 'good', badge: 'Export cleared' };
+      case 'unknown': return { state: 'warn', badge: 'Hold \u2014 unverified' };
+      case 'pending': return { state: 'warn', badge: 'Checking\u2026' };
+      default:        return { state: 'bad',  badge: 'Export blocked' };
+    }
+  }
+
   function renderQueue(){
     var list = byId('qList');
     list.innerHTML = '';
     JOBS.forEach(function(j){
+      var v = jobView(j);
       var row = document.createElement('div');
       row.className = 'q-row' + (j.id === selectedJob ? ' sel' : '');
       row.innerHTML =
-        '<span class="q-dot ' + j.state + '"></span>' +
+        '<span class="q-dot ' + v.state + '"></span>' +
         '<span><span class="q-t">' + esc(j.title) + '</span>' +
         '<div class="q-s">' + esc(j.id) + ' &middot; ' + esc(j.sub) + '</div></span>' +
-        '<span class="q-badge ' + j.state + '">' + esc(j.badge) + '</span>';
+        '<span class="q-badge ' + v.state + '">' + esc(v.badge) + '</span>';
       row.addEventListener('click', function(){ selectJob(j.id); });
       list.appendChild(row);
     });
@@ -1024,6 +1063,8 @@ learner stays inside iQ for the whole thing.</pre>
       });
     }
     setExport(v === 'cleared');
+
+    renderQueue();   // keep the row badges in step with the verdict
 
     var blocked = JOBS.filter(function(j){ return j.gated && v !== 'cleared'; }).length;
     byId('qSummary').textContent = blocked ? blocked + ' blocked' : 'All clear';
