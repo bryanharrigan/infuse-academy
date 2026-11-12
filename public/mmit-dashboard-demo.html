@@ -637,17 +637,23 @@ device.</pre></div>
   ══════════════════════════════════════════ */
   var DEFAULT_COURSE_NAME = 'Organize Insights for Mobile';
 
+  /* Two kinds sit side by side in this panel, deliberately:
+       'article' - the product's OWN help content, exactly as it ships today
+                   (the two methodology guides in the real iQ widget)
+       'course'  - an Absorb course, launched in place
+     Showing both is the point: Infuse adds training beside the help you
+     already publish rather than replacing it. */
   var MATERIALS = [
-    { title:'MMIT Lives Methodology',
+    { kind:'article', title:'MMIT Lives Methodology',
       blurb:'This guide covers how lives data is sourced, calculated, and represented within MMIT.',
-      meta:'8 min · 4 lessons' },
-    { title:'MMIT Data Methodology',
+      meta:'PDF guide · 14 pages' },
+    { kind:'article', title:'MMIT Data Methodology',
       blurb:'This guide covers the underlying data within MMIT, including how it is calculated and what it means for your market analysis.',
-      meta:'11 min · 5 lessons' },
-    { title:'Reading the iQ Overview',
+      meta:'PDF guide · 22 pages' },
+    { kind:'course', title:'Reading the iQ Overview',
       blurb:'Walk the Overview dashboard filter by filter, from business function down to state.',
       meta:'6 min · 3 lessons' },
-    { title:'Payer Directory Essentials',
+    { kind:'course', title:'Payer Directory Essentials',
       blurb:'Find an organization, trace its plans, and export a contact list.',
       meta:'9 min · 4 lessons' }
   ];
@@ -856,7 +862,8 @@ device.</pre></div>
     }
     var exact = findCourseByName(DEFAULT_COURSE_NAME);
     var titles = [GATE_TITLE, RECORD_TITLE]
-      .concat(MATERIALS.map(function(m){ return m.title; }))
+      .concat(MATERIALS.filter(function(m){ return m.kind === 'course'; })
+                       .map(function(m){ return m.title; }))
       .concat(CTX.map(function(c){ return c.title; }));
     var seen = {}, lines = [];
     titles.forEach(function(t){
@@ -908,19 +915,29 @@ device.</pre></div>
     el.innerHTML = '';
     var note = document.createElement('div');
     note.className = 'lm-note';
-    note.textContent = 'Matched to the Landscape Overview and your current filters.';
+    note.textContent = 'Matched to the Landscape Overview and your current filters. '
+      + 'Guides are this product’s own; training is served live from Absorb.';
     el.appendChild(note);
 
+    var DL_ICON = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="2"><path d="M12 3v12M7 11l5 5 5-5M4 21h16"/></svg>';
+    var PLAY_ICON = '<svg class="ico" viewBox="0 0 24 24" fill="currentColor">' +
+      '<polygon points="5 3 19 12 5 21 5 3"/></svg>';
+
     MATERIALS.forEach(function(m){
+      var isCourse = m.kind === 'course';
       var card = document.createElement('div');
       card.className = 'lm-card';
       card.innerHTML =
         '<h3>' + esc(m.title) + '</h3><p>' + esc(m.blurb) + '</p>' +
         '<div class="lm-foot"><button class="lm-dl">' +
-          '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
-          '<path d="M12 3v12M7 11l5 5 5-5M4 21h16"/></svg>Download</button>' +
+          (isCourse ? PLAY_ICON + 'Review Training' : DL_ICON + 'Download') + '</button>' +
           '<span class="lm-meta">' + esc(m.meta) + '</span></div>';
-      card.querySelector('.lm-dl').addEventListener('click', function(){ launch(m.title); });
+      card.querySelector('.lm-dl').addEventListener('click', function(){
+        if (isCourse) launch(m.title);
+        else showToast('Existing help content',
+          m.title + ' is one of the product’s own guides — unchanged, and not served by Absorb.');
+      });
       el.appendChild(card);
     });
   }
@@ -1115,10 +1132,17 @@ device.</pre></div>
     });
   }
 
+  function firstCourseTitle(){
+    for (var i = 0; i < MATERIALS.length; i++) {
+      if (MATERIALS[i].kind === 'course') return MATERIALS[i].title;
+    }
+    return GATE_TITLE;
+  }
+
   function renderRing(){
     var el = byId('ringList');
     var rows = [[GATE_TITLE, 'Governs export'], [RECORD_TITLE, 'Record-attached'],
-                [MATERIALS[0].title, 'Learning Materials'], [CTX[0].title, 'This view']];
+                [firstCourseTitle(), 'Learning Materials'], [CTX[0].title, 'This view']];
     el.innerHTML = rows.map(function(r){
       return '<div class="ring-row"><span class="rr-t">' + esc(r[0]) +
              '</span><span class="rr-v">' + esc(r[1]) + '</span></div>';
