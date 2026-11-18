@@ -9,16 +9,21 @@
  * POST - sign an LtiDeepLinkingResponse for the chosen course and auto-submit
  *        it back to the platform, which then stores the resource link.
  *
- * WHY THE FORMS USE reloadDocument
- * --------------------------------
- * The deep-linking response has to reach the platform as a real browser form
- * POST to ITS url, carrying whatever session it keeps for the admin. So this
- * action returns an HTML document with a self-submitting form rather than
- * data. Remix's client router intercepts a normal <Form method="post">,
- * fetches the action and expects data or a redirect back - it has nowhere to
- * put an HTML document, so the submit appeared to do nothing at all.
- * `reloadDocument` makes the browser perform a native submit, so the returned
- * document is rendered and its onload submit runs. Do not remove it.
+ * WHY THE FORMS ARE PLAIN <form> POSTING TO A DIFFERENT ROUTE
+ * ------------------------------------------------------------
+ * The deep-linking response must reach the platform as a real browser form
+ * POST to ITS url, carrying the admin's own session. So the submit handler
+ * returns an HTML document that auto-submits, and that CANNOT live in this
+ * route: this file has a default export, which makes it a UI route, and a UI
+ * route's action return value is treated as action data -- Remix then re-runs
+ * the loaders and re-renders this component, discarding the document. The
+ * symptom was a button that appeared to do nothing while the picker quietly
+ * re-rendered with cleared fields.
+ *
+ * The submit handler therefore lives in `lti.deeplink_.submit.ts`, a resource
+ * route, which returns its Response verbatim. These forms are plain <form>
+ * elements rather than Remix's <Form> so the browser performs a native
+ * submission and nothing intercepts it.
  *
  * WHY THERE IS A MANUAL COURSE ID BOX
  * -----------------------------------
@@ -36,20 +41,11 @@
  */
 
 import { useState } from "react";
-import {
-  json,
-  type ActionFunctionArgs,
-  type LoaderFunctionArgs,
-} from "@remix-run/node";
-import { Form, useLoaderData } from "@remix-run/react";
+import { json, type LoaderFunctionArgs } from "@remix-run/node";
+import { useLoaderData } from "@remix-run/react";
 
-import { CLAIM, MESSAGE_TYPE } from "~/.server/lti/claims";
 import { getDeepLink } from "~/.server/lti/deeplink-store";
-import { signToolJwt } from "~/.server/lti/jwt";
-import { ToolBaseUrl } from "~/.server/lti/keys";
-import { allPlatforms } from "~/.server/lti/platforms";
 import { sourceCatalog, sourcePortal } from "~/.server/lti/portal";
-import { randomId } from "~/.server/lti/store";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const dlId = new URL(request.url).searchParams.get("dl");
@@ -74,114 +70,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 };
 
-const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function problem(message: string, status = 400): Response {
-  const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Could not add content</title></head>
-<body style="font-family:system-ui;padding:2rem;max-width:40rem">
-  <h1 style="font-size:1.1rem">Could not add this content</h1>
-  <p style="color:#555">${escapeHtml(message)}</p>
-  <p><button onclick="history.back()">Go back</button></p>
-</body></html>`;
-  return new Response(html, {
-    status,
-    headers: { "Content-Type": "text/html; charset=utf-8" },
-  });
-}
-
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const form = await request.formData();
-  const dlId = String(form.get("dl") ?? "");
-  const courseId = String(form.get("courseId") ?? "").trim();
-  const courseName =
-    String(form.get("courseName") ?? "").trim() || "Absorb course";
-
-  const dl = getDeepLink(dlId);
-  if (!dl) {
-    return problem(
-      "This picker session has expired. Close this window and click Add Content again.",
-      410
-    );
-  }
-  if (!courseId) {
-    return problem("No course was selected and no course id was entered.");
-  }
-  if (!GUID.test(courseId)) {
-    return problem(
-      `"${courseId}" is not an Absorb course id. It should look like ` +
-        `6dcd9527-3d0f-469c-8753-2f28bdbc8de4.`
-    );
-  }
-
-  const platform = allPlatforms().find((p) => p.id === dl.platformId);
-  if (!platform) {
-    return problem("Platform registration not found.", 500);
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-
-  /**
-   * `custom.absorb_course_id` is what comes back to us on every subsequent
-   * learner launch - it is the entire link between the host portal's Learning
-   * Object and the source portal's course, and it OVERRIDES any course id set
-   * in the tool registration's Custom Fields for this link.
-   *
-   * `lineItem` asks the platform to create a grade column so AGS has somewhere
-   * to post. Without it the launch arrives with no `lineitem` claim and
-   * completions have nowhere to go.
-   */
-  const contentItem = {
-    type: "ltiResourceLink",
-    title: courseName,
-    url: `${ToolBaseUrl}/lti/launch`,
-    custom: { absorb_course_id: courseId },
-    lineItem: { scoreMaximum: 100, label: courseName },
-  };
-
-  const payload: Record<string, unknown> = {
-    iss: platform.clientId,
-    aud: platform.issuer,
-    azp: platform.clientId,
-    iat: now,
-    exp: now + 600,
-    nonce: randomId(16),
-    [CLAIM.deploymentId]: dl.deploymentId,
-    [CLAIM.messageType]: MESSAGE_TYPE.deepLinkingResponse,
-    [CLAIM.version]: "1.3.0",
-    [CLAIM.contentItems]: [contentItem],
-  };
-  if (dl.data) payload[CLAIM.deepLinkingData] = dl.data;
-
-  const jwt = signToolJwt(payload);
-
-  console.log(
-    `[lti/deeplink] returning content item course=${courseId} to ${platform.id}`
-  );
-
-  const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Returning your selection...</title></head>
-<body onload="document.forms[0].submit()" style="font-family:system-ui;padding:2rem">
-  <p>Returning your selection to the portal...</p>
-  <form method="POST" action="${escapeHtml(dl.returnUrl)}">
-    <input type="hidden" name="JWT" value="${escapeHtml(jwt)}" />
-    <noscript><button type="submit">Continue</button></noscript>
-  </form>
-</body></html>`;
-
-  return new Response(html, {
-    status: 200,
-    headers: { "Content-Type": "text/html; charset=utf-8" },
-  });
-};
+/** Resource route: a UI route's action cannot return a raw HTML document. */
+const SUBMIT_URL = "/lti/deeplink/submit";
 
 const card: React.CSSProperties = {
   border: "1px solid #e3e3e3",
@@ -243,9 +133,9 @@ export default function DeepLinkPicker() {
       {/* Paste-an-id escape hatch. The catalog is read with the API key alone,
           which some tenants scope to a subset, so the list can be short or
           missing the course you want. */}
-      <Form
+      <form
         method="post"
-        reloadDocument
+        action={SUBMIT_URL}
         style={{
           border: "1px solid #d9d9d9",
           background: "#fafafa",
@@ -267,7 +157,7 @@ export default function DeepLinkPicker() {
             name="courseId"
             value={manualId}
             onChange={(e) => setManualId(e.target.value)}
-            placeholder="6dcd9527-3d0f-469c-8753-2f28bdbc8de4"
+            placeholder="paste course id, e.g. 6dcd9527-3d0f-..."
             style={{
               flex: "2 1 22rem",
               padding: ".55rem .7rem",
@@ -280,7 +170,7 @@ export default function DeepLinkPicker() {
             name="courseName"
             value={manualName}
             onChange={(e) => setManualName(e.target.value)}
-            placeholder="Title to show in this portal"
+            placeholder="title to show in this portal"
             style={{
               flex: "1 1 14rem",
               padding: ".55rem .7rem",
@@ -292,7 +182,7 @@ export default function DeepLinkPicker() {
             Use this id
           </button>
         </div>
-      </Form>
+      </form>
 
       <input
         type="search"
@@ -333,14 +223,14 @@ export default function DeepLinkPicker() {
                 {course.id}
               </div>
             </div>
-            <Form method="post" reloadDocument>
+            <form method="post" action={SUBMIT_URL}>
               <input type="hidden" name="dl" value={dlId} />
               <input type="hidden" name="courseId" value={course.id} />
               <input type="hidden" name="courseName" value={course.name} />
               <button type="submit" style={button}>
                 Select
               </button>
-            </Form>
+            </form>
           </li>
         ))}
       </ul>
