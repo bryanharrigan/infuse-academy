@@ -85,8 +85,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // render this app's full login page inside someone else's iframe.
   const isEmbedPath = path === "/embed" || path.startsWith("/embed/");
 
+  // The LTI routes are public for the same reason as the embed, and a stronger
+  // one: they are entered from another Absorb portal's iframe by a
+  // signature-verified LTI launch and carry their own identity. /lti/play
+  // provisions and signs in its learner against the SOURCE portal using the
+  // launch's id_token, so it must never depend on this app's own infuse_jwt.
+  // Bouncing them to /signin starts an OAuth flow that renders as a blank
+  // frame inside the host portal's content picker, which is exactly how this
+  // presented on 18 Nov: a correct, verified launch and an empty modal.
+  const isLtiPath = path === "/lti" || path.startsWith("/lti/");
+
   const isPublicPath =
-    path === "/signin" || path === "/auth/callback" || isEmbedPath;
+    path === "/signin" ||
+    path === "/auth/callback" ||
+    isEmbedPath ||
+    isLtiPath;
 
   if (!token && !isPublicPath) return redirect("/signin");
   if (token && path === "/signin") return redirect("/");
@@ -117,6 +130,11 @@ export default function App() {
   const path = location.pathname;
   const isEmbed = path === "/embed" || path.startsWith("/embed/");
 
+  // LTI pages either sit inside the host portal's modal (the deep-link picker)
+  // or frame the source portal's player full-bleed. This app's header and
+  // theme shell are noise in both cases, and a layout fight in the first.
+  const isLti = path === "/lti" || path.startsWith("/lti/");
+
   // /holographic is a full-bleed WebGL canvas pinned to the viewport. The app
   // header would float on top of the 3D scene, and the MUI theme shell has
   // nothing to contribute to a page that ships its own stylesheet. Render it
@@ -127,7 +145,7 @@ export default function App() {
   // The embed is framed inside someone else's page, where our header, theme
   // shell and global chrome are noise at best and a layout fight at worst.
   // Render it bare — it brings its own self-contained styling.
-  if (isEmbed || isHolographic) {
+  if (isEmbed || isHolographic || isLti) {
     return (
       <Document>
         <Outlet />
