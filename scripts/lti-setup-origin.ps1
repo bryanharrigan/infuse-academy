@@ -1,4 +1,4 @@
-﻿﻿<#
+﻿<#
 .SYNOPSIS
     Adds the LTI environment variables to the Infuse service and restarts it.
 
