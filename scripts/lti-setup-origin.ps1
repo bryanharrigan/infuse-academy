@@ -1,55 +1,58 @@
-﻿<#
+﻿﻿<#
 .SYNOPSIS
     Adds the LTI environment variables to the Infuse service and restarts it.
 
 .DESCRIPTION
     Runs on the ORIGIN machine (DESKTOP-HGPP7U3), ELEVATED.
 
-    The Infuse service's environment lives in NSSM's AppEnvironmentExtra, in
-    the registry under the service. remix-serve does not read .env files and
-    C:\Infuse\.env.production is dormant, so this is the only place runtime
-    config actually comes from.
+    The Infuse service's environment lives in NSSM's AppEnvironmentExtra.
+    remix-serve does not read .env files and C:\Infuse\.env.production is
+    dormant, so this is the only source of runtime config. Setting it wrong
+    drops COOKIE_SECRET and the whole OAuth config, and every sign-in on the
+    site breaks.
 
-    That makes this script destructive if it goes wrong: AppEnvironmentExtra
-    is set as a whole, so a careless write drops COOKIE_SECRET and the entire
-    OAuth config and every sign-in on the site breaks. So it:
+    THIS VERSION READS AND WRITES THE REGISTRY DIRECTLY rather than going
+    through nssm.exe. The CLI route was replaced after it returned an empty
+    environment on this machine on 18 Nov 2026 -- nssm emits UTF-16 and the
+    decode is fragile, the nssm in PATH here is a WinGet shim rather than the
+    System32 build the project notes describe, and several of our values
+    contain spaces and double quotes which do not survive native argument
+    passing reliably. AppEnvironmentExtra is a plain REG_MULTI_SZ, so the
+    registry avoids every one of those problems.
 
-      - reads the current value first and writes it to a timestamped backup
-        OUTSIDE the repo, before changing anything
-      - MERGES rather than replaces, keeping every variable it did not set
-      - shows you a masked before/after and does nothing without -Apply
-      - restarts with sc.exe stop/start, because nssm restart fails on this
-        machine (nssm 2.24-101)
-      - health-checks the result and tells you how to roll back
+      HKLM:\SYSTEM\CurrentControlSet\Services\Infuse\Parameters
+        AppEnvironmentExtra   REG_MULTI_SZ   one KEY=VALUE per entry
 
-    It never deletes or re-registers the service.
+    Safety: it refuses to write over an environment it could not read, backs
+    up to a timestamped file outside the repo first, MERGES rather than
+    replaces, does nothing without -Apply, reads back what it wrote to confirm
+    it landed, and never deletes or re-registers the service.
 
 .PARAMETER EnvFile
-    A plain text file of KEY=VALUE lines holding the secrets -- the output of
-    `node scripts/lti-keygen.mjs`. Keep it outside the repo and delete it
-    afterwards (-RemoveEnvFile does that for you).
+    Plain text KEY=VALUE lines holding the secrets -- the output of
+    `node scripts/lti-keygen.mjs`. Keep it outside the repo.
 
 .PARAMETER Apply
-    Actually write. Without it the script is a dry run.
+    Actually write. Without it this is a dry run.
 
 .PARAMETER RemoveEnvFile
     Delete the EnvFile after a successful apply.
 
 .PARAMETER Restore
-    Path to a backup file written by an earlier run. Restores that exact
-    environment and restarts. Use if something has gone wrong.
+    Path to a backup written by an earlier run. Restores it verbatim.
+
+.PARAMETER ShowCurrent
+    Print the current environment (secrets masked) and exit. Use this to
+    diagnose a read problem without touching anything.
 
 .EXAMPLE
-    # 1. See what would change
-    .\scripts\lti-setup-origin.ps1 -EnvFile C:\Users\Bryan\lti-secrets.txt
+    .\scripts\lti-setup-origin.ps1 -ShowCurrent
 
 .EXAMPLE
-    # 2. Do it
-    .\scripts\lti-setup-origin.ps1 -EnvFile C:\Users\Bryan\lti-secrets.txt -Apply -RemoveEnvFile
+    .\scripts\lti-setup-origin.ps1 -EnvFile "$env:USERPROFILE\lti-secrets.txt"
 
 .EXAMPLE
-    # Roll back
-    .\scripts\lti-setup-origin.ps1 -Restore C:\ProgramData\Infuse\env-backups\Infuse-env-20261118-143012.txt
+    .\scripts\lti-setup-origin.ps1 -EnvFile "$env:USERPROFILE\lti-secrets.txt" -Apply -RemoveEnvFile
 #>
 
 [CmdletBinding()]
@@ -57,13 +60,15 @@ param(
     [string]$EnvFile,
     [switch]$Apply,
     [switch]$RemoveEnvFile,
-    [string]$Restore
+    [string]$Restore,
+    [switch]$ShowCurrent
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $ServiceName = 'Infuse'
+$ParamsKey   = "HKLM:\SYSTEM\CurrentControlSet\Services\$ServiceName\Parameters"
 $BackupDir   = Join-Path $env:ProgramData 'Infuse\env-backups'
 $HealthUrl   = 'http://127.0.0.1:3000/lti/jwks'
 
@@ -72,7 +77,7 @@ function Write-Ok    ([string]$m) { Write-Host "    $m" -ForegroundColor Green }
 function Write-Warn2 ([string]$m) { Write-Host "    $m" -ForegroundColor Yellow }
 function Write-Err2  ([string]$m) { Write-Host "    $m" -ForegroundColor Red }
 
-# Non-secret values. Visible on purpose: you should be able to read this file
+# Non-secret values, visible on purpose: you should be able to read this file
 # and know exactly what will be set. Secrets come from -EnvFile only.
 $Defaults = [ordered]@{
     'PUBLIC_URL'          = 'https://infuse.bryanharrigan.dev'
@@ -81,7 +86,17 @@ $Defaults = [ordered]@{
     'LTI_PLATFORMS'       = '[{"id":"bharrigan","issuer":"https://bharrigan.myabsorb.ca","clientId":"c52d9197-dfa2-42f3-8280-3d0cf007d94a","deploymentIds":["infuse-bharrigan-1"],"authUrl":"https://bharrigan.myabsorb.ca/lti-tool/authenticate","tokenUrl":"https://bharrigan.myabsorb.ca/lti-tool/token","jwksUrl":"https://bharrigan.myabsorb.ca/lti-tool/jwks"}]'
 }
 
-# Masked in all output. Everything else is printed in full so the diff is real.
+# Only these variables may be introduced by this script. Anything else in the
+# EnvFile is ignored -- the keygen script prints explanatory prose alongside
+# its output, and a stray line should never become an environment variable.
+$AllowedNewKeys = @(
+    'LTI_TOOL_PRIVATE_KEY'
+    'LTI_PROVISION_SECRET'
+    'LTI_WEBHOOK_SECRET'
+    'LTI_SOURCE_API_KEY'
+    'LTI_SOURCE_DEPARTMENT_ID'
+) + @($Defaults.Keys)
+
 $SecretKeys = @(
     'LTI_TOOL_PRIVATE_KEY'
     'LTI_PROVISION_SECRET'
@@ -99,7 +114,7 @@ function Format-Value ([string]$key, [string]$value) {
         if ([string]::IsNullOrEmpty($value)) { return '<empty>' }
         return ('<{0} chars>' -f $value.Length)
     }
-    if ($value.Length -gt 90) { return $value.Substring(0, 87) + '...' }
+    if ($value.Length -gt 80) { return $value.Substring(0, 77) + '...' }
     return $value
 }
 
@@ -107,48 +122,42 @@ function Assert-Elevated {
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($id)
     if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-        Write-Err2 "This needs an ELEVATED PowerShell."
-        Write-Err2 "sc.exe stop will say access denied otherwise."
-        Write-Err2 "Right-click PowerShell -> Run as administrator, then rerun."
+        Write-Err2 "This needs an ELEVATED PowerShell (it writes HKLM and restarts a service)."
         exit 1
     }
 }
 
-function Find-Nssm {
-    $candidates = @(
-        'C:\Windows\System32\NSSM\nssm.exe'
-        'C:\Windows\System32\nssm.exe'
-        'C:\nssm\nssm.exe'
-    )
-    foreach ($c in $candidates) { if (Test-Path $c) { return $c } }
-    $onPath = Get-Command nssm.exe -ErrorAction SilentlyContinue
-    if ($onPath) { return $onPath.Source }
-    Write-Err2 "Could not find nssm.exe. Looked in:"
-    $candidates | ForEach-Object { Write-Err2 "      $_" }
-    exit 1
-}
-
-# NSSM writes UTF-16. Without this the value comes back with NUL bytes between
-# every character and the parse silently produces nonsense.
-function Get-ServiceEnvironment ([string]$nssm) {
-    $prev = [Console]::OutputEncoding
-    try {
-        [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
-        $raw = & $nssm get $ServiceName AppEnvironmentExtra 2>&1
-    } finally {
-        [Console]::OutputEncoding = $prev
-    }
-
+function ConvertTo-EnvMap ([string[]]$lines) {
     $vars = [ordered]@{}
-    foreach ($line in @($raw)) {
+    foreach ($line in @($lines)) {
+        if ($null -eq $line) { continue }
         $s = ([string]$line).Trim([char]0, ' ', "`t", "`r", "`n")
         if ([string]::IsNullOrWhiteSpace($s)) { continue }
+        # First '=' only: base64 and JSON values are full of them.
         $i = $s.IndexOf('=')
-        # Split on the FIRST '=' only: base64 values are full of them.
         if ($i -lt 1) { continue }
         $vars[$s.Substring(0, $i)] = $s.Substring($i + 1)
     }
     return $vars
+}
+
+function Get-RegistryEnvironment ([string]$valueName) {
+    if (-not (Test-Path $ParamsKey)) {
+        Write-Err2 "Registry key not found: $ParamsKey"
+        Write-Err2 "Is the service really called '$ServiceName'?"
+        exit 1
+    }
+    $props = Get-ItemProperty -Path $ParamsKey -ErrorAction SilentlyContinue
+    if ($null -eq $props -or -not ($props.PSObject.Properties.Name -contains $valueName)) {
+        return [ordered]@{}
+    }
+    return (ConvertTo-EnvMap ([string[]]$props.$valueName))
+}
+
+function Set-RegistryEnvironment ([System.Collections.Specialized.OrderedDictionary]$vars) {
+    $multi = [string[]](@(foreach ($k in $vars.Keys) { "$k=$($vars[$k])" }))
+    # REG_MULTI_SZ: no quoting, no encoding negotiation, no argument parsing.
+    Set-ItemProperty -Path $ParamsKey -Name 'AppEnvironmentExtra' -Value $multi -Type MultiString
 }
 
 function Read-EnvFile ([string]$path, [switch]$Lenient) {
@@ -168,16 +177,15 @@ function Read-EnvFile ([string]$path, [switch]$Lenient) {
         $s = $line.Trim()
         if ([string]::IsNullOrWhiteSpace($s)) { continue }
         if ($s.StartsWith('#')) { continue }
-        # Ignore the keygen script's explanatory prose and rule lines.
         if ($s.StartsWith('-----')) { continue }
         $i = $s.IndexOf('=')
         if ($i -lt 1) { continue }
         $k = $s.Substring(0, $i).Trim()
-        # Strict by default so the keygen script's prose (e.g. "kty=RSA  e=AQAB")
-        # is ignored. Lenient for restores, where dropping a variable because of
-        # its casing would quietly lose part of the environment.
+        # -cnotmatch, NOT -notmatch: PowerShell's -match is case-INSENSITIVE,
+        # so the case-insensitive version let the keygen script's self-check
+        # line ("kty=RSA  e=AQAB ...") through as a variable named 'kty'.
         $pattern = if ($Lenient) { '^[A-Za-z_][A-Za-z0-9_]*$' } else { '^[A-Z][A-Z0-9_]*$' }
-        if ($k -notmatch $pattern) { continue }
+        if ($k -cnotmatch $pattern) { continue }
         $vars[$k] = $s.Substring($i + 1)
     }
     if ($vars.Count -eq 0) {
@@ -194,38 +202,26 @@ function Backup-Environment ([System.Collections.Specialized.OrderedDictionary]$
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
     $path = Join-Path $BackupDir "$ServiceName-env-$stamp.txt"
     $lines = foreach ($k in $vars.Keys) { "$k=$($vars[$k])" }
-    # ASCII: the values are all ASCII, and a BOM here would corrupt a restore.
     Set-Content -LiteralPath $path -Value $lines -Encoding ASCII
     return $path
-}
-
-function Set-ServiceEnvironment ([string]$nssm, [System.Collections.Specialized.OrderedDictionary]$vars) {
-    # Not $args -- that is an automatic variable and assigning to it is asking
-    # for trouble under StrictMode.
-    $pairs = foreach ($k in $vars.Keys) { "$k=$($vars[$k])" }
-    & $nssm set $ServiceName AppEnvironmentExtra @pairs
-    if ($LASTEXITCODE -ne 0) { throw "nssm set failed with exit code $LASTEXITCODE" }
 }
 
 function Restart-InfuseService {
     # nssm restart fails on this machine (nssm 2.24-101). sc.exe works.
     Write-Host "    sc.exe stop $ServiceName"
     & sc.exe stop $ServiceName | Out-Null
-    $svc = Get-Service -Name $ServiceName
-    try { $svc.WaitForStatus('Stopped', (New-TimeSpan -Seconds 30)) }
+    try { (Get-Service -Name $ServiceName).WaitForStatus('Stopped', (New-TimeSpan -Seconds 30)) }
     catch { Write-Warn2 "Did not reach Stopped within 30s; continuing." }
 
     Start-Sleep -Seconds 2
 
     Write-Host "    sc.exe start $ServiceName"
     & sc.exe start $ServiceName | Out-Null
-    $svc = Get-Service -Name $ServiceName
-    try { $svc.WaitForStatus('Running', (New-TimeSpan -Seconds 45)) }
+    try { (Get-Service -Name $ServiceName).WaitForStatus('Running', (New-TimeSpan -Seconds 45)) }
     catch { throw "Service did not reach Running within 45s." }
 }
 
 function Test-Health {
-    # Give remix-serve a moment to bind before asking it anything.
     for ($i = 1; $i -le 10; $i++) {
         Start-Sleep -Seconds 3
         try {
@@ -233,10 +229,9 @@ function Test-Health {
             if ($r.StatusCode -eq 200 -and $r.Content -match '"kid"') {
                 return @{ ok = $true; detail = $r.Content.Substring(0, [Math]::Min(160, $r.Content.Length)) }
             }
-            return @{ ok = $false; detail = "HTTP $($r.StatusCode) but no kid in the body: $($r.Content.Substring(0, [Math]::Min(200, $r.Content.Length)))" }
+            return @{ ok = $false; detail = "HTTP $($r.StatusCode), no kid in body" }
         } catch {
-            $msg = $_.Exception.Message
-            if ($i -eq 10) { return @{ ok = $false; detail = $msg } }
+            if ($i -eq 10) { return @{ ok = $false; detail = $_.Exception.Message } }
         }
     }
     return @{ ok = $false; detail = 'timed out' }
@@ -245,62 +240,83 @@ function Test-Health {
 # ------------------------------- main -------------------------------
 
 Assert-Elevated
-$nssm = Find-Nssm
-Write-Step "Service"
-Write-Ok "nssm:    $nssm"
-Write-Ok "service: $ServiceName"
 
-Write-Step "Reading current environment"
-$current = Get-ServiceEnvironment $nssm
-Write-Ok "$($current.Count) variable(s) currently set"
-if ($current.Count -eq 0) {
-    Write-Warn2 "That is unexpected -- this service should already have COOKIE_SECRET,"
-    Write-Warn2 "INFUSE_API_KEY and more. If nssm returned nothing, STOP and check"
-    Write-Warn2 "'$nssm get $ServiceName AppEnvironmentExtra' by hand before continuing."
-    if (-not $Apply) { Write-Warn2 "(dry run, so nothing is at risk yet)" }
-    else {
-        Write-Err2 "Refusing to write over an environment I could not read."
-        exit 1
+Write-Step "Service"
+Write-Ok "registry: $ParamsKey"
+
+Write-Step "Reading current environment (registry)"
+$current = Get-RegistryEnvironment 'AppEnvironmentExtra'
+$alsoAppEnv = Get-RegistryEnvironment 'AppEnvironment'
+Write-Ok "AppEnvironmentExtra: $($current.Count) variable(s)"
+Write-Ok "AppEnvironment:      $($alsoAppEnv.Count) variable(s)"
+
+if ($ShowCurrent) {
+    Write-Step "AppEnvironmentExtra"
+    foreach ($k in $current.Keys) { Write-Host ("    {0,-30} {1}" -f $k, (Format-Value $k $current[$k])) }
+    if ($alsoAppEnv.Count -gt 0) {
+        Write-Step "AppEnvironment"
+        foreach ($k in $alsoAppEnv.Keys) { Write-Host ("    {0,-30} {1}" -f $k, (Format-Value $k $alsoAppEnv[$k])) }
     }
+    exit 0
+}
+
+if ($current.Count -eq 0 -and -not $Restore) {
+    Write-Err2 "AppEnvironmentExtra is empty."
+    Write-Err2 ""
+    Write-Err2 "This service should already hold COOKIE_SECRET, INFUSE_API_KEY and more."
+    Write-Err2 "Writing now would REPLACE the environment with only the LTI variables"
+    Write-Err2 "and break every sign-in on the site, so this script stops here."
+    Write-Err2 ""
+    Write-Err2 "Check by hand before doing anything else:"
+    Write-Err2 "    Get-ItemProperty -Path '$ParamsKey' | Format-List"
+    if ($alsoAppEnv.Count -gt 0) {
+        Write-Err2 ""
+        Write-Err2 "NOTE: AppEnvironment holds $($alsoAppEnv.Count) variable(s). If the service's"
+        Write-Err2 "config lives there rather than in AppEnvironmentExtra, say so and the"
+        Write-Err2 "script can target that value instead."
+    }
+    exit 1
 }
 
 $backupPath = Backup-Environment $current
 Write-Ok "backup: $backupPath"
 
-# -- Restore mode ----------------------------------------------------
+# -- Restore mode --
 if ($Restore) {
     Write-Step "Restoring from $Restore"
     $restored = Read-EnvFile $Restore -Lenient
     Write-Ok "$($restored.Count) variable(s) to restore"
-    if (-not $Apply) {
-        Write-Warn2 "Dry run. Rerun with -Apply to actually restore."
-        exit 0
-    }
-    Set-ServiceEnvironment $nssm $restored
+    if (-not $Apply) { Write-Warn2 "Dry run. Rerun with -Apply to actually restore."; exit 0 }
+    Set-RegistryEnvironment $restored
     Restart-InfuseService
     $h = Test-Health
     if ($h.ok) { Write-Ok "Restored and healthy." } else { Write-Err2 "Restored but health check failed: $($h.detail)" }
     exit 0
 }
 
-# -- Build the desired environment -----------------------------------
+# -- Build desired environment --
 if (-not $EnvFile) {
     Write-Err2 "-EnvFile is required. Generate it first:"
-    Write-Err2 "    node scripts\lti-keygen.mjs > `$env:USERPROFILE\lti-secrets.txt"
-    Write-Err2 "then trim it to just the KEY=VALUE lines, or pass the whole file --"
-    Write-Err2 "the prose lines are ignored."
+    Write-Err2 "    node scripts\lti-keygen.mjs | Out-File `"`$env:USERPROFILE\lti-secrets.txt`" -Encoding ascii"
     exit 1
 }
 
 Write-Step "Reading secrets"
-$secrets = Read-EnvFile $EnvFile
-Write-Ok "$($secrets.Count) variable(s) from $EnvFile"
+$fromFile = Read-EnvFile $EnvFile
+$secrets = [ordered]@{}
+$ignored = @()
+foreach ($k in $fromFile.Keys) {
+    if ($AllowedNewKeys -contains $k) { $secrets[$k] = $fromFile[$k] } else { $ignored += $k }
+}
+Write-Ok "$($secrets.Count) usable variable(s) from $EnvFile"
+if ($ignored.Count -gt 0) {
+    Write-Warn2 "ignored (not an LTI variable): $($ignored -join ', ')"
+}
 
 $required = @('LTI_TOOL_PRIVATE_KEY', 'LTI_PROVISION_SECRET')
-$absent = $required | Where-Object { -not $secrets.Contains($_) }
-if ($absent) {
+$absent = @($required | Where-Object { -not $secrets.Contains($_) })
+if ($absent.Count -gt 0) {
     Write-Err2 "EnvFile is missing: $($absent -join ', ')"
-    Write-Err2 "Run 'node scripts\lti-keygen.mjs' and use its output."
     exit 1
 }
 
@@ -308,18 +324,6 @@ $desired = [ordered]@{}
 foreach ($k in $current.Keys)  { $desired[$k] = $current[$k] }
 foreach ($k in $Defaults.Keys) { $desired[$k] = $Defaults[$k] }
 foreach ($k in $secrets.Keys)  { $desired[$k] = $secrets[$k] }
-
-# A value containing a space or a double quote does not survive native
-# argument passing reliably on Windows PowerShell. None of ours should.
-$awkward = @()
-foreach ($k in $desired.Keys) {
-    if ($desired[$k] -match '[\s"]') { $awkward += $k }
-}
-if ($awkward.Count -gt 0) {
-    Write-Warn2 "These values contain spaces or quotes and may not survive nssm set:"
-    $awkward | ForEach-Object { Write-Warn2 "      $_" }
-    Write-Warn2 "If one of them breaks, set it by hand with 'nssm edit $ServiceName'."
-}
 
 Write-Step "Changes"
 $added = 0; $changed = 0; $kept = 0
@@ -331,12 +335,15 @@ foreach ($k in $desired.Keys) {
         Write-Host ("    ~ {0,-24} {1}" -f $k, (Format-Value $k $current[$k])) -ForegroundColor DarkYellow
         Write-Host ("      {0,-24} {1}" -f '->', (Format-Value $k $desired[$k])) -ForegroundColor Yellow
         $changed++
-    } else {
-        $kept++
-    }
+    } else { $kept++ }
 }
 Write-Host ""
 Write-Ok "$added added, $changed changed, $kept unchanged (total $($desired.Count))"
+
+if ($kept -eq 0) {
+    Write-Warn2 "Nothing was carried over from the existing environment. That is only"
+    Write-Warn2 "correct if the service genuinely had no variables before."
+}
 
 if (-not $Apply) {
     Write-Host ""
@@ -347,14 +354,26 @@ if (-not $Apply) {
 
 Write-Step "Writing environment"
 try {
-    Set-ServiceEnvironment $nssm $desired
-    Write-Ok "written"
+    Set-RegistryEnvironment $desired
 } catch {
-    Write-Err2 "nssm set failed: $($_.Exception.Message)"
-    Write-Err2 "Restore with:"
-    Write-Err2 "    .\scripts\lti-setup-origin.ps1 -Restore `"$backupPath`" -Apply"
+    Write-Err2 "Write failed: $($_.Exception.Message)"
+    Write-Err2 "Restore: .\scripts\lti-setup-origin.ps1 -Restore `"$backupPath`" -Apply"
     exit 1
 }
+
+# Read back before restarting: a value that did not land is far cheaper to
+# find now than after the service is down.
+$verify = Get-RegistryEnvironment 'AppEnvironmentExtra'
+$mismatch = @()
+foreach ($k in $desired.Keys) {
+    if (-not $verify.Contains($k) -or $verify[$k] -ne $desired[$k]) { $mismatch += $k }
+}
+if ($mismatch.Count -gt 0) {
+    Write-Err2 "These did not land correctly: $($mismatch -join ', ')"
+    Write-Err2 "Restore: .\scripts\lti-setup-origin.ps1 -Restore `"$backupPath`" -Apply"
+    exit 1
+}
+Write-Ok "written and verified ($($verify.Count) variables)"
 
 Write-Step "Restarting $ServiceName"
 try {
@@ -362,8 +381,7 @@ try {
     Write-Ok "running"
 } catch {
     Write-Err2 $_.Exception.Message
-    Write-Err2 "Restore with:"
-    Write-Err2 "    .\scripts\lti-setup-origin.ps1 -Restore `"$backupPath`" -Apply"
+    Write-Err2 "Restore: .\scripts\lti-setup-origin.ps1 -Restore `"$backupPath`" -Apply"
     exit 1
 }
 
@@ -373,18 +391,16 @@ if ($health.ok) {
     Write-Ok "GET /lti/jwks returned a keyset:"
     Write-Host "      $($health.detail)" -ForegroundColor DarkGray
     Write-Host ""
-    Write-Ok "Confirm the kid reads infuse-lti-1 -- that is the value the host portal will look for."
+    Write-Ok "Confirm the kid reads infuse-lti-1 -- that is what the host portal looks for."
 } else {
     Write-Err2 "Health check failed: $($health.detail)"
     Write-Err2 ""
-    Write-Err2 "Most likely causes, in order:"
+    Write-Err2 "Likely causes, in order:"
     Write-Err2 "  1. LTI_TOOL_PRIVATE_KEY lost its \n escapes -> /lti/jwks 500s"
-    Write-Err2 "  2. The new code is not deployed yet -> /lti/jwks 404s."
-    Write-Err2 "     Check: sc.exe query infuse-deploy, and git log in C:\Infuse"
-    Write-Err2 "  3. The service did not come back cleanly"
+    Write-Err2 "  2. The new code is not deployed -> /lti/jwks 404s"
+    Write-Err2 "  3. The service did not come back cleanly -> check sc.exe query $ServiceName"
     Write-Err2 ""
-    Write-Err2 "Roll back if needed:"
-    Write-Err2 "    .\scripts\lti-setup-origin.ps1 -Restore `"$backupPath`" -Apply"
+    Write-Err2 "Roll back: .\scripts\lti-setup-origin.ps1 -Restore `"$backupPath`" -Apply"
     exit 1
 }
 
