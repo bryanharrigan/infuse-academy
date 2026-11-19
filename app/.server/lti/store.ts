@@ -152,7 +152,32 @@ export function findLaunchForCompletion(
   sourceUserId: string,
   sourceCourseId: string
 ): LaunchRecord | null {
-  return launches.get(launchKey(sourceUserId, sourceCourseId)) ?? null;
+  const exact = launches.get(launchKey(sourceUserId, sourceCourseId));
+  if (exact) return exact;
+
+  /**
+   * No exact match. Fall back to the most recent launch of this course.
+   *
+   * This covers the cases where we never learned the learner's source-portal
+   * id (the profile lookup failed), and shared-learner mode, where every
+   * launch resolves to the same account anyway. It is a GUESS: with more than
+   * one learner in flight it can attribute a completion to the wrong person,
+   * which is precisely the ambiguity shared-learner mode carries. Logged
+   * loudly so a wrong score is traceable rather than mysterious.
+   */
+  let best: LaunchRecord | null = null;
+  for (const record of launches.values()) {
+    if (record.sourceCourseId !== sourceCourseId) continue;
+    if (!best || record.createdAt > best.createdAt) best = record;
+  }
+  if (best) {
+    console.warn(
+      `[lti/store] no launch for user=${sourceUserId} course=${sourceCourseId}; ` +
+        `falling back to the most recent launch of that course ` +
+        `(sub=${best.ltiSub}). Correct for one learner at a time, a guess otherwise.`
+    );
+  }
+  return best;
 }
 
 /** Fill in the source-portal user id once provisioning has resolved it. */

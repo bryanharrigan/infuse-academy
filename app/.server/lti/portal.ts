@@ -474,6 +474,51 @@ async function authenticate(
 }
 
 /**
+ * Ask the source portal for the signed-in learner's own user id.
+ *
+ * Needed because the completion webhook identifies a learner by their
+ * source-portal userId, and `store.ts` keys launches on that. Without it a
+ * completion can never be matched back to the launch that caused it, and the
+ * AGS score has nowhere to go.
+ *
+ * `POST /users` returns an id on create, but not on every tenant and never in
+ * shared-learner mode (where no user is created at all). This covers both.
+ * Best effort: a failure here costs AGS passback, not playback, so it warns
+ * rather than throwing.
+ */
+async function resolveLearnerUserId(
+  cfg: SourcePortalConfig,
+  token: string
+): Promise<string | null> {
+  try {
+    const r = await fetch(`${cfg.baseUrl}/my-profile`, {
+      headers: {
+        "X-Absorb-API-Key": cfg.apiKey,
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+    });
+    if (!r.ok) {
+      console.warn(`[lti/portal] /my-profile → ${r.status}; no user id for AGS`);
+      return null;
+    }
+    const data = (await r.json()) as Record<string, unknown>;
+    const id = data?.id ?? data?.userId ?? data?.userID;
+    if (typeof id === "string" && id) return id;
+    console.warn(
+      `[lti/portal] /my-profile had no id field (keys: ${Object.keys(data ?? {}).join(", ")})`
+    );
+    return null;
+  } catch (err) {
+    console.warn(
+      "[lti/portal] /my-profile lookup failed:",
+      err instanceof Error ? err.message : err
+    );
+    return null;
+  }
+}
+
+/**
  * Create-or-reuse the learner, enrol them, and sign in as them.
  *
  * ORDER MATTERS. Enrolment happens before the player mint, because Absorb
@@ -529,13 +574,14 @@ async function provisionOwnLearner(
   cfg: SourcePortalConfig,
   input: UpsertInput & { courseId: string }
 ): Promise<ProvisionedLearner> {
-  const { username, password, userId } = await upsertLearner(cfg, input);
+  const { username, password, userId: upsertedId } = await upsertLearner(cfg, input);
   const token = await authenticate(
     cfg,
     username,
     password,
     "the newly provisioned learner"
   );
+  const userId = upsertedId ?? (await resolveLearnerUserId(cfg, token));
 
   if (userId) {
     await adminEnrol(cfg, userId, input.courseId);
@@ -611,9 +657,11 @@ async function provisionSharedLearner(
     );
   }
 
+  const userId = await resolveLearnerUserId(cfg, token);
+
   return {
     username: cfg.sharedUsername,
-    userId: null,
+    userId,
     token,
     mode: "shared",
   };
