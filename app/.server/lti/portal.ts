@@ -856,3 +856,57 @@ export async function sourceCatalog(
   catalogCache = { courses: out, fetchedAt: Date.now() };
   return out;
 }
+
+/* ──────────────────────────── progress polling ─────────────────────────── */
+
+export type CourseProgress = {
+  complete: boolean;
+  progress: number | null;
+  status: string | null;
+  completionDate: string | null;
+};
+
+/**
+ * Ask the source portal whether this learner has finished the course.
+ *
+ * `GET {base}/my-course-enrollments/{courseId}` returns the learner's own
+ * enrolment record: progress, enrollmentStatus, completionDate.
+ *
+ * Completion is read from three signals rather than one. Absorb's wording for
+ * enrollmentStatus is not guaranteed across versions, and a course can report
+ * 100% progress slightly before a completionDate lands, so any of them is
+ * taken as done. Being early by a second is harmless here; missing the
+ * completion entirely is not.
+ */
+export async function getCourseProgress(
+  cfg: SourcePortalConfig,
+  token: string,
+  courseId: string
+): Promise<CourseProgress> {
+  const r = await fetch(`${cfg.baseUrl}/my-course-enrollments/${courseId}`, {
+    headers: {
+      "X-Absorb-API-Key": cfg.apiKey,
+      Authorization: "Bearer " + token,
+      "Content-Type": "application/json",
+    },
+  });
+  if (!r.ok) {
+    throw new Error(`Enrollment check failed: ${r.status}`);
+  }
+  const d = (await r.json()) as Record<string, unknown>;
+
+  const progress =
+    typeof d.progress === "number" ? d.progress : null;
+  const status = typeof d.enrollmentStatus === "string" ? d.enrollmentStatus : null;
+  const completionDate =
+    typeof d.completionDate === "string" && d.completionDate
+      ? d.completionDate
+      : null;
+
+  const complete =
+    Boolean(completionDate) ||
+    (status !== null && /complete|passed/i.test(status)) ||
+    (progress !== null && progress >= 100);
+
+  return { complete, progress, status, completionDate };
+}

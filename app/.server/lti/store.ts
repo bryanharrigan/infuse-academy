@@ -75,6 +75,14 @@ export type LaunchRecord = {
   sourceCourseId: string;
   /** For logs and the player page heading. */
   courseTitle: string | null;
+  /**
+   * The learner's source-portal token, kept so the progress poll can ask
+   * "are they finished yet?" without signing in again on every tick.
+   * In-memory only, and it dies with the process like the rest of this store.
+   */
+  learnerToken: string | null;
+  /** Set once a score has been accepted, so polling cannot post twice. */
+  scorePosted: boolean;
   createdAt: number;
 };
 
@@ -186,6 +194,26 @@ export function attachSourceUser(launchId: string, sourceUserId: string): void {
   if (!record) return;
   record.sourceUserId = sourceUserId;
   launches.set(launchKey(sourceUserId, record.sourceCourseId), record);
+}
+
+/** Stash the learner token so /lti/progress can poll without re-authenticating. */
+export function attachLearnerToken(launchId: string, token: string): void {
+  const record = launches.get(launchId);
+  if (record) record.learnerToken = token;
+}
+
+/** Returns true the first time only — the caller may post a score. */
+export function claimScorePost(launchId: string): boolean {
+  const record = launches.get(launchId);
+  if (!record || record.scorePosted) return false;
+  record.scorePosted = true;
+  return true;
+}
+
+/** Undo the claim when the post failed, so a later poll can retry. */
+export function releaseScorePost(launchId: string): void {
+  const record = launches.get(launchId);
+  if (record) record.scorePosted = false;
 }
 
 export const storeStats = () => ({

@@ -189,6 +189,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     sourceUserId: null,
     sourceCourseId: courseId,
     courseTitle: readResourceLinkTitle(claims),
+    learnerToken: null,
+    scorePosted: false,
     createdAt: Date.now(),
   };
   rememberLaunch(record);

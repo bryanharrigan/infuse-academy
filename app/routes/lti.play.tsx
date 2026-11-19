@@ -35,6 +35,7 @@ import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 
 import {
+  attachLearnerToken,
   attachSourceUser,
   getLaunch,
 } from "~/.server/lti/store";
@@ -71,6 +72,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // this learner back to this launch. Without it the score has nowhere to go.
     if (learner.userId) attachSourceUser(launch.launchId, learner.userId);
 
+    // Kept so /lti/progress can poll the source portal without signing in
+    // again on every tick.
+    attachLearnerToken(launch.launchId, learner.token);
+
     const player = await mintPlayerUrl(cfg, learner.token, launch.sourceCourseId);
 
     return json({
@@ -81,6 +86,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       // "shared" means every launch is playing as one account on the source
       // portal. Surfaced so a demo is never mistaken for real provisioning.
       shared: learner.mode === "shared",
+      lid: launch.launchId,
+      hasLineItem: Boolean(launch.ags?.lineitem),
       error: null as string | null,
     });
   } catch (err) {
@@ -92,6 +99,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       framable: false,
       courseTitle: launch.courseTitle,
       shared: false,
+      lid: null as string | null,
+      hasLineItem: false,
       error: message,
     });
   }
@@ -100,6 +109,53 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function LtiPlay() {
   const data = useLoaderData<typeof loader>();
   const [frameBlocked, setFrameBlocked] = useState(false);
+  const [completion, setCompletion] = useState<
+    "watching" | "complete" | "reported" | "nowhere"
+  >("watching");
+
+  /**
+   * Ask our own server whether the source portal has recorded a completion,
+   * and let it post the AGS score the moment it has.
+   *
+   * LTI tells a tool how to REPORT a completion, not how to notice one, and
+   * this tool cannot see inside the player's cross-origin frame. Polling the
+   * learner's own enrolment record is the cheapest way to notice, and it
+   * reports while they are still on screen.
+   *
+   * Stops on `stop` (posted, already posted, or the launch is gone) so a
+   * finished course does not poll forever.
+   */
+  useEffect(() => {
+    if (!data.ok || !data.lid) return;
+    let cancelled = false;
+
+    const tick = async () => {
+      try {
+        const r = await fetch(
+          `/lti/progress?lid=${encodeURIComponent(data.lid as string)}`
+        );
+        const body = await r.json();
+        if (cancelled) return;
+
+        if (body.complete) {
+          if (body.posted) setCompletion("reported");
+          else if (body.already) setCompletion("reported");
+          else setCompletion(data.hasLineItem ? "complete" : "nowhere");
+        }
+        if (body.stop) {
+          clearInterval(timer);
+        }
+      } catch {
+        // A failed poll is not interesting: the learner is still in the course.
+      }
+    };
+
+    const timer = setInterval(tick, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [data.ok, data.lid, data.hasLineItem]);
 
   /**
    * Chrome fires `load` on an X-Frame-Options refusal page, so "did it load"
@@ -178,6 +234,35 @@ export default function LtiPlay() {
 
   return (
     <div style={{ height: "100vh", margin: 0, display: "flex", flexDirection: "column" }}>
+      {completion === "reported" ? (
+        <div
+          style={{
+            fontFamily: "system-ui",
+            fontSize: ".8rem",
+            padding: ".4rem .75rem",
+            background: "#e8f5e9",
+            borderBottom: "1px solid #a5d6a7",
+            color: "#1b5e20",
+          }}
+        >
+          Completion reported back to this portal.
+        </div>
+      ) : null}
+      {completion === "nowhere" ? (
+        <div
+          style={{
+            fontFamily: "system-ui",
+            fontSize: ".8rem",
+            padding: ".4rem .75rem",
+            background: "#fdecea",
+            borderBottom: "1px solid #f5c6cb",
+            color: "#7f231c",
+          }}
+        >
+          Course complete on the content portal, but this link has no grade
+          column, so there is nowhere to report it.
+        </div>
+      ) : null}
       {data.shared ? (
         <div
           style={{
