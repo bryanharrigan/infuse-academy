@@ -44,6 +44,13 @@ import {
   provisionAndEnrol,
   sourcePortal,
 } from "~/.server/lti/portal";
+import {
+  MONITOR_IFRAME,
+  enabled as smowlEnabled,
+  monitoringUrl,
+  registrationUrl,
+  smowlConfig,
+} from "~/.server/lti/smowl";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const lid = new URL(request.url).searchParams.get("lid");
@@ -78,6 +85,37 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const player = await mintPlayerUrl(cfg, learner.token, launch.sourceCourseId);
 
+    /**
+     * Proctoring, when configured. Signed here so SMOWL_JWT_SECRET never
+     * reaches the browser — the page only ever receives finished URLs.
+     */
+    const smowl = smowlConfig();
+    let proctor: {
+      monitorUrl: string;
+      registerUrl: string;
+      frame: typeof MONITOR_IFRAME;
+    } | null = null;
+    if (smowlEnabled(smowl)) {
+      const who = {
+        userId: learner.userId ?? launch.identity.sub,
+        name:
+          `${launch.identity.firstName} ${launch.identity.lastName}`.trim() ||
+          "Learner",
+        email: launch.identity.email ?? "",
+      };
+      const activity = {
+        activityId: launch.sourceCourseId,
+        containerId: launch.platformId,
+        // Where SMOWL returns the learner after face registration.
+        activityUrl: `${new URL(request.url).origin}/lti/play?lid=${launch.launchId}`,
+      };
+      proctor = {
+        monitorUrl: monitoringUrl(smowl, who, activity, 1),
+        registerUrl: registrationUrl(smowl, who, activity),
+        frame: MONITOR_IFRAME,
+      };
+    }
+
     return json({
       ok: true as const,
       playerUrl: player.playerUrl,
@@ -88,6 +126,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shared: learner.mode === "shared",
       lid: launch.launchId,
       hasLineItem: Boolean(launch.ags?.lineitem),
+      proctor,
       error: null as string | null,
     });
   } catch (err) {
@@ -101,6 +140,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shared: false,
       lid: null as string | null,
       hasLineItem: false,
+      proctor: null as {
+        monitorUrl: string;
+        registerUrl: string;
+        frame: typeof MONITOR_IFRAME;
+      } | null,
       error: message,
     });
   }
@@ -113,6 +157,36 @@ export default function LtiPlay() {
     "watching" | "complete" | "reported" | "nowhere"
   >("watching");
   const [reported, setReported] = useState<string | null>(null);
+
+  /**
+   * Proctoring gate.
+   *
+   * SMOWL's monitoring iframe posts `monitoringstatusOK` once every check has
+   * passed, and `monitoringstatusNOTOK` if something is later disabled — a
+   * revoked camera permission, say. The course stays hidden until OK arrives,
+   * and is pulled if NOTOK does.
+   *
+   * `data.proctor` is null when SMOWL is not configured, and then this never
+   * gates anything: no configuration, no change in behaviour.
+   */
+  const proctored = Boolean(data.ok && data.proctor);
+  const [monitoring, setMonitoring] = useState<"waiting" | "ok" | "blocked">(
+    "waiting"
+  );
+
+  useEffect(() => {
+    if (!proctored) return;
+    const onMessage = (e: MessageEvent) => {
+      const payload =
+        typeof e.data === "string"
+          ? e.data
+          : (e.data as { message?: string } | null)?.message;
+      if (payload === "monitoringstatusOK") setMonitoring("ok");
+      if (payload === "monitoringstatusNOTOK") setMonitoring("blocked");
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [proctored]);
 
   /**
    * Ask our own server whether the source portal has recorded a completion,
@@ -207,10 +281,18 @@ export default function LtiPlay() {
     );
   }
 
+  /**
+   * Always points at /lti/play/open, never at the already-minted playerUrl:
+   * that token is single use and the inline frame has probably spent it.
+   */
+  const openHref = data.lid
+    ? `/lti/play/open?lid=${encodeURIComponent(data.lid)}`
+    : "#";
+
   const openInWindow = (
     <p style={{ marginTop: "1rem" }}>
       <a
-        href={data.playerUrl ?? "#"}
+        href={openHref}
         target="_blank"
         rel="noreferrer"
         style={{
@@ -243,6 +325,41 @@ export default function LtiPlay() {
 
   return (
     <div style={{ height: "100vh", margin: 0, display: "flex", flexDirection: "column" }}>
+      <div
+        style={{
+          fontFamily: "system-ui",
+          fontSize: ".8rem",
+          padding: ".45rem .75rem",
+          background: "#eef2ff",
+          borderBottom: "1px solid #c7d2fe",
+          color: "#312e81",
+          display: "flex",
+          gap: ".75rem",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+        }}
+      >
+        <span>
+          If your progress does not save, open the course in its own window —
+          embedded players cannot always record completion.
+        </span>
+        <a
+          href={openHref}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            background: "#4338ca",
+            color: "#fff",
+            padding: ".3rem .7rem",
+            borderRadius: 5,
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Open in a new window
+        </a>
+      </div>
       {completion === "reported" ? (
         <div
           style={{
@@ -288,13 +405,83 @@ export default function LtiPlay() {
           portal, so progress is shared. Demo only.
         </div>
       ) : null}
-      <iframe
-        title={data.courseTitle ?? "Course player"}
-        src={data.playerUrl ?? undefined}
-        allow="fullscreen; autoplay; camera; microphone"
-        allowFullScreen
-        style={{ flex: 1, width: "100%", border: 0 }}
-      />
+      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+        {data.proctor ? (
+          <div
+            style={{
+              width: data.proctor.frame.width,
+              borderRight: "1px solid #e3e3e3",
+              padding: ".5rem",
+              fontFamily: "system-ui",
+              fontSize: ".75rem",
+              background: "#fafafa",
+              flexShrink: 0,
+            }}
+          >
+            <iframe
+              title="Proctoring"
+              src={data.proctor.monitorUrl}
+              allow={data.proctor.frame.allow}
+              sandbox={data.proctor.frame.sandbox}
+              width={data.proctor.frame.width}
+              height={data.proctor.frame.height}
+              frameBorder={0}
+              scrolling="no"
+              allowFullScreen
+            />
+            <p style={{ color: "#666", marginTop: ".5rem" }}>
+              {monitoring === "ok"
+                ? "Monitoring active."
+                : monitoring === "blocked"
+                  ? "Monitoring stopped — the course has been hidden."
+                  : "Waiting for camera checks to pass..."}
+            </p>
+            <p style={{ marginTop: ".5rem" }}>
+              <a href={data.proctor.registerUrl} target="_blank" rel="noreferrer">
+                Not registered yet? Register your face
+              </a>
+            </p>
+          </div>
+        ) : null}
+
+        {/* The course itself. Mounted only once monitoring is confirmed, so a
+            learner cannot see the content before checks pass. */}
+        {!proctored || monitoring === "ok" ? (
+          <iframe
+            title={data.courseTitle ?? "Course player"}
+            src={data.playerUrl ?? undefined}
+            allow="fullscreen; autoplay; camera; microphone"
+            allowFullScreen
+            style={{ flex: 1, width: "100%", border: 0 }}
+          />
+        ) : (
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: "system-ui",
+              color: "#555",
+              padding: "2rem",
+              textAlign: "center",
+            }}
+          >
+            <div>
+              <p style={{ fontWeight: 600 }}>
+                {monitoring === "blocked"
+                  ? "Monitoring stopped"
+                  : "Setting up proctoring"}
+              </p>
+              <p style={{ fontSize: ".9rem" }}>
+                {monitoring === "blocked"
+                  ? "Camera or microphone access was lost. Restore it to continue."
+                  : "The course will appear once the camera and identity checks pass."}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
       {frameBlocked ? (
         <div
           style={{
