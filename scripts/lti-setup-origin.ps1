@@ -86,16 +86,16 @@ $Defaults = [ordered]@{
     'LTI_PLATFORMS'       = '[{"id":"bharrigan","issuer":"https://bharrigan.myabsorb.ca","clientId":"c52d9197-dfa2-42f3-8280-3d0cf007d94a","deploymentIds":["infuse-bharrigan-1"],"authUrl":"https://bharrigan.myabsorb.ca/lti-tool/authenticate","tokenUrl":"https://bharrigan.myabsorb.ca/lti-tool/token","jwksUrl":"https://bharrigan.myabsorb.ca/lti-tool/jwks"}]'
 }
 
-# Only these variables may be introduced by this script. Anything else in the
-# EnvFile is ignored -- the keygen script prints explanatory prose alongside
-# its output, and a stray line should never become an environment variable.
-$AllowedNewKeys = @(
-    'LTI_TOOL_PRIVATE_KEY'
-    'LTI_PROVISION_SECRET'
-    'LTI_WEBHOOK_SECRET'
-    'LTI_SOURCE_API_KEY'
-    'LTI_SOURCE_DEPARTMENT_ID'
-) + @($Defaults.Keys)
+# Which variables this script may introduce. Anything else in the EnvFile is
+# ignored -- the keygen script prints explanatory prose alongside its output,
+# and a stray line should never become an environment variable.
+#
+# Any LTI_* name is allowed so new settings can be added without editing this
+# script, plus the non-LTI defaults below.
+function Test-AllowedKey ([string]$key) {
+    if ($key -cmatch '^LTI_[A-Z0-9_]+$') { return $true }
+    return @($Defaults.Keys) -contains $key
+}
 
 $SecretKeys = @(
     'LTI_TOOL_PRIVATE_KEY'
@@ -109,8 +109,14 @@ $SecretKeys = @(
     'EMBED_SERVICE_PASSWORD'
 )
 
+function Test-SecretKey ([string]$key) {
+    if ($SecretKeys -contains $key) { return $true }
+    # Case-insensitive on purpose: catch every spelling of a secret-ish name.
+    return $key -match '(_SECRET|_KEY|_PASSWORD|_PASS|_TOKEN|_PRIVATE)$'
+}
+
 function Format-Value ([string]$key, [string]$value) {
-    if ($SecretKeys -contains $key) {
+    if (Test-SecretKey $key) {
         if ([string]::IsNullOrEmpty($value)) { return '<empty>' }
         return ('<{0} chars>' -f $value.Length)
     }
@@ -306,17 +312,23 @@ $fromFile = Read-EnvFile $EnvFile
 $secrets = [ordered]@{}
 $ignored = @()
 foreach ($k in $fromFile.Keys) {
-    if ($AllowedNewKeys -contains $k) { $secrets[$k] = $fromFile[$k] } else { $ignored += $k }
+    if (Test-AllowedKey $k) { $secrets[$k] = $fromFile[$k] } else { $ignored += $k }
 }
 Write-Ok "$($secrets.Count) usable variable(s) from $EnvFile"
 if ($ignored.Count -gt 0) {
     Write-Warn2 "ignored (not an LTI variable): $($ignored -join ', ')"
 }
 
+# These must end up set, but they do not have to be supplied again: an earlier
+# run may already have put them on the service. Only complain if a value is
+# absent from BOTH the file and the current environment.
 $required = @('LTI_TOOL_PRIVATE_KEY', 'LTI_PROVISION_SECRET')
-$absent = @($required | Where-Object { -not $secrets.Contains($_) })
+$absent = @($required | Where-Object {
+    -not $secrets.Contains($_) -and -not $current.Contains($_)
+})
 if ($absent.Count -gt 0) {
-    Write-Err2 "EnvFile is missing: $($absent -join ', ')"
+    Write-Err2 "Not set anywhere: $($absent -join ', ')"
+    Write-Err2 "Generate them with: node scripts\lti-keygen.mjs"
     exit 1
 }
 

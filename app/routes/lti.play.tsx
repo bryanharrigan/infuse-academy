@@ -78,6 +78,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       playerUrl: player.playerUrl,
       framable: player.framable,
       courseTitle: launch.courseTitle,
+      // "shared" means every launch is playing as one account on the source
+      // portal. Surfaced so a demo is never mistaken for real provisioning.
+      shared: learner.mode === "shared",
       error: null as string | null,
     });
   } catch (err) {
@@ -88,6 +91,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       playerUrl: null,
       framable: false,
       courseTitle: launch.courseTitle,
+      shared: false,
       error: message,
     });
   }
@@ -168,6 +172,21 @@ export default function LtiPlay() {
 
   return (
     <div style={{ height: "100vh", margin: 0, display: "flex", flexDirection: "column" }}>
+      {data.shared ? (
+        <div
+          style={{
+            fontFamily: "system-ui",
+            fontSize: ".8rem",
+            padding: ".4rem .75rem",
+            background: "#fff8e1",
+            borderBottom: "1px solid #ffe082",
+            color: "#7a5900",
+          }}
+        >
+          Shared-learner mode: everyone plays as one account on the content
+          portal, so progress is shared. Demo only.
+        </div>
+      ) : null}
       <iframe
         title={data.courseTitle ?? "Course player"}
         src={data.playerUrl ?? undefined}

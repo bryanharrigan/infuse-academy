@@ -45,9 +45,22 @@ export type SourcePortalConfig = {
   baseUrl: string;
   apiUrl: string;
   portalUrl: string;
+  /** Infuse API key. Powers the player and the learner-scoped calls. */
   apiKey: string;
   restUrl: string;
   departmentId: string;
+  /**
+   * Integration API credentials -- a DIFFERENT product and a DIFFERENT key
+   * from the Infuse one above. The Integration API is a paid add-on and its
+   * key is the "REST API Private Key" in Portal Settings > Info. Sending the
+   * Infuse key here returns 403, which is how this was found on 18 Nov.
+   */
+  restApiKey: string;
+  adminUsername: string;
+  adminPassword: string;
+  /** Fallback identity: one pre-made learner everyone plays as. */
+  sharedUsername: string;
+  sharedPassword: string;
 };
 
 export function sourcePortal(): SourcePortalConfig {
@@ -76,7 +89,24 @@ export function sourcePortal(): SourcePortalConfig {
       process.env.LTI_SOURCE_DEPARTMENT_ID ??
       process.env.EMBED_DEMO_DEPARTMENT_ID ??
       "",
+    restApiKey: process.env.LTI_SOURCE_REST_API_KEY ?? "",
+    adminUsername: process.env.LTI_SOURCE_ADMIN_USERNAME ?? "",
+    adminPassword: process.env.LTI_SOURCE_ADMIN_PASSWORD ?? "",
+    sharedUsername: process.env.LTI_SOURCE_LEARNER_USERNAME ?? "",
+    sharedPassword: process.env.LTI_SOURCE_LEARNER_PASSWORD ?? "",
   };
+}
+
+/** Full per-learner provisioning needs all three Integration API values. */
+export function adminProvisioningConfigured(cfg: SourcePortalConfig): boolean {
+  return Boolean(
+    cfg.restUrl && cfg.restApiKey && cfg.adminUsername && cfg.adminPassword
+  );
+}
+
+/** The fallback needs one pre-made learner on the source portal. */
+export function sharedLearnerConfigured(cfg: SourcePortalConfig): boolean {
+  return Boolean(cfg.sharedUsername && cfg.sharedPassword);
 }
 
 export function assertSourcePortalConfigured(cfg: SourcePortalConfig): void {
@@ -156,7 +186,118 @@ export type ProvisionedLearner = {
   /** Absorb user id, when the portal returned one. Needed for admin enrol. */
   userId: string | null;
   token: string;
+  /**
+   * "admin"  - a learner of their own, created from the launch identity.
+   * "shared" - everyone played as one pre-made account. See the warning in
+   *            provisionAndEnrol.
+   */
+  mode: "admin" | "shared";
 };
+
+/**
+ * Integration API auth, with escalation.
+ *
+ * Absorb's docs describe two shapes and this project could not determine which
+ * applies to this tenant without calling it (the sandbox's egress proxy blocks
+ * rest.myabsorb.*). So: try the key alone, and only if that is refused do the
+ * two-step dance. Whichever works, works, and the logs say which.
+ *
+ *   shape A  x-api-key alone                     (v2 style)
+ *   shape B  POST /authenticate -> API token, then
+ *            Authorization: <token> + x-api-key  (documented in Getting
+ *            Started; the token is valid 4 hours)
+ *
+ * The Authorization value is sent raw first, because Absorb's own walkthrough
+ * says to put the token straight in the header, then retried with a Bearer
+ * prefix, because plenty of gateways want that instead.
+ */
+let adminToken: { value: string; expiresAt: number } | null = null;
+
+async function fetchAdminToken(cfg: SourcePortalConfig): Promise<string> {
+  if (adminToken && adminToken.expiresAt > Date.now()) return adminToken.value;
+
+  const r = await fetch(`${cfg.restUrl}/authenticate`, {
+    method: "POST",
+    headers: {
+      "x-api-key": cfg.restApiKey,
+      "x-api-version": "1",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      username: cfg.adminUsername,
+      password: cfg.adminPassword,
+      privateKey: cfg.restApiKey,
+    }),
+  });
+  const raw = await r.text();
+  console.log(`[lti/portal] POST /authenticate → ${r.status}`);
+  if (!r.ok) {
+    throw new Error(
+      `Integration API /authenticate failed: ${r.status} ${raw.slice(0, 200)}`
+    );
+  }
+
+  // The token comes back as a bare JSON string on some versions and wrapped on
+  // others. Accept both rather than guess.
+  let token = "";
+  try {
+    const parsed = JSON.parse(raw);
+    token =
+      typeof parsed === "string"
+        ? parsed
+        : parsed?.token ?? parsed?.accessToken ?? "";
+  } catch {
+    token = raw.trim().replace(/^"|"$/g, "");
+  }
+  if (!token) throw new Error("/authenticate returned no token");
+
+  // Documented lifetime is 4 hours; refresh early.
+  adminToken = { value: token, expiresAt: Date.now() + 3.5 * 60 * 60 * 1000 };
+  return token;
+}
+
+type AdminResult = { status: number; body: string };
+
+async function adminFetch(
+  cfg: SourcePortalConfig,
+  url: string,
+  init: { method: string; body?: string }
+): Promise<AdminResult> {
+  const base: Record<string, string> = {
+    "x-api-key": cfg.restApiKey || cfg.apiKey,
+    "x-api-version": "1",
+    "Content-Type": "application/json",
+  };
+
+  const send = async (extra: Record<string, string>) => {
+    const r = await fetch(url, {
+      method: init.method,
+      headers: { ...base, ...extra },
+      body: init.body,
+    });
+    return { status: r.status, body: await r.text() };
+  };
+
+  let res = await send({});
+  if (res.status !== 401 && res.status !== 403) return res;
+
+  if (!cfg.adminUsername || !cfg.adminPassword) {
+    console.warn(
+      `[lti/portal] ${res.status} on ${url} with the key alone, and no admin ` +
+        `credentials are configured to escalate with.`
+    );
+    return res;
+  }
+
+  const token = await fetchAdminToken(cfg);
+  console.log("[lti/portal] retrying admin call with an API token");
+  res = await send({ Authorization: token });
+  if (res.status === 401 || res.status === 403) {
+    res = await send({ Authorization: `Bearer ${token}` });
+    if (res.status < 400) console.log("[lti/portal] Bearer prefix was required");
+  }
+  return res;
+}
 
 type UpsertInput = {
   iss: string;
@@ -190,17 +331,12 @@ async function upsertLearner(
   if (input.email) body.emailAddress = input.email;
   if (cfg.departmentId) body.departmentId = cfg.departmentId;
 
-  const r = await fetch(`${cfg.restUrl}/users`, {
+  const res = await adminFetch(cfg, `${cfg.restUrl}/users`, {
     method: "POST",
-    headers: {
-      "x-api-key": cfg.apiKey,
-      "x-api-version": "1",
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify(body),
   });
-
-  const raw = await r.text();
+  const r = { ok: res.status >= 200 && res.status < 300, status: res.status };
+  const raw = res.body;
   // Never log `body` — it carries the derived password.
   console.log(
     `[lti/portal] POST /users → ${r.status} (username=${username}) ${raw.slice(0, 200)}`
@@ -208,9 +344,12 @@ async function upsertLearner(
 
   if (r.status === 401 || r.status === 403) {
     throw new Error(
-      `Source portal rejected the admin call (${r.status}). The API key may ` +
-        `lack Integration API user-management permission, or LTI_SOURCE_REST_URL ` +
-        `points at the wrong region.`
+      `Source portal rejected the admin call (${r.status}). Check, in order: ` +
+        `LTI_SOURCE_REST_API_KEY is the REST API Private Key from THIS portal ` +
+        `(Portal Settings > Info), not the Infuse key; the Integration API ` +
+        `add-on is enabled here; LTI_SOURCE_ADMIN_USERNAME / ` +
+        `LTI_SOURCE_ADMIN_PASSWORD are set if this tenant needs a token; and ` +
+        `LTI_SOURCE_REST_URL matches the portal's region.`
     );
   }
   if (!r.ok) {
@@ -254,23 +393,20 @@ async function adminEnrol(
   courseId: string,
   reEnroll = false
 ): Promise<boolean> {
+  // `reEnroll` is lower-case r -- confirmed against the published endpoint
+  // reference. The capitalised spelling this code first used is not the
+  // documented parameter name.
   const url =
     `${cfg.restUrl}/users/${encodeURIComponent(userId)}` +
-    `/enrollments/${encodeURIComponent(courseId)}?ReEnroll=${reEnroll}`;
+    `/enrollments/${encodeURIComponent(courseId)}?reEnroll=${reEnroll}`;
 
-  const r = await fetch(url, {
-    method: "POST",
-    headers: {
-      "x-api-key": cfg.apiKey,
-      "x-api-version": "1",
-      "Content-Type": "application/json",
-    },
-  });
-  const raw = await r.text();
+  const r = await adminFetch(cfg, url, { method: "POST" });
+  const raw = r.body;
   console.log(`[lti/portal] admin enrol → ${r.status} ${raw.slice(0, 200)}`);
 
   // 409 / "already enrolled" is success for our purposes: the learner can play.
-  if (r.ok || r.status === 409) return true;
+  if (r.status >= 200 && r.status < 300) return true;
+  if (r.status === 409) return true;
   if (/already/i.test(raw)) return true;
 
   throw new Error(
@@ -343,6 +479,27 @@ export async function provisionAndEnrol(
 ): Promise<ProvisionedLearner> {
   assertSourcePortalConfigured(cfg);
 
+  if (adminProvisioningConfigured(cfg)) {
+    try {
+      return await provisionOwnLearner(cfg, input);
+    } catch (err) {
+      if (!sharedLearnerConfigured(cfg)) throw err;
+      console.warn(
+        "[lti/portal] per-learner provisioning failed, falling back to the " +
+          "shared learner: " +
+          (err instanceof Error ? err.message : String(err))
+      );
+    }
+  }
+
+  return provisionSharedLearner(cfg, input.courseId);
+}
+
+/** The real thing: this launch's user gets an account of their own. */
+async function provisionOwnLearner(
+  cfg: SourcePortalConfig,
+  input: UpsertInput & { courseId: string }
+): Promise<ProvisionedLearner> {
   const { username, password, userId } = await upsertLearner(cfg, input);
   const token = await authenticate(cfg, username, password);
 
@@ -362,7 +519,65 @@ export async function provisionAndEnrol(
     }
   }
 
-  return { username, userId, token };
+  console.log(`[lti/portal] provisioned ${username} for course ${input.courseId}`);
+  return { username, userId, token, mode: "admin" };
+}
+
+/**
+ * Fallback: play as one pre-made learner on the source portal.
+ *
+ * This needs no Integration API at all -- just the Infuse key and one account's
+ * credentials -- so it proves cross-portal playback, framing and AGS passback
+ * while the Integration API add-on is still being sorted out.
+ *
+ * WHAT IT GIVES UP, AND WHY IT IS DEMO-ONLY
+ * -----------------------------------------
+ * Every host-portal learner is the SAME person on the source portal. So their
+ * progress is shared: one learner's completion marks the course complete for
+ * all of them, and resuming picks up wherever the last person left off.
+ *
+ * It also makes the AGS mapping ambiguous. `store.ts` keys launches on
+ * (sourceUserId, sourceCourseId), and here that pair is identical for everyone
+ * -- so a completion webhook resolves to whichever launch was recorded most
+ * recently, and the score can land on the wrong host-portal learner. Fine with
+ * one tester. Not fine with two at once, and never fine in production.
+ */
+async function provisionSharedLearner(
+  cfg: SourcePortalConfig,
+  courseId: string
+): Promise<ProvisionedLearner> {
+  if (!sharedLearnerConfigured(cfg)) {
+    throw new Error(
+      "Shared-learner fallback is not configured: set " +
+        "LTI_SOURCE_LEARNER_USERNAME and LTI_SOURCE_LEARNER_PASSWORD."
+    );
+  }
+
+  console.warn(
+    "[lti/portal] SHARED LEARNER MODE — every launch plays as " +
+      `${cfg.sharedUsername}. Progress is shared and AGS attribution is ` +
+      "ambiguous with more than one tester."
+  );
+
+  const token = await authenticate(cfg, cfg.sharedUsername, cfg.sharedPassword);
+
+  // Best effort: the account may already be enrolled, or the course may not
+  // permit self-enrolment. Either way let the mint be the real test — it fails
+  // with a clear 403 if there is genuinely no entitlement.
+  const enrolled = await selfEnrol(cfg, token, courseId).catch(() => false);
+  if (!enrolled) {
+    console.warn(
+      `[lti/portal] self-enrolment did not take for ${courseId}; continuing — ` +
+        "the account may already be entitled."
+    );
+  }
+
+  return {
+    username: cfg.sharedUsername,
+    userId: null,
+    token,
+    mode: "shared",
+  };
 }
 
 /* ─────────────────────────── player and catalog ─────────────────────────── */
