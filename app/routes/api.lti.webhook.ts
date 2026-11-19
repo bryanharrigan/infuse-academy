@@ -154,11 +154,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   /**
    * Absorb reports a score for scored content and nothing for content that
    * only tracks completion. Treat a completion with no score as full marks —
-   * the host portal's line item is a completion gate in that case, and
-   * posting 0 would mark a finished course as failed.
+   * posting 0 would mark a finished course as failed in the host portal.
+   *
+   * The polling path (/lti/progress) resolves scores more thoroughly, by
+   * reading the course enrolment and then the per-lesson records. This path
+   * only sees the webhook payload, so it takes what is there. Both clamp to
+   * the 0-100 range AGS expects.
    */
   const score = pickNumber(payload, "score", "Score", "scoreRaw", "ScoreRaw");
-  const scoreGiven = typeof score === "number" ? score : 100;
+  const scoreGiven =
+    typeof score === "number" ? Math.max(0, Math.min(100, score)) : 100;
 
   try {
     const posted = await postScore(platform, launch.ags, {

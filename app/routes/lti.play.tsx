@@ -112,6 +112,7 @@ export default function LtiPlay() {
   const [completion, setCompletion] = useState<
     "watching" | "complete" | "reported" | "nowhere"
   >("watching");
+  const [reported, setReported] = useState<string | null>(null);
 
   /**
    * Ask our own server whether the source portal has recorded a completion,
@@ -138,9 +139,17 @@ export default function LtiPlay() {
         if (cancelled) return;
 
         if (body.complete) {
-          if (body.posted) setCompletion("reported");
-          else if (body.already) setCompletion("reported");
-          else setCompletion(data.hasLineItem ? "complete" : "nowhere");
+          if (body.posted || body.already) {
+            setCompletion("reported");
+            if (typeof body.score === "number") {
+              setReported(
+                `${body.score}/100` +
+                  (body.scoreSource ? ` (${body.scoreSource})` : "")
+              );
+            }
+          } else {
+            setCompletion(data.hasLineItem ? "complete" : "nowhere");
+          }
         }
         if (body.stop) {
           clearInterval(timer);
@@ -245,7 +254,8 @@ export default function LtiPlay() {
             color: "#1b5e20",
           }}
         >
-          Completion reported back to this portal.
+          Completion reported back to this portal
+          {reported ? <> — <strong>{reported}</strong></> : null}.
         </div>
       ) : null}
       {completion === "nowhere" ? (

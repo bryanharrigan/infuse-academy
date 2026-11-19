@@ -864,7 +864,67 @@ export type CourseProgress = {
   progress: number | null;
   status: string | null;
   completionDate: string | null;
+  /** 0-100, or null when the course only tracks completion. */
+  score: number | null;
+  /** Where the score came from, so a surprising number is never mysterious. */
+  scoreSource: "course" | "lesson" | "lessons-average" | null;
 };
+
+function numeric(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() && Number.isFinite(Number(v))) {
+    return Number(v);
+  }
+  return null;
+}
+
+function pickScore(obj: Record<string, unknown>): number | null {
+  for (const k of ["score", "Score", "scoreRaw", "grade", "percentage"]) {
+    const n = numeric(obj[k]);
+    if (n !== null) return n;
+  }
+  return null;
+}
+
+/**
+ * Scores from the per-lesson enrolment records.
+ *
+ * Absorb keeps the real completion data on each lesson's `enrollment` object,
+ * and that is where an assessment's score lives. Used only when the course
+ * enrolment itself carries no score.
+ */
+async function lessonScores(
+  cfg: SourcePortalConfig,
+  token: string,
+  courseId: string
+): Promise<number[]> {
+  try {
+    const r = await fetch(`${cfg.apiUrl}/online-courses/${courseId}/chapters`, {
+      headers: {
+        "x-api-key": cfg.apiKey,
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+    });
+    if (!r.ok) return [];
+    const data = (await r.json()) as {
+      _embedded?: { chapters?: Array<{ _embedded?: { lessons?: Array<Record<string, unknown>> } }> };
+    };
+    const lessons = (data?._embedded?.chapters ?? []).flatMap(
+      (c) => c._embedded?.lessons ?? []
+    );
+    const scores: number[] = [];
+    for (const lesson of lessons) {
+      const enrolment = lesson.enrollment as Record<string, unknown> | undefined;
+      if (!enrolment) continue;
+      const n = pickScore(enrolment);
+      if (n !== null) scores.push(n);
+    }
+    return scores;
+  } catch {
+    return [];
+  }
+}
 
 /**
  * Ask the source portal whether this learner has finished the course.
@@ -908,5 +968,36 @@ export async function getCourseProgress(
     (status !== null && /complete|passed/i.test(status)) ||
     (progress !== null && progress >= 100);
 
-  return { complete, progress, status, completionDate };
+  /**
+   * Score resolution, most authoritative first:
+   *
+   *   1. the course enrolment's own score, if Absorb reports one
+   *   2. a single scored lesson -- the common shape, one assessment
+   *   3. the average across several scored lessons
+   *
+   * Null means the course tracks completion only, and the caller decides what
+   * a bare completion is worth. Only looked for once the course is complete,
+   * so a half-finished assessment cannot be reported as a final grade.
+   */
+  let score = pickScore(d);
+  let scoreSource: CourseProgress["scoreSource"] = score !== null ? "course" : null;
+
+  if (score === null && complete) {
+    const scores = await lessonScores(cfg, token, courseId);
+    if (scores.length === 1) {
+      score = scores[0];
+      scoreSource = "lesson";
+    } else if (scores.length > 1) {
+      score = scores.reduce((a, b) => a + b, 0) / scores.length;
+      scoreSource = "lessons-average";
+    }
+  }
+
+  if (score !== null) {
+    // Absorb reports these as percentages. Clamp rather than trust blindly:
+    // AGS rejects a scoreGiven above scoreMaximum.
+    score = Math.max(0, Math.min(100, Math.round(score * 100) / 100));
+  }
+
+  return { complete, progress, status, completionDate, score, scoreSource };
 }

@@ -99,25 +99,46 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   try {
+    /**
+     * A real score when Absorb has one, full marks when it does not.
+     *
+     * Content that only tracks completion reports no score at all, and posting
+     * 0 for it would show a finished course as failed in the host portal. A
+     * bare completion is therefore 100/100, and the comment says which it was
+     * so a gradebook entry is never ambiguous.
+     */
+    const scoreGiven = progress.score ?? 100;
+    const basis =
+      progress.score === null
+        ? "completion only"
+        : `score from ${progress.scoreSource}`;
+
     const posted = await postScore(platform, launch.ags, {
       ltiSub: launch.ltiSub,
-      // Absorb reports a score for scored content and nothing for content that
-      // only tracks completion. Treat a bare completion as full marks — a 0
-      // would mark a finished course as failed in the host portal.
-      scoreGiven: 100,
+      scoreGiven,
       scoreMaximum: 100,
-      comment: launch.courseTitle ? `Completed: ${launch.courseTitle}` : undefined,
+      comment: launch.courseTitle
+        ? `${launch.courseTitle} — ${basis}`
+        : basis,
     });
 
     recordLtiEvent(
       "ags",
       posted
-        ? `score posted via polling to ${platform.id} for sub=${launch.ltiSub.slice(0, 8)}...`
+        ? `posted ${scoreGiven}/100 (${basis}) to ${platform.id} for ` +
+            `sub=${launch.ltiSub.slice(0, 8)}...`
         : "completion detected, but the launch carried no AGS line item — " +
             "the host portal gave us nowhere to send it"
     );
 
-    return json({ ok: true, complete: true, posted, stop: true });
+    return json({
+      ok: true,
+      complete: true,
+      posted,
+      score: scoreGiven,
+      scoreSource: progress.scoreSource,
+      stop: true,
+    });
   } catch (err) {
     releaseScorePost(launch.launchId);
     const message = err instanceof Error ? err.message : String(err);
