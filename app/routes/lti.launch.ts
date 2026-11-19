@@ -46,6 +46,7 @@ import { allPlatforms, deploymentAllowed } from "~/.server/lti/platforms";
 import {
   consumePendingLogin,
   randomId,
+  recordLtiEvent,
   rememberLaunch,
   type LaunchRecord,
 } from "~/.server/lti/store";
@@ -194,6 +195,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   console.log(
     `[lti/launch] ${platform.id} resource-link launch: sub=${identity.sub} course=${courseId}`
+  );
+  recordLtiEvent(
+    "launch",
+    `resource-link from ${platform.id}: course=${courseId}, ` +
+      `AGS line item ${record.ags?.lineitem ? "PRESENT" : "ABSENT"}` +
+      (record.ags?.lineitem ? "" : " — completions will have nowhere to post")
   );
 
   return redirect(`/lti/play?lid=${encodeURIComponent(record.launchId)}`);

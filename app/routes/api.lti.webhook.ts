@@ -37,7 +37,7 @@ import { json, type ActionFunctionArgs } from "@remix-run/node";
 
 import { postScore } from "~/.server/lti/ags";
 import { allPlatforms } from "~/.server/lti/platforms";
-import { findLaunchForCompletion } from "~/.server/lti/store";
+import { findLaunchForCompletion, recordLtiEvent } from "~/.server/lti/store";
 
 const WebhookSecret = process.env.LTI_WEBHOOK_SECRET ?? "";
 
@@ -101,6 +101,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (!verified) {
     // Acknowledged, logged, never allowed to change state.
     console.warn("[lti/webhook] UNVERIFIED delivery — acknowledged, ignored");
+    recordLtiEvent(
+      "webhook",
+      WebhookSecret
+        ? "delivery REJECTED: signature did not match LTI_WEBHOOK_SECRET " +
+            "(Absorb's Test button always looks like this)"
+        : "delivery REJECTED: LTI_WEBHOOK_SECRET is not set"
+    );
     return json({ received: true, verified: false });
   }
 
@@ -111,8 +118,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     console.warn(
       `[lti/webhook] verified delivery with no user/course ids: ${rawBody.slice(0, 200)}`
     );
+    recordLtiEvent(
+      "webhook",
+      `verified, but no user/course ids in payload. Keys: ${Object.keys(payload).join(", ")}`
+    );
     return json({ received: true });
   }
+
+  recordLtiEvent(
+    "webhook",
+    `verified completion user=${sourceUserId} course=${sourceCourseId}`
+  );
 
   const launch = findLaunchForCompletion(sourceUserId, sourceCourseId);
   if (!launch) {
@@ -120,6 +136,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // aged out / was lost to a redeploy. Not an error, but worth seeing.
     console.log(
       `[lti/webhook] no launch recorded for user=${sourceUserId} course=${sourceCourseId} — nothing to report`
+    );
+    recordLtiEvent(
+      "webhook",
+      `NO MATCHING LAUNCH for course=${sourceCourseId}. The learner reached ` +
+        `this course some other way, or the launch aged out / was lost to a redeploy.`
     );
     return json({ received: true, matched: false });
   }
@@ -149,6 +170,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     console.log(
       `[lti/webhook] completion user=${sourceUserId} course=${sourceCourseId} → posted=${posted}`
     );
+    recordLtiEvent(
+      "ags",
+      posted
+        ? `score ${scoreGiven}/100 posted to ${launch.platformId} for sub=${launch.ltiSub.slice(0, 8)}...`
+        : `NOT posted — the launch carried no AGS line item, so the host ` +
+            `portal gave us nowhere to send it`
+    );
     return json({ received: true, matched: true, posted });
   } catch (err) {
     // Still 200: Absorb retries are not worth triggering for a platform-side
@@ -156,6 +184,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     console.error(
       "[lti/webhook] AGS post failed:",
       err instanceof Error ? err.message : err
+    );
+    recordLtiEvent(
+      "ags",
+      `POST FAILED: ${err instanceof Error ? err.message : String(err)}`
     );
     return json({ received: true, matched: true, posted: false });
   }

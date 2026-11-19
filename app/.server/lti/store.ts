@@ -192,3 +192,59 @@ export const storeStats = () => ({
   pending: pending.size,
   launches: launches.size,
 });
+
+/* ─────────────────────────── event ring buffer ─────────────────────────── */
+
+/**
+ * A short, in-memory trail of what the LTI flow has been doing.
+ *
+ * The origin machine's service log is not reachable from where this gets
+ * debugged, which turned several failures into guesswork. This keeps the last
+ * N events so `/lti/diag` can answer "what actually happened" without shell
+ * access. Deliberately small and lossy -- it is a diagnostic aid, not an audit
+ * log, and it dies with the process like everything else here.
+ *
+ * NOTHING SENSITIVE GOES IN. No tokens, no passwords, no signed JWTs.
+ */
+const MAX_EVENTS = 60;
+
+export type LtiEvent = {
+  at: string;
+  kind: string;
+  detail: string;
+};
+
+const events: LtiEvent[] = [];
+
+export function recordLtiEvent(kind: string, detail: string): void {
+  events.push({ at: new Date().toISOString(), kind, detail });
+  if (events.length > MAX_EVENTS) events.splice(0, events.length - MAX_EVENTS);
+}
+
+export function recentLtiEvents(): LtiEvent[] {
+  return [...events].reverse();
+}
+
+/** Launch summaries for /lti/diag. Identifiers truncated, nothing secret. */
+export function launchSummaries(limit = 12): Array<Record<string, unknown>> {
+  const seen = new Set<string>();
+  const out: Array<Record<string, unknown>> = [];
+  for (const r of launches.values()) {
+    if (seen.has(r.launchId)) continue;
+    seen.add(r.launchId);
+    out.push({
+      at: new Date(r.createdAt).toISOString(),
+      platform: r.platformId,
+      ltiSub: r.ltiSub.slice(0, 8) + "...",
+      sourceCourseId: r.sourceCourseId,
+      sourceUserId: r.sourceUserId ?? null,
+      courseTitle: r.courseTitle,
+      // The single most common reason a completion goes nowhere.
+      hasAgsLineItem: Boolean(r.ags?.lineitem),
+      agsScopes: r.ags?.scope ?? [],
+    });
+  }
+  return out
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+    .slice(0, limit);
+}
