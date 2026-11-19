@@ -128,10 +128,16 @@ export default function LtiPlay() {
             borderRadius: 6,
             whiteSpace: "pre-wrap",
             fontSize: ".85rem",
+            lineHeight: 1.5,
           }}
         >
           {data.error}
         </pre>
+        <p style={{ color: "#777", fontSize: ".85rem" }}>
+          A 401 is the source portal rejecting a username and password. A 403 is
+          a key or permission problem. The service log carries the full detail
+          under the <code>[lti/portal]</code> prefix.
+        </p>
       </div>
     );
   }

@@ -438,7 +438,8 @@ async function selfEnrol(
 async function authenticate(
   cfg: SourcePortalConfig,
   username: string,
-  password: string
+  password: string,
+  who: string
 ): Promise<string> {
   const r = await fetch(`${cfg.apiUrl}/authentication`, {
     method: "POST",
@@ -456,7 +457,16 @@ async function authenticate(
   const raw = await r.text();
   console.log(`[lti/portal] authenticate → ${r.status} ${raw.slice(0, 160)}`);
   if (!r.ok) {
-    throw new Error(`Could not authenticate as provisioned learner: ${r.status}`);
+    // 401 here is the source portal rejecting the username/password pair --
+    // not an API-key or permission problem, which surface as 403.
+    const hint =
+      r.status === 401
+        ? " The source portal rejected that username/password."
+        : "";
+    throw new Error(
+      `Could not sign in as ${who} "${username}" on the source portal ` +
+        `(${r.status}).${hint}`
+    );
   }
   const data = JSON.parse(raw) as { token?: string };
   if (!data.token) throw new Error("authenticate returned 200 but no token");
@@ -479,20 +489,39 @@ export async function provisionAndEnrol(
 ): Promise<ProvisionedLearner> {
   assertSourcePortalConfigured(cfg);
 
+  let adminFailure: string | null = null;
+
   if (adminProvisioningConfigured(cfg)) {
     try {
       return await provisionOwnLearner(cfg, input);
     } catch (err) {
+      adminFailure = err instanceof Error ? err.message : String(err);
       if (!sharedLearnerConfigured(cfg)) throw err;
       console.warn(
-        "[lti/portal] per-learner provisioning failed, falling back to the " +
-          "shared learner: " +
-          (err instanceof Error ? err.message : String(err))
+        `[lti/portal] per-learner provisioning failed, falling back to the ` +
+          `shared learner: ${adminFailure}`
       );
     }
+  } else {
+    console.log(
+      "[lti/portal] Integration API not configured — using the shared learner"
+    );
   }
 
-  return provisionSharedLearner(cfg, input.courseId);
+  try {
+    return await provisionSharedLearner(cfg, input.courseId);
+  } catch (err) {
+    const sharedFailure = err instanceof Error ? err.message : String(err);
+    // Both routes failed. Showing only the second one sends you looking in the
+    // wrong place, so say what each attempt did.
+    throw new Error(
+      adminFailure
+        ? `Both routes failed.\n` +
+            `Per-learner provisioning: ${adminFailure}\n` +
+            `Shared learner: ${sharedFailure}`
+        : sharedFailure
+    );
+  }
 }
 
 /** The real thing: this launch's user gets an account of their own. */
@@ -501,7 +530,12 @@ async function provisionOwnLearner(
   input: UpsertInput & { courseId: string }
 ): Promise<ProvisionedLearner> {
   const { username, password, userId } = await upsertLearner(cfg, input);
-  const token = await authenticate(cfg, username, password);
+  const token = await authenticate(
+    cfg,
+    username,
+    password,
+    "the newly provisioned learner"
+  );
 
   if (userId) {
     await adminEnrol(cfg, userId, input.courseId);
@@ -559,7 +593,12 @@ async function provisionSharedLearner(
       "ambiguous with more than one tester."
   );
 
-  const token = await authenticate(cfg, cfg.sharedUsername, cfg.sharedPassword);
+  const token = await authenticate(
+    cfg,
+    cfg.sharedUsername,
+    cfg.sharedPassword,
+    "the shared learner"
+  );
 
   // Best effort: the account may already be enrolled, or the course may not
   // permit self-enrolment. Either way let the mint be the real test — it fails
