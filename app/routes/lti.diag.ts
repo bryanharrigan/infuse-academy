@@ -93,6 +93,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       provisionSecretSet: Boolean(
         process.env.EMBED_PROVISION_SECRET ?? process.env.LTI_PROVISION_SECRET
       ),
+      /** Absorb null-references on POST /users when this is absent. */
+      departmentIdSet: Boolean(
+        process.env.EMBED_DEMO_DEPARTMENT_ID ??
+          process.env.LTI_SOURCE_DEPARTMENT_ID
+      ),
       note:
         "trustLaunchIdentity is false unless EMBED_TRUST_LAUNCH_IDENTITY and " +
         "EMBED_AUTO_PROVISION are both 'true' AND a REST url is set.",

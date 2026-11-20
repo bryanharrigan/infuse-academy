@@ -134,6 +134,7 @@ type LearnerOverrides = {
   password?: string;
   firstName?: string;
   lastName?: string;
+  email?: string;
 };
 
 async function createLearner(o: LearnerOverrides = {}): Promise<CreatedUser> {
@@ -147,6 +148,14 @@ async function createLearner(o: LearnerOverrides = {}): Promise<CreatedUser> {
     firstName: o.firstName || "Demo",
     lastName: o.lastName || "Learner",
     isActive: true,
+    /**
+     * ALWAYS send an address, even a synthetic one. Absorb's user model
+     * treats email as present, and omitting it is one way POST /users answers
+     * with a .NET null reference rather than naming the field. example.com is
+     * reserved by RFC 2606 and can never route, so a mirror learner cannot be
+     * mailed by accident.
+     */
+    emailAddress: o.email || `${username}@example.com`,
   };
   if (DemoDepartmentId) body.departmentId = DemoDepartmentId;
 
