@@ -120,8 +120,28 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       frame: typeof MONITOR_IFRAME;
     } | null = null;
     if (smowlEnabled(smowl)) {
+      /**
+       * WHOM SMOWL PROCTORS.
+       *
+       * "launch" (default): the real person on the host portal, identified by
+       * the LTI subject from a signature-verified id_token. Every bharrigan
+       * learner becomes a distinct SMOWL user with their own face
+       * registration and their own evidence trail.
+       *
+       * "source": the account on the content portal. In shared-learner mode
+       * that is ONE account for everybody, so every learner would share a
+       * single face registration -- which is not proctoring, it is a prop.
+       *
+       * This is the setting that decouples proctoring identity from the
+       * shared-learner limitation: Absorb can play the course as one account
+       * while SMOWL still watches, and names, the actual person.
+       */
+      const smowlIdentity = (process.env.SMOWL_IDENTITY ?? "launch").toLowerCase();
       const who = {
-        userId: learner.userId ?? launch.identity.sub,
+        userId:
+          smowlIdentity === "source"
+            ? (learner.userId ?? launch.ltiSub)
+            : deterministicUsername(launch.platformId, launch.ltiSub),
         name:
           `${launch.identity.firstName} ${launch.identity.lastName}`.trim() ||
           "Learner",
@@ -129,8 +149,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       };
       const activity = {
         activityId: launch.sourceCourseId,
-        activityType: "course",
         containerId: launch.platformId,
+        // Where SMOWL returns the learner after face registration.
         activityUrl: `${new URL(request.url).origin}/lti/play?lid=${launch.launchId}`,
       };
       proctor = {
