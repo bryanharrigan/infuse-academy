@@ -95,6 +95,8 @@ $Defaults = [ordered]@{
 function Test-AllowedKey ([string]$key) {
     if ($key -cmatch '^LTI_[A-Z0-9_]+$')   { return $true }
     if ($key -cmatch '^SMOWL_[A-Z0-9_]+$') { return $true }
+    if ($key -cmatch '^EMBED_[A-Z0-9_]+$') { return $true }
+    if ($key -ceq 'ABSORB_REST_URL')       { return $true }
     return @($Defaults.Keys) -contains $key
 }
 

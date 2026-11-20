@@ -53,7 +53,20 @@ import {
   startEnrollment,
 } from "./infuse-api";
 
-const InfuseApiKey = process.env.INFUSE_API_KEY ?? "";
+/**
+ * The key for `POST /users`, which is the INTEGRATION API -- a different
+ * product and a different key from the Infuse one.
+ *
+ * It is the "REST API Private Key" in Portal Settings > Info. Sending the
+ * Infuse API key here returns 403, which is exactly how this was found on the
+ * LTI side on 18 Nov; the fallback chain below exists so the same key does
+ * not have to be entered twice under two names.
+ */
+const InfuseApiKey =
+  process.env.EMBED_REST_API_KEY ??
+  process.env.LTI_SOURCE_REST_API_KEY ??
+  process.env.INFUSE_API_KEY ??
+  "";
 
 /**
  * Admin Integration API gateway — region-specific, and NOT the same host as
@@ -62,7 +75,8 @@ const InfuseApiKey = process.env.INFUSE_API_KEY ?? "";
  *   EU  https://rest.myabsorb.eu       AU  https://rest.myabsorb.com.au
  * Pointing at the wrong region fails with an unhelpful error.
  */
-const AbsorbRestUrl = process.env.ABSORB_REST_URL ?? "";
+const AbsorbRestUrl =
+  process.env.ABSORB_REST_URL ?? process.env.LTI_SOURCE_REST_URL ?? "";
 
 /** Department for throwaway accounts. Optional — Absorb uses its default. */
 const DemoDepartmentId = process.env.EMBED_DEMO_DEPARTMENT_ID ?? "";
@@ -115,16 +129,23 @@ function generatePassword(): string {
 
 type CreatedUser = { userId: string | null; username: string; password: string };
 
-async function createLearner(): Promise<CreatedUser> {
-  const username = generateUsername();
-  const password = generatePassword();
+type LearnerOverrides = {
+  username?: string;
+  password?: string;
+  firstName?: string;
+  lastName?: string;
+};
+
+async function createLearner(o: LearnerOverrides = {}): Promise<CreatedUser> {
+  const username = o.username ?? generateUsername();
+  const password = o.password ?? generatePassword();
 
   const base = AbsorbRestUrl.replace(/\/$/, "");
   const body: Record<string, unknown> = {
     username,
     password,
-    firstName: "Demo",
-    lastName: "Learner",
+    firstName: o.firstName || "Demo",
+    lastName: o.lastName || "Learner",
     isActive: true,
   };
   if (DemoDepartmentId) body.departmentId = DemoDepartmentId;
@@ -215,6 +236,139 @@ export async function provisionDemoLearner(
 
   console.log(
     `[embed-provision] provisioned ${username} (enrolled=${enrolled}) for course ${courseId}`
+  );
+
+  return { token, username, enrolled };
+}
+
+
+/* ─────────────────────── launch identity (SCORM) ────────────────────────── */
+
+/**
+ * A learner identified by the launching LMS rather than by signing in.
+ *
+ * The SCORM runtime hands the wrapper `cmi.core.student_id` and
+ * `cmi.core.student_name`, so by the time the popup opens we already know who
+ * started the attempt. That removes the sign-in form entirely.
+ */
+export type LaunchIdentity = { sid: string; name?: string };
+
+/**
+ * ⚠️  THE TRUST BOUNDARY. READ BEFORE ENABLING.
+ *
+ * The identity arrives in a query string from a page we do not control and
+ * cannot sign — the wrapper is client-side JavaScript served from the LMS's
+ * own file host, so it can hold no secret. Anyone who can construct a URL can
+ * therefore claim to be anyone.
+ *
+ * What that does and does not buy an attacker:
+ *   - It does NOT expose the real learner's account, progress or data. The
+ *     mirror is a separate account; nothing of theirs is reachable through it.
+ *   - It DOES let someone play a course they were never entitled to, because
+ *     we create and enrol the mirror ourselves, which bypasses the usual
+ *     entitlement check.
+ *   - It DOES let someone put a chosen name on a SMOWL proctoring record.
+ *
+ * That is the same posture EMBED_AUTO_PROVISION already carries, and it is
+ * why this needs its own switch on top of it rather than riding along. Fine
+ * for a demo portal; not fine the day real results depend on it. If this ever
+ * stops being a sandbox, the launch has to be signed — which means a server
+ * round-trip in the wrapper, not a query parameter.
+ */
+export const launchIdentityTrusted = (): boolean =>
+  process.env.EMBED_TRUST_LAUNCH_IDENTITY === "true" && autoProvisionEnabled();
+
+/**
+ * The secret that makes the derived password stable. No fallback constant on
+ * purpose: a predictable password on an account we create by admin API is a
+ * far worse failure than the feature simply not working.
+ */
+const ProvisionSecret =
+  process.env.EMBED_PROVISION_SECRET || process.env.LTI_PROVISION_SECRET || "";
+
+/** `scorm-<16 hex>` — distinguishable at a glance from LTI's `lti-<32 hex>`. */
+function mirrorUsername(sid: string): string {
+  const h = crypto.createHash("sha256").update(`scorm|${sid}`).digest("hex");
+  return `scorm-${h.slice(0, 16)}`;
+}
+
+/**
+ * Derived, never stored. Upsert sends the same value every time, so a repeat
+ * launch re-authenticates rather than locking the learner out of their mirror.
+ */
+function mirrorPassword(sid: string): string {
+  const h = crypto
+    .createHmac("sha256", ProvisionSecret)
+    .update(`scorm|${sid}`)
+    .digest("base64url");
+  // Absorb wants mixed case, a digit and a symbol.
+  return `Aa1!${h.slice(0, 20)}`;
+}
+
+function splitName(full: string | undefined): { firstName: string; lastName: string } {
+  const parts = (full ?? "").trim().split(/\s+/).filter(Boolean);
+  // SCORM 1.2 conventionally gives "Last, First".
+  if (full && full.includes(",")) {
+    const [last, first] = full.split(",", 2);
+    return { firstName: (first ?? "").trim(), lastName: (last ?? "").trim() };
+  }
+  if (parts.length === 0) return { firstName: "Learner", lastName: "" };
+  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+  return { firstName: parts.slice(0, -1).join(" "), lastName: parts[parts.length - 1] };
+}
+
+/**
+ * Create-or-reuse a stable mirror learner for an LMS-identified person, then
+ * sign in as them and enrol them.
+ *
+ * Deliberately NOT the real learner's account: we have their id, not their
+ * password, and there is no admin impersonation to borrow. The mirror plays
+ * the content; the real result reaches their record through the SCORM API in
+ * the wrapper. Same split as the LTI flow, where the host portal records the
+ * grade and the content portal merely plays.
+ *
+ * Because `POST /users` upserts on username, a returning learner lands on the
+ * same mirror and keeps their progress.
+ */
+export async function provisionMirrorLearner(
+  courseId: string,
+  identity: LaunchIdentity
+): Promise<ProvisionResult> {
+  if (!launchIdentityTrusted()) {
+    throw new Error("EMBED_TRUST_LAUNCH_IDENTITY is not enabled");
+  }
+  if (!ProvisionSecret) {
+    throw new Error(
+      "Set EMBED_PROVISION_SECRET (or LTI_PROVISION_SECRET). Without it the " +
+        "mirror learner's password would have to be predictable."
+    );
+  }
+  if (!InfuseBaseUrl) throw new Error("INFUSE_BASE_URL is not set");
+
+  const username = mirrorUsername(identity.sid);
+  const password = mirrorPassword(identity.sid);
+  const { firstName, lastName } = splitName(identity.name);
+
+  // No rate-limit check: this is idempotent per learner, so a refresh loop
+  // re-upserts one account rather than creating new ones. The cap exists to
+  // stop unbounded ACCOUNT CREATION, which this cannot do.
+  await createLearner({ username, password, firstName, lastName });
+
+  const { token } = await authenticate(username, password);
+
+  let enrolled = false;
+  try {
+    await startEnrollment(token, courseId);
+    enrolled = true;
+  } catch (err) {
+    console.warn(
+      `[embed-provision] self-enrolment failed for ${username} on ${courseId}: ` +
+        (err instanceof Error ? err.message : String(err))
+    );
+  }
+
+  console.log(
+    `[embed-provision] mirror ${username} (enrolled=${enrolled}) for course ${courseId}`
   );
 
   return { token, username, enrolled };

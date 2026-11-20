@@ -38,6 +38,10 @@ import {
   recentLtiEvents,
   storeStats,
 } from "~/.server/lti/store";
+import {
+  autoProvisionEnabled,
+  launchIdentityTrusted,
+} from "~/.server/embed-provision";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
@@ -69,6 +73,29 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       sharedLearnerSet: sharedLearnerConfigured(cfg),
       /** False here means every launch uses the shared learner. */
       perLearnerProvisioning: adminProvisioningConfigured(cfg),
+    },
+    /**
+     * The SCORM / embed path. Every one of these must be true before the
+     * proctored popup can skip its sign-in form, and a single false one looks
+     * identical from the browser: the form just appears.
+     */
+    embed: {
+      autoProvision: autoProvisionEnabled(),
+      trustLaunchIdentity: launchIdentityTrusted(),
+      restUrlSet: Boolean(
+        process.env.ABSORB_REST_URL ?? process.env.LTI_SOURCE_REST_URL
+      ),
+      integrationKeySet: Boolean(
+        process.env.EMBED_REST_API_KEY ??
+          process.env.LTI_SOURCE_REST_API_KEY ??
+          process.env.INFUSE_API_KEY
+      ),
+      provisionSecretSet: Boolean(
+        process.env.EMBED_PROVISION_SECRET ?? process.env.LTI_PROVISION_SECRET
+      ),
+      note:
+        "trustLaunchIdentity is false unless EMBED_TRUST_LAUNCH_IDENTITY and " +
+        "EMBED_AUTO_PROVISION are both 'true' AND a REST url is set.",
     },
     webhook: {
       secretSet: Boolean(process.env.LTI_WEBHOOK_SECRET),
