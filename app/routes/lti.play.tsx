@@ -52,6 +52,30 @@ import {
   smowlConfig,
 } from "~/.server/lti/smowl";
 
+/**
+ * How much explanatory chrome the player page carries.
+ *
+ * These banners were debugging aids, and they read like debugging aids. In
+ * front of a customer the framing advisory and the shared-learner notice look
+ * like unfinished software rather than the honest disclosures they are, so
+ * they are off unless asked for.
+ *
+ *   off      nothing but the course (and the proctor panel, which is UI)
+ *   minimal  completion status only -- the evidence that passback worked
+ *   all      every banner, as during development
+ *
+ * NOTE the trade in "off" and "minimal": the shared-learner notice exists so
+ * a demo is never mistaken for real per-learner provisioning. Hiding it is
+ * fine while you are the one presenting and you know every launch shares one
+ * account. It would not be fine if someone else were driving.
+ */
+type BannerLevel = "off" | "minimal" | "all";
+
+function bannerLevel(): BannerLevel {
+  const v = (process.env.LTI_PLAYER_BANNERS ?? "minimal").toLowerCase();
+  return v === "off" || v === "all" ? v : "minimal";
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const lid = new URL(request.url).searchParams.get("lid");
   const launch = lid ? getLaunch(lid) : null;
@@ -105,8 +129,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       };
       const activity = {
         activityId: launch.sourceCourseId,
+        activityType: "course",
         containerId: launch.platformId,
-        // Where SMOWL returns the learner after face registration.
         activityUrl: `${new URL(request.url).origin}/lti/play?lid=${launch.launchId}`,
       };
       proctor = {
@@ -127,6 +151,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       lid: launch.launchId,
       hasLineItem: Boolean(launch.ags?.lineitem),
       proctor,
+      banners: bannerLevel(),
       error: null as string | null,
     });
   } catch (err) {
@@ -145,6 +170,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         registerUrl: string;
         frame: typeof MONITOR_IFRAME;
       } | null,
+      banners: bannerLevel(),
       error: message,
     });
   }
@@ -152,6 +178,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function LtiPlay() {
   const data = useLoaderData<typeof loader>();
+  // "all" is development chrome; "minimal" keeps only the completion line.
+  const showAllBanners = data.banners === "all";
+  const showStatusBanners = data.banners !== "off";
   const [frameBlocked, setFrameBlocked] = useState(false);
   const [completion, setCompletion] = useState<
     "watching" | "complete" | "reported" | "nowhere"
@@ -325,6 +354,7 @@ export default function LtiPlay() {
 
   return (
     <div style={{ height: "100vh", margin: 0, display: "flex", flexDirection: "column" }}>
+      {showAllBanners ? (
       <div
         style={{
           fontFamily: "system-ui",
@@ -360,7 +390,8 @@ export default function LtiPlay() {
           Open in a new window
         </a>
       </div>
-      {completion === "reported" ? (
+      ) : null}
+      {showStatusBanners && completion === "reported" ? (
         <div
           style={{
             fontFamily: "system-ui",
@@ -375,7 +406,7 @@ export default function LtiPlay() {
           {reported ? <> — <strong>{reported}</strong></> : null}.
         </div>
       ) : null}
-      {completion === "nowhere" ? (
+      {showStatusBanners && completion === "nowhere" ? (
         <div
           style={{
             fontFamily: "system-ui",
@@ -390,7 +421,7 @@ export default function LtiPlay() {
           column, so there is nowhere to report it.
         </div>
       ) : null}
-      {data.shared ? (
+      {showAllBanners && data.shared ? (
         <div
           style={{
             fontFamily: "system-ui",
@@ -482,7 +513,7 @@ export default function LtiPlay() {
           </div>
         )}
       </div>
-      {frameBlocked ? (
+      {showAllBanners && frameBlocked ? (
         <div
           style={{
             fontFamily: "system-ui",
