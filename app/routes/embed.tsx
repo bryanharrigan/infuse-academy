@@ -152,11 +152,38 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   // Resolve ?course= directly so a single-course embed works whether or not
   // the course appears in the catalog listing.
+  //
+  // TRUST A SUPPLIED ID WHEN THE CATALOG DOES NOT KNOW IT.
+  // -----------------------------------------------------
+  // /my-catalog with the API key returns a SUBSET of the portal's courses --
+  // the same finding that forced a paste-a-course-id box into the LTI
+  // deep-link picker. Falling back to the catalog grid here meant a lesson
+  // pointed at a real, playable course silently showed a course chooser
+  // instead, which looks like the link is broken.
+  //
+  // Trusting the id is safe because it grants nothing. The mint binds the
+  // token to this learner AND this course server-side
+  // (claims: Learner.Enrollment), so an id the learner is not entitled to
+  // fails at /embed/play with a 403. The catalog is a convenience, never the
+  // access check.
+  //
+  // ?title= is optional and cosmetic: the caller (a SCORM wrapper, say)
+  // already knows the name, which saves a lookup the API key cannot do.
   let focusCourse: EmbedCourse | null = null;
   if (focusCourseId) {
     focusCourse =
       courses.find((c) => c.id === focusCourseId) ??
       (await getEmbedCourse(focusCourseId).catch(() => null));
+
+    if (!focusCourse) {
+      focusCourse = {
+        id: focusCourseId,
+        name: url.searchParams.get("title")?.slice(0, 120) || "Course",
+        description: "",
+        imageUrl: "",
+        courseType: "OnlineCourse",
+      };
+    }
   }
 
   return json<LoaderData>({
