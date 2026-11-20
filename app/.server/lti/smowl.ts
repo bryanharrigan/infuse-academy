@@ -46,6 +46,7 @@ export type SmowlConfig = {
   audience: string;
   lang: string;
   activityType: string;
+  userSalt: string;
 };
 
 /** Documented endpoints. Not configurable — they are SMOWL's own hosts. */
@@ -87,7 +88,27 @@ export function smowlConfig(): SmowlConfig {
     // "course" is NOT one of them, which is why this is no longer hardcoded
     // at the call site.
     activityType: process.env.SMOWL_ACTIVITY_TYPE ?? "test",
+    // See the note on the salt below.
+    userSalt: process.env.SMOWL_USER_SALT ?? "",
   };
+}
+
+/**
+ * SMOWL keys a face registration to `userId`, and there is no documented way
+ * to delete one from the integration side. For a demo that needs to show the
+ * registration experience more than once, that is a problem: once you have
+ * registered, you can never see the first-run flow again.
+ *
+ * The salt solves it without touching anyone's data. Bump SMOWL_USER_SALT and
+ * every learner becomes a user SMOWL has never seen, so registration replays.
+ * It is append-only and reversible: set it back to a previous value and the
+ * old registrations are live again.
+ *
+ * Leave it empty in anything resembling production. Every bump orphans the
+ * previous registrations and consumes licence units afresh.
+ */
+function saltedUserId(cfg: SmowlConfig, userId: string): string {
+  return alnum(`${userId}${cfg.userSalt}`);
 }
 
 export function enabled(cfg: SmowlConfig): boolean {
@@ -200,9 +221,19 @@ export type SmowlActivity = {
  *
  * Parameter order is load-bearing and comes straight from their PHP sample,
  * which explicitly re-sorts the array before building the query string:
- * `token` and `entityName` are forced FIRST, `activityUrl` is forced LAST
+ * `token` and `entityName` are forced FIRST, the return link is forced LAST
  * (so a browser truncating a long URL loses the redirect target rather than
  * the credentials).
+ *
+ * BOTH `activityUrl` AND `Course_link` ARE SENT, with the same value.
+ * ------------------------------------------------------------------
+ * Their PHP sample re-sorts both names, which was the tell: the registration
+ * flow reads `Course_link`, while the documented variable name is
+ * `activityUrl`. Sending only the documented one produced a live registration
+ * page whose return link was the literal string `undefined`, stranding the
+ * learner at the end of the selfie flow instead of returning them to the
+ * course. Sending both costs nothing and satisfies whichever one a given
+ * endpoint actually reads.
  */
 function buildUrl(
   base: string,
@@ -218,7 +249,10 @@ function buildUrl(
   q.append("userEmail", learner.email);
   q.append("lang", cfg.lang);
   q.append("type", "0");
-  if (activityUrl) q.append("activityUrl", activityUrl);
+  if (activityUrl) {
+    q.append("activityUrl", activityUrl);
+    q.append("Course_link", activityUrl);
+  }
   return `${base}?${q.toString()}`;
 }
 
@@ -230,7 +264,7 @@ export function monitoringUrl(
 ): string {
   const token = signSmowlToken(cfg, {
     entityKey: cfg.entityKey,
-    userId: alnum(learner.userId),
+    userId: saltedUserId(cfg, learner.userId),
     activityType: alnum(cfg.activityType).slice(0, 50),
     activityId: alnum(activity.activityId),
     activityContainerId: alnum(activity.containerId),
@@ -248,7 +282,7 @@ export function registrationUrl(
 ): string {
   const token = signSmowlToken(cfg, {
     entityKey: cfg.entityKey,
-    userId: alnum(learner.userId),
+    userId: saltedUserId(cfg, learner.userId),
     // Optional on registration, per their sample's own comments — sent anyway
     // so SMOWL can tie the enrolment to the right activity.
     activityType: alnum(cfg.activityType).slice(0, 50),

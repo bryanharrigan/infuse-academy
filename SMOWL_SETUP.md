@@ -46,7 +46,7 @@ git diff
 ```
 
 ```powershell
-git add app\.server\lti\smowl.ts app\routes\lti.play.tsx env.lti.example scripts\lti-setup-origin.ps1 SMOWL_SETUP.md
+git add app\.server\lti\smowl.ts app\routes\lti.smowl-probe.ts app\routes\lti.play.tsx env.lti.example scripts\lti-setup-origin.ps1 SMOWL_SETUP.md
 git commit -m "SMOWL proctoring: match vendor JWT samples, allow SMOWL_* in setup script"
 git push
 ```
@@ -102,6 +102,9 @@ so every existing variable stays put.
 `test` and `quiz` are not the only accepted values. `course` is honest for an
 Absorb online course and keeps the SMOWL reports filterable.
 
+If the vault had no audience value, put `SMOWL_AUDIENCE=smowl_platform_domain`
+in for now and work it out in step 6b rather than waiting on support.
+
 ---
 
 ## 5. Origin machine — dry run
@@ -140,6 +143,37 @@ To undo: `-Restore <backup path>`, printed by the apply.
 
 ---
 
+## 6b. Only if you don't have a confirmed `aud` value
+
+`/lti/smowl-probe` signs a token with whatever audience you name and hands
+back the finished SMOWL URL, so every candidate can be tried in one browser
+session instead of one deploy each. It needs `LTI_DIAG_KEY`, which is already
+set.
+
+```
+https://infuse.bryanharrigan.dev/lti/smowl-probe?key=<LTI_DIAG_KEY>
+```
+
+The response lists `candidatesToTry`. For each one:
+
+```
+https://infuse.bryanharrigan.dev/lti/smowl-probe?key=<LTI_DIAG_KEY>&aud=<candidate>
+```
+
+Open the `monitoringUrl` from the response in a new tab.
+
+* **A SMOWL camera-check page** — that audience was accepted. Set
+  `SMOWL_AUDIENCE` to it and re-run step 6.
+* **A token or signature error** — try the next candidate.
+
+If every candidate fails the same way, the problem is not the audience: check
+`SMOWL_ENTITY_KEY` and `SMOWL_JWT_SECRET` for a transcription error first.
+
+**Delete this route once the value is confirmed.** It earns its keep for an
+afternoon, not permanently.
+
+---
+
 ## 7. Verify
 
 Launch the LTI course from `bharrigan.myabsorb.ca` as usual.
@@ -160,7 +194,7 @@ independently of whether the camera checks then pass.
 | Symptom | Cause |
 |---|---|
 | Course plays with no monitoring block | `enabled()` is false — one of `SMOWL_ENTITY_NAME`, `SMOWL_ENTITY_KEY`, `SMOWL_JWT_SECRET` is unset |
-| Monitoring iframe shows a token error | `SMOWL_AUDIENCE` first, then `signSmowlToken` in `app/.server/lti/smowl.ts` |
+| Monitoring iframe shows a token error | `SMOWL_AUDIENCE` first — use step 6b — then `signSmowlToken` in `app/.server/lti/smowl.ts` |
 | Activity never appears in Monitoring adjustments | The request never reached SMOWL — check the generated URL in page source |
 | Everything blocked, `monitoringstatusNOTOK` | Browser camera/mic permission, not our code |
 
