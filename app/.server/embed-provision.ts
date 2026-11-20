@@ -47,6 +47,8 @@
 
 import crypto from "node:crypto";
 
+import { provisionAndEnrol, sourcePortal } from "./lti/portal";
+
 import {
   InfuseBaseUrl,
   authenticate,
@@ -295,7 +297,12 @@ export const launchIdentityTrusted = (): boolean =>
 const ProvisionSecret =
   process.env.EMBED_PROVISION_SECRET || process.env.LTI_PROVISION_SECRET || "";
 
-/** `scorm-<16 hex>` — distinguishable at a glance from LTI's `lti-<32 hex>`. */
+/**
+ * Unused since the mirror path delegated to portal.ts, which derives its own
+ * stable username. Kept because the naming scheme is referenced in
+ * SMOWL_SETUP.md and in the cleanup instructions for demo accounts.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function mirrorUsername(sid: string): string {
   const h = crypto.createHash("sha256").update(`scorm|${sid}`).digest("hex");
   return `scorm-${h.slice(0, 16)}`;
@@ -305,6 +312,7 @@ function mirrorUsername(sid: string): string {
  * Derived, never stored. Upsert sends the same value every time, so a repeat
  * launch re-authenticates rather than locking the learner out of their mirror.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function mirrorPassword(sid: string): string {
   const h = crypto
     .createHmac("sha256", ProvisionSecret)
@@ -354,31 +362,45 @@ export async function provisionMirrorLearner(
   }
   if (!InfuseBaseUrl) throw new Error("INFUSE_BASE_URL is not set");
 
-  const username = mirrorUsername(identity.sid);
-  const password = mirrorPassword(identity.sid);
   const { firstName, lastName } = splitName(identity.name);
 
-  // No rate-limit check: this is idempotent per learner, so a refresh loop
-  // re-upserts one account rather than creating new ones. The cap exists to
-  // stop unbounded ACCOUNT CREATION, which this cannot do.
-  await createLearner({ username, password, firstName, lastName });
-
-  const { token } = await authenticate(username, password);
-
-  let enrolled = false;
-  try {
-    await startEnrollment(token, courseId);
-    enrolled = true;
-  } catch (err) {
-    console.warn(
-      `[embed-provision] self-enrolment failed for ${username} on ${courseId}: ` +
-        (err instanceof Error ? err.message : String(err))
-    );
-  }
+  /**
+   * DELEGATED TO THE LTI PROVISIONING PATH, DELIBERATELY.
+   *
+   * The obvious implementation is a local createLearner + authenticate, and
+   * that is what this did -- and it returned 403 every time. The Integration
+   * API v2 wants `Authorization: Bearer <token>` AND `x-api-key` together;
+   * sending the key alone is rejected, which reads like a permissions problem
+   * on the key and is not one.
+   *
+   * portal.ts already handles that: adminFetch tries the key alone, escalates
+   * to POST /authenticate on a 401/403, and retries with the bearer token in
+   * both the raw and Bearer-prefixed forms this tenant has been seen to want.
+   * Duplicating that here would mean maintaining the same escalation twice
+   * and discovering the same tenant quirks twice.
+   *
+   * It also brings the SHARED-LEARNER FALLBACK along, which matters more than
+   * the auth: with no admin credentials configured, provisionAndEnrol drops
+   * back to the pre-made shared account instead of failing, so the proctored
+   * popup plays rather than showing a sign-in form. Progress is shared in that
+   * mode -- but SMOWL still keys on the REAL learner, because the identity is
+   * passed separately, so per-learner proctoring survives a shared player.
+   *
+   * `iss` is the constant "scorm" so the derived username is stable per
+   * learner and cannot collide with an LTI-provisioned one.
+   */
+  const learner = await provisionAndEnrol(sourcePortal(), {
+    iss: "scorm",
+    sub: identity.sid,
+    firstName,
+    lastName,
+    email: null,
+    courseId,
+  });
 
   console.log(
-    `[embed-provision] mirror ${username} (enrolled=${enrolled}) for course ${courseId}`
+    `[embed-provision] mirror ${learner.username} (mode=${learner.mode}) for course ${courseId}`
   );
 
-  return { token, username, enrolled };
+  return { token: learner.token, username: learner.username, enrolled: true };
 }
