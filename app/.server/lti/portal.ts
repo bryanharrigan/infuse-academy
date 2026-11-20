@@ -56,6 +56,13 @@ export type SourcePortalConfig = {
    * Infuse key here returns 403, which is how this was found on 18 Nov.
    */
   restApiKey: string;
+  /**
+   * Integration API OAuth client credentials, from
+   * Client Settings -> Integration API. Preferred over adminUsername /
+   * adminPassword: server-to-server, no admin account, no user sign-in.
+   */
+  oauthClientId: string;
+  oauthClientSecret: string;
   adminUsername: string;
   adminPassword: string;
   /** Fallback identity: one pre-made learner everyone plays as. */
@@ -90,6 +97,8 @@ export function sourcePortal(): SourcePortalConfig {
       process.env.EMBED_DEMO_DEPARTMENT_ID ??
       "",
     restApiKey: process.env.LTI_SOURCE_REST_API_KEY ?? "",
+    oauthClientId: process.env.LTI_SOURCE_OAUTH_CLIENT_ID ?? "",
+    oauthClientSecret: process.env.LTI_SOURCE_OAUTH_CLIENT_SECRET ?? "",
     adminUsername: process.env.LTI_SOURCE_ADMIN_USERNAME ?? "",
     adminPassword: process.env.LTI_SOURCE_ADMIN_PASSWORD ?? "",
     sharedUsername: process.env.LTI_SOURCE_LEARNER_USERNAME ?? "",
@@ -98,10 +107,12 @@ export function sourcePortal(): SourcePortalConfig {
 }
 
 /** Full per-learner provisioning needs all three Integration API values. */
+/** True when EITHER credential shape is available. */
 export function adminProvisioningConfigured(cfg: SourcePortalConfig): boolean {
-  return Boolean(
-    cfg.restUrl && cfg.restApiKey && cfg.adminUsername && cfg.adminPassword
-  );
+  const hasCredentials =
+    (cfg.oauthClientId && cfg.oauthClientSecret) ||
+    (cfg.adminUsername && cfg.adminPassword);
+  return Boolean(cfg.restUrl && cfg.restApiKey && hasCredentials);
 }
 
 /** The fallback needs one pre-made learner on the source portal. */
@@ -213,8 +224,82 @@ export type ProvisionedLearner = {
  */
 let adminToken: { value: string; expiresAt: number } | null = null;
 
+/**
+ * OAuth 2.0 client credentials grant.
+ *
+ *   POST {rest}/oauth/token
+ *   Authorization: Basic base64(client_id:client_secret)
+ *   grant_type=client_credentials
+ *
+ * This is the right way to do server-to-server calls against the Integration
+ * API, and it is why no administrator account is needed: the token is not
+ * tied to an admin user at all. Absorb's own words -- "A client credentials
+ * token isn't tied to an admin user, so no admin role limits what it can do.
+ * It has broad administrative access to your portal."
+ *
+ * That last sentence is the warning as well as the feature. The client secret
+ * is as powerful as a system administrator's password and belongs in the
+ * service environment, never in the repo.
+ *
+ * Returns "" when not configured, so the caller can fall back to the older
+ * username/password path rather than failing.
+ */
+async function fetchClientCredentialsToken(
+  cfg: SourcePortalConfig
+): Promise<string> {
+  if (!cfg.oauthClientId || !cfg.oauthClientSecret) return "";
+
+  const basic = Buffer.from(
+    `${cfg.oauthClientId}:${cfg.oauthClientSecret}`
+  ).toString("base64");
+
+  const r = await fetch(`${cfg.restUrl}/oauth/token`, {
+    method: "POST",
+    headers: {
+      // Documented as "v1" for this endpoint specifically, not "2".
+      "x-api-version": "v1",
+      "x-api-key": cfg.restApiKey,
+      Authorization: `Basic ${basic}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: "grant_type=client_credentials",
+  });
+  const raw = await r.text();
+  console.log(`[lti/portal] POST /oauth/token → ${r.status}`);
+  if (!r.ok) {
+    console.warn(
+      `[lti/portal] client credentials failed: ${r.status} ${raw.slice(0, 200)}`
+    );
+    return "";
+  }
+  try {
+    const parsed = JSON.parse(raw) as { access_token?: string; expires_in?: number };
+    if (!parsed.access_token) return "";
+    adminToken = {
+      value: parsed.access_token,
+      // Documented at 14400s. Refresh early rather than racing expiry.
+      expiresAt: Date.now() + (parsed.expires_in ?? 14400) * 900,
+    };
+    return parsed.access_token;
+  } catch {
+    return "";
+  }
+}
+
 async function fetchAdminToken(cfg: SourcePortalConfig): Promise<string> {
   if (adminToken && adminToken.expiresAt > Date.now()) return adminToken.value;
+
+  // Preferred: no admin account involved.
+  const ccToken = await fetchClientCredentialsToken(cfg);
+  if (ccToken) return ccToken;
+
+  if (!cfg.adminUsername || !cfg.adminPassword) {
+    throw new Error(
+      "No Integration API credentials. Set LTI_SOURCE_OAUTH_CLIENT_ID and " +
+        "LTI_SOURCE_OAUTH_CLIENT_SECRET (Client Settings > Integration API), " +
+        "or LTI_SOURCE_ADMIN_USERNAME / LTI_SOURCE_ADMIN_PASSWORD."
+    );
+  }
 
   const r = await fetch(`${cfg.restUrl}/authenticate`, {
     method: "POST",
