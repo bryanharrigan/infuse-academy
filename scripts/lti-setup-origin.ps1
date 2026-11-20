@@ -90,10 +90,11 @@ $Defaults = [ordered]@{
 # ignored -- the keygen script prints explanatory prose alongside its output,
 # and a stray line should never become an environment variable.
 #
-# Any LTI_* name is allowed so new settings can be added without editing this
-# script, plus the non-LTI defaults below.
+# Any LTI_* or SMOWL_* name is allowed so new settings can be added without
+# editing this script, plus the non-LTI defaults below.
 function Test-AllowedKey ([string]$key) {
-    if ($key -cmatch '^LTI_[A-Z0-9_]+$') { return $true }
+    if ($key -cmatch '^LTI_[A-Z0-9_]+$')   { return $true }
+    if ($key -cmatch '^SMOWL_[A-Z0-9_]+$') { return $true }
     return @($Defaults.Keys) -contains $key
 }
 
