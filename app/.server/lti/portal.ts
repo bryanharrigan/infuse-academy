@@ -366,20 +366,51 @@ async function adminFetch(
   let res = await send({});
   if (res.status !== 401 && res.status !== 403) return res;
 
-  if (!cfg.adminUsername || !cfg.adminPassword) {
+  /**
+   * ESCALATE WITH EITHER CREDENTIAL SHAPE.
+   *
+   * This guard tested adminUsername/adminPassword only, so a portal
+   * configured with OAuth client credentials never escalated at all:
+   * fetchAdminToken was never reached, every request stayed key-only, and
+   * POST /users returned 403 while the log claimed no credentials existed --
+   * all while /lti/diag reported perLearnerProvisioning: true, because that
+   * checks configuration rather than behaviour.
+   */
+  const canEscalate =
+    (cfg.oauthClientId && cfg.oauthClientSecret) ||
+    (cfg.adminUsername && cfg.adminPassword);
+
+  if (!canEscalate) {
     console.warn(
-      `[lti/portal] ${res.status} on ${url} with the key alone, and no admin ` +
-        `credentials are configured to escalate with.`
+      `[lti/portal] ${res.status} on ${url} with the key alone, and no ` +
+        `credentials are configured to escalate with. Set ` +
+        `LTI_SOURCE_OAUTH_CLIENT_ID / _SECRET (Client Settings > Integration ` +
+        `API), or LTI_SOURCE_ADMIN_USERNAME / _PASSWORD.`
     );
     return res;
   }
 
-  const token = await fetchAdminToken(cfg);
+  let token = "";
+  try {
+    token = await fetchAdminToken(cfg);
+  } catch (err) {
+    console.warn(
+      `[lti/portal] could not obtain an Integration API token: ` +
+        (err instanceof Error ? err.message : String(err))
+    );
+    return res;
+  }
+
   console.log("[lti/portal] retrying admin call with an API token");
-  res = await send({ Authorization: token });
+  // Bearer first: the docs are explicit that modern authentication requires
+  // the scheme, spelled exactly "Bearer". The bare form stays as a fallback
+  // for portals that have not enabled it.
+  res = await send({ Authorization: `Bearer ${token}` });
   if (res.status === 401 || res.status === 403) {
-    res = await send({ Authorization: `Bearer ${token}` });
-    if (res.status < 400) console.log("[lti/portal] Bearer prefix was required");
+    res = await send({ Authorization: token });
+    if (res.status < 400) {
+      console.log("[lti/portal] this portal wants the token with no scheme");
+    }
   }
   return res;
 }
