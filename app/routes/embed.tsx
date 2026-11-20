@@ -58,7 +58,10 @@ import {
   type EmbedCourse,
 } from "~/.server/embed-catalog";
 import { authenticate } from "~/.server/infuse-api";
-import { autoProvisionEnabled } from "~/.server/embed-provision";
+import {
+  autoProvisionEnabled,
+  launchIdentityTrusted,
+} from "~/.server/embed-provision";
 
 /**
  * Nothing in this app sets `X-Frame-Options` (checked: no helmet, no
@@ -91,6 +94,10 @@ type LoaderData = {
    * then plays straight through instead of asking for credentials.
    */
   autoProvision: boolean;
+  /** The launching LMS named the learner, so no sign-in form is needed. */
+  launchIdentity: boolean;
+  launchSid: string;
+  launchName: string;
   /**
    * Set when ?course= names a course, even one absent from the catalog list —
    * a single-course embed shouldn't depend on catalog visibility.
@@ -135,6 +142,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const theme = url.searchParams.get("theme") === "dark" ? "dark" : "light";
   // Per-embed override, so one deploy can demo several keys.
   const key = url.searchParams.get("key") ?? EnrollmentKey;
+  // Passed straight through to /embed/play, which decides whether to trust
+  // them. Truncated here so a long query string cannot be used to probe.
+  const launchSid = (url.searchParams.get("sid") ?? "").trim().slice(0, 128);
+  const launchName = (url.searchParams.get("sname") ?? "").trim().slice(0, 120);
 
   const token = await embedJwtCookie.parse(request.headers.get("Cookie"));
 
@@ -195,6 +206,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     error,
     signupUrl: buildSignupUrl(key),
     autoProvision: autoProvisionEnabled(),
+    launchIdentity: Boolean(launchSid) && launchIdentityTrusted(),
+    launchSid,
+    launchName,
     focusCourse,
   });
 };
@@ -287,7 +301,8 @@ export default function Embed() {
    * sign-in form. If provisioning then fails, /embed/play answers needsAuth
    * and the form appears as the fallback.
    */
-  const canPlayWithoutCredentials = data.autoProvision && !play.data?.needsAuth;
+  const canPlayWithoutCredentials =
+    (data.autoProvision || data.launchIdentity) && !play.data?.needsAuth;
   const signedIn =
     data.signedIn || auth.data?.ok === true || canPlayWithoutCredentials;
   const dark = data.theme === "dark";
@@ -296,8 +311,12 @@ export default function Embed() {
   useEffect(() => {
     if (!selected || !signedIn || playerUrl || play.state !== "idle") return;
     if (play.data?.playerUrl || play.data?.error) return;
-    play.load(`/embed/play?courseId=${encodeURIComponent(selected.id)}`);
-  }, [selected, signedIn, playerUrl, play]);
+    const q = new URLSearchParams({ courseId: selected.id });
+    // The server re-checks EMBED_TRUST_LAUNCH_IDENTITY; this only forwards.
+    if (data.launchSid) q.set("sid", data.launchSid);
+    if (data.launchName) q.set("sname", data.launchName);
+    play.load(`/embed/play?${q.toString()}`);
+  }, [selected, signedIn, playerUrl, play, data.launchSid, data.launchName]);
 
   useEffect(() => {
     if (play.data?.playerUrl) {
