@@ -53,7 +53,9 @@ import { getEmbedCourse } from "~/.server/embed-catalog";
 import {
   ProvisionBusyError,
   autoProvisionEnabled,
+  launchIdentityTrusted,
   provisionDemoLearner,
+  provisionMirrorLearner,
 } from "~/.server/embed-provision";
 
 /** Only the lesson player can be framed — see the header comment. */
@@ -96,10 +98,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
    * has one never reaches here, so refreshing the page does not mint a second
    * account. See embed-provision.ts for the other limits.
    */
+  //
+  // When the launching LMS told us who this is (SCORM hands the wrapper
+  // cmi.core.student_id), provision a STABLE mirror for that person instead
+  // of an anonymous throwaway: progress survives between attempts, and the
+  // proctoring record carries their real name rather than demo-2026...-x7f2.
+  // See the trust-boundary note in embed-provision.ts before enabling it.
+  const sid = (url.searchParams.get("sid") ?? "").trim().slice(0, 128);
+  const sname = (url.searchParams.get("sname") ?? "").trim().slice(0, 120);
+  const useMirror = Boolean(sid) && launchIdentityTrusted();
+
   let setCookie: string | null = null;
-  if (!token && autoProvisionEnabled()) {
+  if (!token && (useMirror || autoProvisionEnabled())) {
     try {
-      const provisioned = await provisionDemoLearner(courseId);
+      const provisioned = useMirror
+        ? await provisionMirrorLearner(courseId, { sid, name: sname })
+        : await provisionDemoLearner(courseId);
       token = provisioned.token;
       setCookie = await embedJwtCookie.serialize(provisioned.token);
     } catch (err) {
