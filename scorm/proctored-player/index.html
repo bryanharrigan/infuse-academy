@@ -29,6 +29,11 @@
    =========================================================================== */
 var PLAYER_ORIGIN = "https://infuse.bryanharrigan.dev";
 var COURSE_ID     = "6dcd9527-3d0f-469c-8753-2f28bdbc8de4";
+/* Cosmetic only -- the heading shown while the player loads. The embed
+   catalog returns a SUBSET of the portal's courses, so a course id that is
+   genuinely playable may still have no catalog entry to take a name from.
+   Passing it avoids a lookup the API key cannot make. */
+var COURSE_TITLE  = "Employee Health and Wellness";
 var PLAYER_PATH   = "/embed";
 
 /* ---------------------------------------------------------------------------
@@ -69,6 +74,21 @@ function getAPI() {
 }
 
 var API = getAPI();
+
+/* --- who the LMS says this is ---------------------------------------------
+   SCORM 1.2 gives us the learner for free. Passing it to the player removes
+   the sign-in form: the player provisions a stable mirror learner for this
+   person, so progress survives between attempts and the proctoring record
+   carries their real name.
+
+   This is NOT authentication -- a query string cannot be signed from a page
+   served off the LMS file host, which holds no secret. The player will only
+   honour it when EMBED_TRUST_LAUNCH_IDENTITY is on, and the note in
+   embed-provision.ts spells out what that concedes.                        */
+function lmsGet(key) {
+  if (!API) return "";
+  try { return String(API.LMSGetValue(key) || ""); } catch (e) { return ""; }
+}
 var initialised = false;
 var finished = false;
 var bar = document.getElementById("bar");
@@ -103,7 +123,14 @@ function report(status, score) {
 
 /* --- the player ----------------------------------------------------------- */
 var inIframe = window.self !== window.top;
-var src = PLAYER_ORIGIN + PLAYER_PATH + "?course=" + encodeURIComponent(COURSE_ID);
+var studentId   = lmsGet("cmi.core.student_id");
+var studentName = lmsGet("cmi.core.student_name");
+
+var src = PLAYER_ORIGIN + PLAYER_PATH +
+          "?course=" + encodeURIComponent(COURSE_ID) +
+          "&title="  + encodeURIComponent(COURSE_TITLE);
+if (studentId)   src += "&sid="   + encodeURIComponent(studentId);
+if (studentName) src += "&sname=" + encodeURIComponent(studentName);
 
 if (inIframe) {
   // Launch mode is wrong. Say so plainly rather than showing a dead camera.
