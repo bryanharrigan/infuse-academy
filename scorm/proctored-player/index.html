@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proctored Course</title>
+<style>
+  html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
+  body { display: flex; flex-direction: column; }
+  #bar { padding: .4rem .75rem; font-size: .8rem; background: #f4f4f5;
+         border-bottom: 1px solid #e4e4e7; color: #3f3f46; }
+  #frame { flex: 1; width: 100%; border: 0; }
+  #fallback { padding: 2rem; max-width: 40rem; }
+  code { background: #f4f4f5; padding: .1rem .3rem; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="bar">Loading the proctored player&hellip;</div>
+<div id="fallback" hidden></div>
+<script>
+/* ===========================================================================
+   CONFIGURE THIS
+   ---------------------------------------------------------------------------
+   PLAYER_ORIGIN  the origin serving the proctored player. An ALLOW-LIST of
+                  one: this page relays whatever it is told into the LMS
+                  gradebook, so it must never frame, or accept a message
+                  from, anywhere else.
+   COURSE_ID      the source-portal course to play.
+   =========================================================================== */
+var PLAYER_ORIGIN = "https://infuse.bryanharrigan.dev";
+var COURSE_ID     = "6dcd9527-3d0f-469c-8753-2f28bdbc8de4";
+var PLAYER_PATH   = "/embed";
+
+/* ---------------------------------------------------------------------------
+   WHY THIS PAGE EXISTS AT ALL
+
+   Camera and microphone are delegated by Permissions Policy, and every iframe
+   in the chain has to pass them down. Absorb's lesson iframe does not
+   (measured: featurePolicy.allowsFeature('camera') === false inside it), so a
+   proctored player cannot run in "modal (iFrame)" launch mode. It has to run
+   in a POPUP, which is a top-level browsing context.
+
+   Set this lesson's Desktop and Mobile launch option to "Launch in a popup".
+   In modal mode the banner below says so rather than failing silently.
+
+   This page is served from the LMS's own content host, so it is same-origin
+   with nothing and cross-origin with the player. That is fine: it owns the
+   iframe element, so it sets allow="camera; microphone" itself, and the
+   player receives the permission from here.
+   --------------------------------------------------------------------------- */
+
+/* --- SCORM 1.2 API discovery ---------------------------------------------
+   The API lives in the window that opened us (popup launch) or an ancestor
+   (modal launch). The walk below is the standard one from the SCORM
+   runtime spec: up through parents, then across to the opener, bounded so a
+   malformed window chain cannot spin.                                      */
+function findAPI(win, depth) {
+  while (win && depth < 10) {
+    try { if (win.API) return win.API; } catch (e) { /* cross-origin */ }
+    if (!win.parent || win.parent === win) break;
+    win = win.parent; depth++;
+  }
+  return null;
+}
+function getAPI() {
+  var api = findAPI(window, 0);
+  if (!api && window.opener) { try { api = findAPI(window.opener, 0); } catch (e) {} }
+  return api;
+}
+
+var API = getAPI();
+var initialised = false;
+var finished = false;
+var bar = document.getElementById("bar");
+
+function lmsSet(k, v) { if (API) { try { API.LMSSetValue(k, String(v)); } catch (e) {} } }
+function lmsCommit()  { if (API) { try { API.LMSCommit(""); } catch (e) {} } }
+
+if (API) {
+  try { initialised = API.LMSInitialize("") === "true" || API.LMSInitialize("") === true; }
+  catch (e) { initialised = false; }
+  // Mark it started, so a half-finished attempt is not left looking untouched.
+  lmsSet("cmi.core.lesson_status", "incomplete");
+  lmsCommit();
+}
+
+/* --- report completion exactly once -------------------------------------- */
+function report(status, score) {
+  if (finished || !API) return;
+  finished = true;
+  if (typeof score === "number" && isFinite(score)) {
+    var s = Math.max(0, Math.min(100, Math.round(score)));
+    lmsSet("cmi.core.score.raw", s);
+    lmsSet("cmi.core.score.min", 0);
+    lmsSet("cmi.core.score.max", 100);
+  }
+  lmsSet("cmi.core.lesson_status", status);
+  lmsCommit();
+  try { API.LMSFinish(""); } catch (e) {}
+  bar.textContent = "Completion reported to the LMS (" + status +
+    (typeof score === "number" ? ", score " + Math.round(score) : "") + ").";
+}
+
+/* --- the player ----------------------------------------------------------- */
+var inIframe = window.self !== window.top;
+var src = PLAYER_ORIGIN + PLAYER_PATH + "?course=" + encodeURIComponent(COURSE_ID);
+
+if (inIframe) {
+  // Launch mode is wrong. Say so plainly rather than showing a dead camera.
+  bar.textContent = "Wrong launch mode.";
+  var fb = document.getElementById("fallback");
+  fb.hidden = false;
+  fb.innerHTML =
+    "<h1 style='font-size:1.1rem'>This lesson must open in a popup</h1>" +
+    "<p>It is currently set to open inside the course player, where the " +
+    "browser will not grant camera access, so the identity checks can never " +
+    "pass.</p><p>In the lesson's settings, set <strong>Desktop</strong> and " +
+    "<strong>Mobile</strong> to <code>Launch in a popup</code>.</p>" +
+    "<p><a href='" + src + "' target='_blank' rel='noopener'>Open the course " +
+    "in a new window</a></p>";
+} else {
+  var f = document.createElement("iframe");
+  f.id = "frame";
+  f.src = src;
+  // The delegation this whole design turns on.
+  f.setAttribute("allow", "camera; microphone; fullscreen; autoplay");
+  f.setAttribute("allowfullscreen", "");
+  document.body.appendChild(f);
+  bar.textContent = API
+    ? "Proctored session. Your result is reported when the course completes."
+    : "Proctored session. (No LMS connection found — nothing will be recorded.)";
+}
+
+/* --- messages from the player -------------------------------------------- */
+window.addEventListener("message", function (e) {
+  if (e.origin !== PLAYER_ORIGIN) return;      // the allow-list, enforced
+  var d = e.data;
+  if (!d || typeof d !== "object") return;
+  if (d.type !== "infuse-progress") return;
+
+  if (d.status === "completed" || d.status === "passed" || d.status === "failed") {
+    report(d.status === "completed" ? "completed" : d.status,
+           typeof d.score === "number" ? d.score : undefined);
+  }
+});
+
+/* If the learner closes the popup mid-course, close the attempt cleanly so
+   the LMS does not leave a session hanging. Status stays whatever it was. */
+window.addEventListener("beforeunload", function () {
+  if (API && initialised && !finished) { lmsCommit(); try { API.LMSFinish(""); } catch (e) {} }
+});
+</script>
+</body>
+</html>

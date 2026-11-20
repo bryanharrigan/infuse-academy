@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SCORM 1.2 wrapper for the Infuse proctored player.
+
+  SCORM 1.2 rather than 2004 on purpose: every LMS supports it, the runtime
+  model needed here is tiny (status + score), and 2004's sequencing would add
+  nothing but ways to go wrong.
+-->
+<manifest identifier="infuse-proctored-player"
+          version="1.0"
+          xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
+          xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://www.imsproject.org/xsd/imscp_rootv1p1p2 imscp_rootv1p1p2.xsd
+                              http://www.adlnet.org/xsd/adlcp_rootv1p2 adlcp_rootv1p2.xsd">
+  <metadata>
+    <schema>ADL SCORM</schema>
+    <schemaversion>1.2</schemaversion>
+  </metadata>
+  <organizations default="infuse-org">
+    <organization identifier="infuse-org">
+      <title>Proctored Course</title>
+      <item identifier="item-1" identifierref="res-1" isvisible="true">
+        <title>Proctored Course</title>
+        <adlcp:masteryscore>80</adlcp:masteryscore>
+      </item>
+    </organization>
+  </organizations>
+  <resources>
+    <resource identifier="res-1" type="webcontent" adlcp:scormtype="sco" href="index.html">
+      <file href="index.html"/>
+    </resource>
+  </resources>
+</manifest>
