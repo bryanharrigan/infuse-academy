@@ -62,6 +62,13 @@ import {
   autoProvisionEnabled,
   launchIdentityTrusted,
 } from "~/.server/embed-provision";
+import {
+  MONITOR_IFRAME,
+  enabled as smowlEnabled,
+  monitoringUrl,
+  registrationUrl,
+  smowlConfig,
+} from "~/.server/lti/smowl";
 
 /**
  * Nothing in this app sets `X-Frame-Options` (checked: no helmet, no
@@ -98,6 +105,12 @@ type LoaderData = {
   launchIdentity: boolean;
   launchSid: string;
   launchName: string;
+  /** Signed server-side, so SMOWL_JWT_SECRET never reaches the browser. */
+  proctor: {
+    monitorUrl: string;
+    registerUrl: string;
+    frame: typeof MONITOR_IFRAME;
+  } | null;
   /**
    * Set when ?course= names a course, even one absent from the catalog list —
    * a single-course embed shouldn't depend on catalog visibility.
@@ -142,8 +155,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const theme = url.searchParams.get("theme") === "dark" ? "dark" : "light";
   // Per-embed override, so one deploy can demo several keys.
   const key = url.searchParams.get("key") ?? EnrollmentKey;
-  // Passed straight through to /embed/play, which decides whether to trust
-  // them. Truncated here so a long query string cannot be used to probe.
+  // Forwarded to /embed/play, which decides whether to trust them. Truncated
+  // here so a long query string cannot be used to probe.
   const launchSid = (url.searchParams.get("sid") ?? "").trim().slice(0, 128);
   const launchName = (url.searchParams.get("sname") ?? "").trim().slice(0, 120);
 
@@ -165,21 +178,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // the course appears in the catalog listing.
   //
   // TRUST A SUPPLIED ID WHEN THE CATALOG DOES NOT KNOW IT.
-  // -----------------------------------------------------
   // /my-catalog with the API key returns a SUBSET of the portal's courses --
   // the same finding that forced a paste-a-course-id box into the LTI
-  // deep-link picker. Falling back to the catalog grid here meant a lesson
-  // pointed at a real, playable course silently showed a course chooser
-  // instead, which looks like the link is broken.
+  // deep-link picker. Falling back to the catalog grid meant a lesson pointed
+  // at a real, playable course silently showed a course chooser instead.
   //
-  // Trusting the id is safe because it grants nothing. The mint binds the
-  // token to this learner AND this course server-side
-  // (claims: Learner.Enrollment), so an id the learner is not entitled to
+  // Safe because the id grants nothing: the mint binds the token to this
+  // learner AND this course server-side, so an id they are not entitled to
   // fails at /embed/play with a 403. The catalog is a convenience, never the
   // access check.
-  //
-  // ?title= is optional and cosmetic: the caller (a SCORM wrapper, say)
-  // already knows the name, which saves a lookup the API key cannot do.
   let focusCourse: EmbedCourse | null = null;
   if (focusCourseId) {
     focusCourse =
@@ -197,6 +204,33 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   }
 
+  /**
+   * Proctoring, when SMOWL is configured AND we know who this is.
+   *
+   * No identity means no proctoring: SMOWL keys a face registration to a
+   * userId, so an anonymous visitor would either share someone else's
+   * registration or create a junk one. Playing unproctored is better than
+   * recording evidence against the wrong person.
+   */
+  let proctor: LoaderData["proctor"] = null;
+  const smowl = smowlConfig();
+  if (launchSid && focusCourseId && smowlEnabled(smowl)) {
+    proctor = {
+      monitorUrl: monitoringUrl(
+        smowl,
+        { userId: launchSid, name: launchName || "Learner", email: "" },
+        { activityId: focusCourseId, containerId: "embed", activityUrl: url.toString() },
+        1
+      ),
+      registerUrl: registrationUrl(
+        smowl,
+        { userId: launchSid, name: launchName || "Learner", email: "" },
+        { activityId: focusCourseId, containerId: "embed", activityUrl: url.toString() }
+      ),
+      frame: MONITOR_IFRAME,
+    };
+  }
+
   return json<LoaderData>({
     courses,
     query,
@@ -206,10 +240,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     error,
     signupUrl: buildSignupUrl(key),
     autoProvision: autoProvisionEnabled(),
+    focusCourse,
     launchIdentity: Boolean(launchSid) && launchIdentityTrusted(),
     launchSid,
     launchName,
-    focusCourse,
+    proctor,
   });
 };
 
@@ -303,6 +338,41 @@ export default function Embed() {
    */
   const canPlayWithoutCredentials =
     (data.autoProvision || data.launchIdentity) && !play.data?.needsAuth;
+
+  /**
+   * PROCTORING GATE.
+   *
+   * SMOWL's monitoring iframe posts `monitoringstatusOK` once every check has
+   * passed and `monitoringstatusNOTOK` if something is later disabled. The
+   * course is not mounted until OK arrives, so a learner cannot see content
+   * before the checks pass.
+   *
+   * `everBlocked` is sticky on purpose. A session where monitoring dropped
+   * part-way does not become acceptable because the camera came back: the
+   * gap is unwitnessed either way, so the attempt is reported incomplete.
+   */
+  const proctored = Boolean(data.proctor);
+  const [monitoring, setMonitoring] = useState<"waiting" | "ok" | "blocked">(
+    proctored ? "waiting" : "ok"
+  );
+  const [everBlocked, setEverBlocked] = useState(false);
+
+  useEffect(() => {
+    if (!proctored) return;
+    const onMessage = (e: MessageEvent) => {
+      const payload =
+        typeof e.data === "string"
+          ? e.data
+          : (e.data as { message?: string } | null)?.message;
+      if (payload === "monitoringstatusOK") setMonitoring("ok");
+      if (payload === "monitoringstatusNOTOK") {
+        setMonitoring("blocked");
+        setEverBlocked(true);
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [proctored]);
   const signedIn =
     data.signedIn || auth.data?.ok === true || canPlayWithoutCredentials;
   const dark = data.theme === "dark";
@@ -317,6 +387,61 @@ export default function Embed() {
     if (data.launchName) q.set("sname", data.launchName);
     play.load(`/embed/play?${q.toString()}`);
   }, [selected, signedIn, playerUrl, play, data.launchSid, data.launchName]);
+
+  /**
+   * COMPLETION, REPORTED OUT TO WHATEVER IS FRAMING US.
+   *
+   * Absorb's lesson player gives the embedding page no completion signal, so
+   * the only way to know is to ask the portal. /embed/progress does that and
+   * returns per-lesson detail as well, which the SCORM wrapper maps onto
+   * cmi.objectives.n.* -- a per-object grade channel we would otherwise
+   * average away into a single number.
+   *
+   * Posted to `*` because this widget is designed to be framed by any site
+   * and cannot know its parent's origin. The receiver is expected to check
+   * OUR origin, which the SCORM wrapper does.
+   */
+  const [reported, setReported] = useState(false);
+
+  useEffect(() => {
+    if (!playerUrl || !selected || reported) return;
+    if (proctored && monitoring !== "ok") return;
+
+    const tick = async () => {
+      try {
+        const r = await fetch(
+          `/embed/progress?courseId=${encodeURIComponent(selected.id)}`
+        );
+        if (!r.ok) return;
+        const d = (await r.json()) as {
+          complete?: boolean;
+          score?: number | null;
+          lessons?: Array<{ id: string; name: string; status: string; score: number | null }>;
+        };
+        if (!d.complete) return;
+
+        setReported(true);
+        window.parent?.postMessage(
+          {
+            type: "infuse-progress",
+            // The decision from the gate: content finished, but proctoring
+            // lapsed at some point, so the attempt does not stand.
+            status: everBlocked ? "incomplete" : "completed",
+            score: everBlocked ? null : d.score ?? null,
+            proctoringLapsed: everBlocked,
+            lessons: everBlocked ? [] : d.lessons ?? [],
+          },
+          "*"
+        );
+      } catch {
+        /* a failed poll is not worth surfacing; the next one may succeed */
+      }
+    };
+
+    void tick();
+    const id = window.setInterval(tick, 15000);
+    return () => window.clearInterval(id);
+  }, [playerUrl, selected, reported, proctored, monitoring, everBlocked]);
 
   useEffect(() => {
     if (play.data?.playerUrl) {
@@ -420,7 +545,54 @@ export default function Embed() {
             <p style={styles.error}>{play.data.error}</p>
           )}
 
-          {playerUrl && !frameBlocked && (
+          {data.proctor && (
+            <div
+              style={{
+                display: "flex",
+                gap: ".75rem",
+                alignItems: "flex-start",
+                marginBottom: ".75rem",
+                fontSize: ".78rem",
+                fontFamily: "system-ui",
+              }}
+            >
+              <iframe
+                title="Proctoring"
+                src={data.proctor.monitorUrl}
+                allow={data.proctor.frame.allow}
+                sandbox={data.proctor.frame.sandbox}
+                width={data.proctor.frame.width}
+                height={data.proctor.frame.height}
+                frameBorder={0}
+                scrolling="no"
+                allowFullScreen
+              />
+              <div>
+                <p style={{ margin: 0, fontWeight: 600 }}>
+                  {monitoring === "ok"
+                    ? "Monitoring active."
+                    : monitoring === "blocked"
+                      ? "Monitoring stopped — the course has been hidden."
+                      : "Waiting for camera checks to pass…"}
+                </p>
+                {everBlocked && monitoring === "ok" && (
+                  <p style={{ margin: ".35rem 0 0", color: "#7f231c" }}>
+                    Monitoring was interrupted earlier in this session, so this
+                    attempt will not be recorded as complete.
+                  </p>
+                )}
+                <p style={{ margin: ".35rem 0 0" }}>
+                  <a href={data.proctor.registerUrl} target="_blank" rel="noreferrer">
+                    Not registered yet? Register your face
+                  </a>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* The course itself. Not mounted until monitoring is confirmed, so
+              a learner cannot see content before the checks pass. */}
+          {playerUrl && !frameBlocked && (!proctored || monitoring === "ok") && (
             <iframe
               ref={frameRef}
               src={playerUrl}
@@ -429,6 +601,16 @@ export default function Embed() {
               allowFullScreen
               style={styles.playerFrame}
             />
+          )}
+
+          {playerUrl && proctored && monitoring !== "ok" && (
+            <div style={styles.fallback}>
+              <p style={styles.muted}>
+                {monitoring === "blocked"
+                  ? "Camera or microphone access was lost. Restore it to continue."
+                  : "The course will appear once the camera and identity checks pass."}
+              </p>
+            </div>
           )}
 
           {playerUrl && frameBlocked && (

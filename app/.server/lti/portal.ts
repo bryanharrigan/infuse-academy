@@ -1023,6 +1023,76 @@ async function lessonScores(
  * taken as done. Being early by a second is harmless here; missing the
  * completion entirely is not.
  */
+/**
+ * Per-lesson results for the playing learner.
+ *
+ * `lessonScores` above reduces this to a bare list of numbers because that is
+ * all a single AGS score needs. SCORM has a per-object channel
+ * (`cmi.objectives.n.*`) that can carry an id, a status and a score for every
+ * lesson, so the detail is worth keeping rather than averaging away.
+ *
+ * Returns [] on any failure: a missing breakdown must never stop the overall
+ * completion from being reported.
+ */
+export type LessonResult = {
+  id: string;
+  name: string;
+  /** SCORM 1.2 vocabulary, so the wrapper can pass it straight through. */
+  status: "completed" | "incomplete" | "passed" | "failed" | "not attempted";
+  score: number | null;
+};
+
+export async function lessonResults(
+  cfg: SourcePortalConfig,
+  token: string,
+  courseId: string
+): Promise<LessonResult[]> {
+  try {
+    const r = await fetch(`${cfg.apiUrl}/online-courses/${courseId}/chapters`, {
+      headers: {
+        "x-api-key": cfg.apiKey,
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+    });
+    if (!r.ok) return [];
+    const data = (await r.json()) as {
+      _embedded?: {
+        chapters?: Array<{
+          _embedded?: { lessons?: Array<Record<string, unknown>> };
+        }>;
+      };
+    };
+    const lessons = (data?._embedded?.chapters ?? []).flatMap(
+      (c) => c._embedded?.lessons ?? []
+    );
+
+    return lessons.map((lesson) => {
+      const enrolment = lesson.enrollment as Record<string, unknown> | undefined;
+      const score = enrolment ? pickScore(enrolment) : null;
+      const rawStatus =
+        typeof enrolment?.status === "string" ? (enrolment.status as string) : "";
+      const isComplete =
+        lesson.isComplete === true || /complete|passed/i.test(rawStatus);
+
+      let status: LessonResult["status"];
+      if (/fail/i.test(rawStatus)) status = "failed";
+      else if (isComplete) status = score !== null ? "passed" : "completed";
+      else if (enrolment) status = "incomplete";
+      else status = "not attempted";
+
+      return {
+        id: typeof lesson.id === "string" ? lesson.id : "",
+        name: typeof lesson.name === "string" ? lesson.name : "Lesson",
+        status,
+        score,
+      };
+    }).filter((l) => l.id);
+  } catch {
+    return [];
+  }
+}
+
 export async function getCourseProgress(
   cfg: SourcePortalConfig,
   token: string,

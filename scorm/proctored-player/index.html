@@ -104,10 +104,43 @@ if (API) {
   lmsCommit();
 }
 
+/* --- per-lesson results -----------------------------------------------------
+   SCORM 1.2 has a per-object channel the overall status cannot carry:
+
+     cmi.objectives.n.id         the lesson
+     cmi.objectives.n.status     completed / passed / failed / incomplete
+     cmi.objectives.n.score.raw  that lesson's own score
+
+   Without this every lesson inside the Infuse player collapses into one
+   number. `_count` is set LAST: some runtimes use it to size the collection
+   and will discard entries written after it.                               */
+function reportObjectives(lessons) {
+  if (!API || !lessons || !lessons.length) return;
+  var written = 0;
+  for (var i = 0; i < lessons.length; i++) {
+    var l = lessons[i];
+    if (!l || !l.id) continue;
+    var k = "cmi.objectives." + written + ".";
+    // Ids must be short and plain; Absorb GUIDs carry hyphens.
+    lmsSet(k + "id", String(l.id).replace(/[^A-Za-z0-9]/g, "").slice(0, 255));
+    lmsSet(k + "status", l.status || "incomplete");
+    if (typeof l.score === "number" && isFinite(l.score)) {
+      lmsSet(k + "score.raw", Math.max(0, Math.min(100, Math.round(l.score))));
+      lmsSet(k + "score.min", 0);
+      lmsSet(k + "score.max", 100);
+    }
+    written++;
+  }
+  if (written) lmsSet("cmi.objectives._count", written);
+}
+
 /* --- report completion exactly once -------------------------------------- */
-function report(status, score) {
+function report(status, score, lessons, lapsed) {
   if (finished || !API) return;
   finished = true;
+
+  reportObjectives(lessons);
+
   if (typeof score === "number" && isFinite(score)) {
     var s = Math.max(0, Math.min(100, Math.round(score)));
     lmsSet("cmi.core.score.raw", s);
@@ -117,14 +150,36 @@ function report(status, score) {
   lmsSet("cmi.core.lesson_status", status);
   lmsCommit();
   try { API.LMSFinish(""); } catch (e) {}
-  bar.textContent = "Completion reported to the LMS (" + status +
-    (typeof score === "number" ? ", score " + Math.round(score) : "") + ").";
+
+  bar.textContent = lapsed
+    ? "Proctoring was interrupted, so this attempt was recorded as incomplete."
+    : "Completion reported to the LMS (" + status +
+      (typeof score === "number" ? ", score " + Math.round(score) : "") +
+      (lessons && lessons.length ? ", " + lessons.length + " lessons" : "") + ").";
 }
 
 /* --- the player ----------------------------------------------------------- */
 var inIframe = window.self !== window.top;
-var studentId   = lmsGet("cmi.core.student_id");
-var studentName = lmsGet("cmi.core.student_name");
+/* Absorb also puts the learner straight in OUR query string:
+     index.html?attemptId=..&courseId=..&lessonId=..
+                &learnerId=<guid>&learnerName=Harrigan%2C%20Bryan
+
+   Confirmed live on bryanh. Worth reading as a fallback because it does not
+   depend on LMSInitialize having succeeded, and `learnerId` is the real
+   Absorb user GUID rather than whatever the runtime chooses to expose.
+   `learnerName` arrives "Last, First", which the player splits correctly.
+
+   SCORM first where it works, since that is the standard surface and is what
+   any other LMS would provide. */
+function qp(name) {
+  try {
+    var m = new RegExp("[?&]" + name + "=([^&]*)").exec(window.location.search);
+    return m ? decodeURIComponent(m[1].replace(/\+/g, " ")) : "";
+  } catch (e) { return ""; }
+}
+
+var studentId   = lmsGet("cmi.core.student_id")   || qp("learnerId");
+var studentName = lmsGet("cmi.core.student_name") || qp("learnerName");
 
 var src = PLAYER_ORIGIN + PLAYER_PATH +
           "?course=" + encodeURIComponent(COURSE_ID) +
@@ -165,9 +220,16 @@ window.addEventListener("message", function (e) {
   if (!d || typeof d !== "object") return;
   if (d.type !== "infuse-progress") return;
 
-  if (d.status === "completed" || d.status === "passed" || d.status === "failed") {
-    report(d.status === "completed" ? "completed" : d.status,
-           typeof d.score === "number" ? d.score : undefined);
+  // "incomplete" arrives when the content finished but proctoring lapsed.
+  // It is reported as a real SCORM status so the attempt does not stand.
+  if (d.status === "completed" || d.status === "passed" ||
+      d.status === "failed"    || d.status === "incomplete") {
+    report(
+      d.status,
+      typeof d.score === "number" ? d.score : undefined,
+      d.lessons,
+      Boolean(d.proctoringLapsed)
+    );
   }
 });
 
